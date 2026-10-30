@@ -6,7 +6,12 @@ import type { SheetWeapon } from "@/lib/sheet";
 import { UniverseContext } from "@/lib/universe-context";
 import { presetById } from "@/lib/universe";
 
-const cp = { universe: presetById("cyberpunk"), save: async () => null, preview: () => {} };
+const cp = {
+  universe: presetById("cyberpunk"),
+  saved: presetById("cyberpunk"),
+  save: async () => null,
+  preview: () => {},
+};
 
 const weapon: SheetWeapon = {
   name: "Mitraillette",

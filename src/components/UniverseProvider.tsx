@@ -78,7 +78,7 @@ export function UniverseProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <UniverseContext.Provider value={{ universe, save, preview: setDraft }}>
+    <UniverseContext.Provider value={{ universe, saved, save, preview: setDraft }}>
       {children}
     </UniverseContext.Provider>
   );

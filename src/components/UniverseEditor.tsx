@@ -37,20 +37,20 @@ import {
  * « Enregistrer » les envoie à toute la table, en direct.
  */
 export function UniverseEditor() {
-  const { universe, save, preview } = useUniverse();
-  const [draft, setDraft] = useState<Universe>(universe);
+  const { saved, save, preview } = useUniverse();
+  const [draft, setDraft] = useState<Universe>(saved);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const file = useRef<HTMLInputElement>(null);
-  const dirty = JSON.stringify(draft) !== JSON.stringify(universe);
+  const dirty = JSON.stringify(draft) !== JSON.stringify(saved);
   const errors = useMemo(() => universeErrors(draft), [draft]);
   const hasErrors = Object.keys(errors).length > 0;
 
   // Si un autre MJ enregistre pendant qu'on ne modifie rien, on suit
   useEffect(() => {
-    if (!dirty) setDraft(universe);
+    if (!dirty) setDraft(saved);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [universe]);
+  }, [saved]);
   // Aperçu en direct sur l'écran du MJ ; on revient à l'univers enregistré en quittant la page
   useEffect(() => {
     preview(dirty ? draft : null);
@@ -717,7 +717,7 @@ export function UniverseEditor() {
             variant="prototype"
             className="btn"
             disabled={!dirty || busy}
-            onClick={() => setDraft(universe)}
+            onClick={() => setDraft(saved)}
           >
             <RotateCcw size={15} /> Annuler
           </Button>

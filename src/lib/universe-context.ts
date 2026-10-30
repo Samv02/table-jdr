@@ -3,6 +3,8 @@ import { DEFAULT_UNIVERSE, type Universe } from "./universe";
 
 export type UniverseState = {
   universe: Universe;
+  /** Univers enregistré, sans l'aperçu en cours : référence pour savoir si un brouillon a changé */
+  saved: Universe;
   /** Enregistre l'univers pour toute la table (MJ uniquement, vérifié par la base) */
   save: (next: Universe) => Promise<string | null>;
   /** Aperçu local (page Univers) : appliqué à l'écran du MJ sans rien enregistrer ; null = revenir à l'univers enregistré */
@@ -14,6 +16,7 @@ export const UniverseContext = createContext<UniverseState | null>(null);
 
 const fallback: UniverseState = {
   universe: DEFAULT_UNIVERSE,
+  saved: DEFAULT_UNIVERSE,
   save: async () => "Univers indisponible",
   preview: () => {},
 };

@@ -5,7 +5,12 @@ import { UniverseContext } from "@/lib/universe-context";
 import { presetById } from "@/lib/universe";
 const withUniverse = (id: string, el: React.ReactElement) => (
   <UniverseContext.Provider
-    value={{ universe: presetById(id), save: async () => null, preview: () => {} }}
+    value={{
+      universe: presetById(id),
+      saved: presetById(id),
+      save: async () => null,
+      preview: () => {},
+    }}
   >
     {el}
   </UniverseContext.Provider>
