@@ -10,7 +10,16 @@ import { deleteMyAccount } from "@/lib/accounts.functions";
 import { Button } from "@/components/ui/button";
 import { InlineError } from "@/components/InlineError";
 import { confirmAction } from "@/components/ConfirmDialog";
-import { Save, Upload, UserRound, ArrowUpRight, Check, Trash2, Users } from "lucide-react";
+import {
+  ArrowUpRight,
+  Check,
+  LifeBuoy,
+  Save,
+  Trash2,
+  Upload,
+  UserRound,
+  Users,
+} from "lucide-react";
 
 export const Route = createFileRoute("/profil")({
   ssr: false,
@@ -46,6 +55,7 @@ function ProfilePage() {
   const [chars, setChars] = useState<{ id: string; name: string; handle: string | null }[]>([]);
   const [username, setUsername] = useState("");
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [supportUnread, setSupportUnread] = useState(0);
 
   const load = useCallback(async () => {
     const { data: u } = await supabase.auth.getUser();
@@ -70,6 +80,11 @@ function ProfilePage() {
       .eq("owner_id", u.user.id)
       .order("name");
     setChars(c ?? []);
+    const { count } = await supabase
+      .from("support_tickets")
+      .select("id", { count: "exact", head: true })
+      .eq("user_unread", true);
+    setSupportUnread(count ?? 0);
   }, []);
   useEffect(() => void load(), [load]);
 
@@ -265,6 +280,24 @@ function ProfilePage() {
                   ))}
                 </ul>
               )}
+            </section>
+            <section className="profile-section">
+              <div className="ph">
+                <h2>SUPPORT</h2>
+                {supportUnread > 0 && (
+                  <span className="tag">
+                    {supportUnread} {supportUnread > 1 ? "réponses" : "réponse"}
+                  </span>
+                )}
+              </div>
+              <p className="note">Un problème, une question ? Écris-nous, la réponse arrive ici.</p>
+              <div className="profile-account">
+                <Button variant="prototype" asChild className="btn profile-action">
+                  <Link to="/support">
+                    <LifeBuoy size={16} /> Mes demandes d’aide
+                  </Link>
+                </Button>
+              </div>
             </section>
             <section className="profile-section">
               <div className="ph">

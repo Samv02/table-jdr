@@ -714,7 +714,8 @@ body.clean .mini-roll-feed {
 .table-navigation nav > * {
   pointer-events: auto;
 }
-.table-navigation nav a {
+.table-navigation nav a,
+.table-navigation .nav-profile {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -733,12 +734,14 @@ body.clean .mini-roll-feed {
     background 0.18s,
     box-shadow 0.18s;
 }
-.table-navigation nav a:hover {
+.table-navigation nav a:hover,
+.table-navigation .nav-profile:hover {
   border-color: var(--cyan);
   color: var(--cyan);
   background: color-mix(in srgb, var(--cyan) 10%, transparent);
 }
-.table-navigation nav a.active {
+.table-navigation nav a.active,
+.table-navigation .nav-profile.active {
   border-color: var(--cyan);
   background: var(--cyan);
   color: var(--bg);
@@ -5262,11 +5265,13 @@ input.prog-name {
 body.corners-round .cut,
 body.corners-round .cut-s,
 body.corners-round .table-navigation nav a,
+body.corners-round .table-navigation .nav-profile,
 body.corners-round .bubble,
 body.corners-round .deck-bar .seg,
 body.corners-square .cut,
 body.corners-square .cut-s,
 body.corners-square .table-navigation nav a,
+body.corners-square .table-navigation .nav-profile,
 body.corners-square .bubble,
 body.corners-square .deck-bar .seg {
   clip-path: none;
@@ -5279,6 +5284,7 @@ body.corners-round .bubble {
   border-radius: 10px;
 }
 body.corners-round .table-navigation nav a,
+body.corners-round .table-navigation .nav-profile,
 body.corners-round .deck-bar .seg,
 body.corners-round .btn,
 body.corners-round .field,
@@ -7093,4 +7099,12 @@ code.bo-card-side {
 }
 .bo-words button:hover {
   color: var(--red);
+}
+.table-navigation .nav-profile {
+  gap: 6px;
+  min-width: 0;
+  padding-inline: 10px;
+}
+.support-page > .support-back {
+  margin-bottom: 12px;
 }

@@ -1,5 +1,5 @@
-import { Link, useNavigate } from "@tanstack/react-router";
-import { Eye, List, LogOut } from "lucide-react";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
+import { Eye, List, LogOut, UserRound } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { charLabel, useIdentity } from "@/lib/active-character";
@@ -13,6 +13,7 @@ export function AppHeader() {
   const id = useIdentity();
   const table = useTable();
   const navigate = useNavigate();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [unread, setUnread] = useState(0);
   const [pulse, setPulse] = useState<string | null>(null);
   const { pinned } = usePinnedFeed(id.userId);
@@ -117,6 +118,15 @@ export function AppHeader() {
         </div>
       </header>
       <div className="table-navigation">
+        <Link
+          to="/profil"
+          className={`nav-profile ${pathname === "/support" ? "active" : ""}`}
+          activeProps={{ className: "active" }}
+        >
+          <UserRound size={14} aria-hidden="true" />
+          Profil
+          {supportUnread && <span className="nav-dot" aria-label="Nouvelle réponse du support" />}
+        </Link>
         <span className="active-identity">
           {id.isVisitor
             ? "ADMIN EN VISITE"
@@ -155,13 +165,6 @@ export function AppHeader() {
           )}
           <Link to="/equipes" activeProps={{ className: "active" }}>
             Équipes
-          </Link>
-          <Link to="/profil" activeProps={{ className: "active" }}>
-            Profil
-          </Link>
-          <Link to="/support" activeProps={{ className: "active" }}>
-            Support
-            {supportUnread && <span className="nav-dot" aria-label="Nouvelle réponse" />}
           </Link>
           {id.isGm && (
             <Link to="/mj/personnages" activeProps={{ className: "active" }}>
