@@ -1,6 +1,8 @@
 import {
   DEFAULT_PREFS,
   arrangeRows,
+  dropCharacter,
+  dropSection,
   moveCharacter,
   moveSection,
   readPrefs,
@@ -114,6 +116,21 @@ describe("dashboard layout", () => {
   it("moves a character and stays in bounds", () => {
     expect(moveCharacter([], ["a", "b", "c"], "c", -1)).toEqual(["a", "c", "b"]);
     expect(moveCharacter([], ["a", "b"], "a", -1)).toEqual(["a", "b"]);
+  });
+  it("drops a character or a section onto another", () => {
+    expect(dropCharacter([], ["a", "b", "c"], "c", "a")).toEqual(["c", "a", "b"]);
+    expect(dropCharacter([], ["a", "b", "c"], "a", "c")).toEqual(["b", "c", "a"]);
+    expect(dropCharacter([], ["a", "b"], "a", "zzz")).toEqual(["a", "b"]);
+    const moved = dropSection(DEFAULT_PREFS.sections, "Sac", "Vitaux").map((s) => s.key);
+    expect(moved[0]).toBe("Sac");
+    expect(moved).toHaveLength(5);
+  });
+  it("refuses an unknown grid size", () => {
+    expect(readPrefs({ columns: 5, spans: { a: 9, b: 2 } })).toMatchObject({
+      columns: 0,
+      spans: { b: 2 },
+    });
+    expect(readPrefs({ columns: 6 }).columns).toBe(6);
   });
   it("moves a section", () => {
     const moved = moveSection(DEFAULT_PREFS.sections, "Stats", -1).map((s) => s.key);

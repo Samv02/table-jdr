@@ -7598,3 +7598,127 @@ code.bo-card-side {
 .ff-row {
   grid-column: 1 / -1;
 }
+
+/* ===== Tableau de bord : mode Disposition, façon gestionnaire de fenêtres ===== */
+@media (min-width: 700px) {
+  .dashboard-rail.tiled {
+    display: grid;
+    grid-auto-flow: row dense;
+    grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+    grid-template-rows: none;
+    grid-auto-rows: auto;
+    gap: 14px;
+    overflow-x: visible;
+    scroll-snap-type: none;
+  }
+  .dashboard-rail.tiled .dashboard-column {
+    display: grid;
+    grid-template-rows: subgrid;
+    grid-row: span 7;
+    grid-column: span min(var(--span, 1), var(--cols));
+    width: auto;
+  }
+  .dashboard-rail.tiled:not(.editing) .dashboard-column {
+    grid-row: span 6;
+  }
+}
+.dashboard-layout-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--cyan);
+  background: var(--dash-glass, var(--panel));
+  color: var(--text);
+  font-size: 14px;
+}
+.dashboard-layout-bar small {
+  color: var(--mute);
+}
+.dashboard-cols {
+  display: inline-flex;
+  gap: 4px;
+}
+.dashboard-cols button,
+.window-spans button {
+  min-width: 36px;
+  min-height: 34px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  color: var(--text);
+}
+.dashboard-cols button.on,
+.window-spans button.on {
+  border-color: var(--cyan);
+  background: color-mix(in srgb, var(--cyan) 18%, transparent);
+  color: var(--cyan);
+}
+.window-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--cyan);
+  background: color-mix(in srgb, var(--cyan) 10%, transparent);
+}
+.window-spans {
+  display: inline-flex;
+  gap: 2px;
+}
+.window-spans button {
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+  font-size: 12px;
+}
+.grip {
+  display: inline-flex;
+  flex: 1;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  min-height: 34px;
+  color: var(--cyan);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.grip span {
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dashboard-section h3.with-grip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.dashboard-section h3 .grip {
+  flex: none;
+  min-width: 26px;
+  min-height: 26px;
+  justify-content: center;
+}
+.grip-close {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin-left: auto;
+  color: var(--mute);
+}
+.grip-close:hover {
+  color: var(--red);
+}
+.dragging {
+  opacity: 0.5;
+}
+.drop-target {
+  outline: 2px dashed var(--cyan);
+  outline-offset: -2px;
+}

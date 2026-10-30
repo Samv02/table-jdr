@@ -66,6 +66,10 @@ export type DashboardPrefs = {
   hiddenCharacters: string[];
   onlineOnly: boolean;
   hurtOnly: boolean;
+  /** Colonnes de la grille, 0 = rangée qui défile */
+  columns: number;
+  /** Largeur de chaque fiche, en colonnes */
+  spans: Record<string, number>;
 };
 
 export const DEFAULT_PREFS: DashboardPrefs = {
@@ -77,7 +81,12 @@ export const DEFAULT_PREFS: DashboardPrefs = {
   hiddenCharacters: [],
   onlineOnly: false,
   hurtOnly: false,
+  columns: 0,
+  spans: {},
 };
+
+export const DASHBOARD_COLUMNS = [0, 1, 2, 3, 4, 6] as const;
+export const DASHBOARD_SPANS = [1, 2, 3] as const;
 
 const strings = (v: unknown) =>
   Array.isArray(v) ? v.filter((x): x is string => typeof x === "string").slice(0, 200) : [];
@@ -101,6 +110,13 @@ export function readPrefs(raw: unknown): DashboardPrefs {
     hiddenCharacters: strings(o["hiddenCharacters"]),
     onlineOnly: o["onlineOnly"] === true,
     hurtOnly: o["hurtOnly"] === true,
+    columns: DASHBOARD_COLUMNS.find((c) => c === o["columns"]) ?? 0,
+    spans: Object.fromEntries(
+      Object.entries((o["spans"] ?? {}) as Record<string, unknown>).flatMap(([id, span]) => {
+        const valid = DASHBOARD_SPANS.find((s) => s === span);
+        return valid ? [[id, valid]] : [];
+      }),
+    ),
   };
 }
 
@@ -128,6 +144,28 @@ export function moveCharacter(order: string[], ids: string[], id: string, delta:
   const to = from + delta;
   if (from < 0 || to < 0 || to >= list.length) return list;
   [list[from], list[to]] = [list[to] as string, list[from] as string];
+  return list;
+}
+
+/** Place une fiche à l'endroit d'une autre (glisser-déposer). */
+export function dropCharacter(order: string[], ids: string[], id: string, target: string) {
+  const list = manualOrder(
+    ids.map((x) => ({ id: x })),
+    order,
+  ).map((x) => x.id);
+  const to = list.indexOf(target);
+  if (!list.includes(id) || to < 0) return list;
+  list.splice(list.indexOf(id), 1);
+  list.splice(to, 0, id);
+  return list;
+}
+
+export function dropSection(sections: DashboardPrefs["sections"], key: string, target: string) {
+  const list = [...sections];
+  const from = list.findIndex((s) => s.key === key);
+  const to = list.findIndex((s) => s.key === target);
+  const [moved] = from >= 0 && to >= 0 ? list.splice(from, 1) : [];
+  if (moved) list.splice(to, 0, moved);
   return list;
 }
 

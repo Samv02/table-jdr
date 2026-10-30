@@ -13,6 +13,9 @@ import {
   Crosshair,
   Swords,
   SlidersHorizontal,
+  GripVertical,
+  LayoutGrid,
+  X,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { InlineError } from "@/components/InlineError";
@@ -42,11 +45,18 @@ import { confirmAction } from "@/components/ConfirmDialog";
 import { useUniverse } from "@/lib/universe-context";
 import { gaugeMax, woundedFor } from "@/lib/universe";
 import { DashboardSettings } from "@/components/DashboardSettings";
+import { useDragSort } from "@/lib/use-drag-sort";
+import type { CSSProperties, PointerEvent } from "react";
 import { HpVisual } from "@/components/HpVisual";
 import {
+  DASHBOARD_COLUMNS,
+  DASHBOARD_SPANS,
   DEFAULT_PREFS,
   arrangeRows,
+  dropCharacter,
+  dropSection,
   manualOrder,
+  toggleIn,
   readPrefs,
   type DashboardPrefs,
 } from "@/lib/dashboard";
@@ -61,6 +71,22 @@ export function GmDashboard() {
   const [err, setErr] = useState<string | null>(null);
   const [prefs, setPrefs] = useState<DashboardPrefs>(DEFAULT_PREFS);
   const [organizing, setOrganizing] = useState(false);
+  const [layoutMode, setLayoutMode] = useState(false);
+  const prefsRef = useRef(prefs);
+  prefsRef.current = prefs;
+  const rowsRef = useRef<string[]>([]);
+  const grabCharacter = useDragSort("character", (from, to) => {
+    const p = prefsRef.current;
+    changePrefs({
+      ...p,
+      sort: "manual",
+      order: dropCharacter(p.order, rowsRef.current, from, to),
+    });
+  });
+  const grabSection = useDragSort("section", (from, to) => {
+    const p = prefsRef.current;
+    changePrefs({ ...p, sections: dropSection(p.sections, from, to) });
+  });
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const rail = useRef<HTMLDivElement>(null);
@@ -188,6 +214,7 @@ export function GmDashboard() {
   }
   const filtered = arrangeRows(rows, prefs, { isOnline: (id) => table.online.has(id), u });
   const ordered = manualOrder(rows, prefs.order);
+  rowsRef.current = rows.map((r) => r.id);
   const visible = new Set<string>(prefs.sections.filter((s) => s.visible).map((s) => s.key));
   useEffect(() => {
     void supabase.rpc("get_dashboard_prefs").then(({ data }) => setPrefs(readPrefs(data)));
@@ -352,6 +379,14 @@ export function GmDashboard() {
           >
             <SlidersHorizontal size={15} /> Organiser
           </Button>
+          <Button
+            variant="prototype"
+            className={`btn ${layoutMode ? "on" : ""}`}
+            aria-pressed={layoutMode}
+            onClick={() => setLayoutMode((v) => !v)}
+          >
+            <LayoutGrid size={15} /> Disposition
+          </Button>
         </div>
         <div className="dashboard-locks">
           <Button
@@ -400,6 +435,26 @@ export function GmDashboard() {
           Blessés seulement
         </label>
       </div>
+      {layoutMode && (
+        <div className="dashboard-layout-bar">
+          <span>Colonnes</span>
+          <div className="dashboard-cols" role="radiogroup" aria-label="Nombre de colonnes">
+            {DASHBOARD_COLUMNS.map((c) => (
+              <button
+                type="button"
+                key={c}
+                role="radio"
+                aria-checked={prefs.columns === c}
+                className={prefs.columns === c ? "on" : ""}
+                onClick={() => changePrefs({ ...prefs, columns: c })}
+              >
+                {c === 0 ? "Auto" : c}
+              </button>
+            ))}
+          </div>
+          <small>Attrape une fiche ou une section par sa poignée pour la déplacer.</small>
+        </div>
+      )}
       {organizing && <DashboardSettings rows={ordered} prefs={prefs} onChange={changePrefs} />}
       {loading ? (
         <p className="empty-state">Chargement…</p>
@@ -409,7 +464,8 @@ export function GmDashboard() {
         </p>
       ) : (
         <div
-          className="dashboard-rail"
+          className={`dashboard-rail ${prefs.columns ? "tiled" : ""} ${layoutMode ? "editing" : ""}`}
+          style={prefs.columns ? ({ "--cols": prefs.columns } as CSSProperties) : undefined}
           ref={rail}
           onScroll={() => {
             if (window.innerWidth >= 1100 || !rail.current) return;
@@ -428,6 +484,34 @@ export function GmDashboard() {
               row={r}
               visible={visible}
               prefs={prefs}
+              tools={
+                layoutMode
+                  ? {
+                      grabSection,
+                      hideSection: (key) =>
+                        changePrefs({
+                          ...prefs,
+                          sections: prefs.sections.map((s) =>
+                            s.key === key ? { ...s, visible: false } : s,
+                          ),
+                        }),
+                    }
+                  : null
+              }
+              window={
+                layoutMode
+                  ? {
+                      grab: grabCharacter,
+                      setSpan: (span) =>
+                        changePrefs({ ...prefs, spans: { ...prefs.spans, [r.id]: span } }),
+                      hide: () =>
+                        changePrefs({
+                          ...prefs,
+                          hiddenCharacters: toggleIn(prefs.hiddenCharacters, r.id),
+                        }),
+                    }
+                  : null
+              }
               hurt={hurt.has(r.id)}
               update={(change) => update(r.id, change)}
               onLock={(value) => void setLock([r.id], value)}
@@ -443,6 +527,13 @@ type ColumnProps = {
   row: DashboardRow;
   visible: Set<string>;
   prefs: DashboardPrefs;
+  /** Présents seulement en mode Disposition */
+  tools: SectionTools | null;
+  window: {
+    grab: (e: PointerEvent<HTMLElement>, id: string) => void;
+    setSpan: (span: number) => void;
+    hide: () => void;
+  } | null;
   hurt: boolean;
   update: (change: (s: DashboardState) => Partial<DashboardState>) => void;
   onLock: (value: boolean) => void;
@@ -452,7 +543,49 @@ const sectionOrder = (prefs: DashboardPrefs, key: string) => ({
   order: prefs.sections.findIndex((s) => s.key === key) + 1,
 });
 
-function DashboardColumn({ row: r, visible, prefs, hurt, update, onLock }: ColumnProps) {
+type SectionTools = {
+  grabSection: (e: PointerEvent<HTMLElement>, key: string) => void;
+  hideSection: (key: string) => void;
+};
+
+function SectionTitle({ name, tools }: { name: string; tools: SectionTools | null }) {
+  return (
+    <h3 className={tools ? "with-grip" : ""}>
+      {tools && (
+        <button
+          type="button"
+          className="grip"
+          aria-label={`Déplacer la section ${name}`}
+          onPointerDown={(e) => tools.grabSection(e, name)}
+        >
+          <GripVertical size={14} aria-hidden="true" />
+        </button>
+      )}
+      {name}
+      {tools && (
+        <button
+          type="button"
+          className="grip-close"
+          aria-label={`Masquer la section ${name}`}
+          onClick={() => tools.hideSection(name)}
+        >
+          <X size={13} aria-hidden="true" />
+        </button>
+      )}
+    </h3>
+  );
+}
+
+function DashboardColumn({
+  row: r,
+  visible,
+  prefs,
+  tools,
+  window: frame,
+  hurt,
+  update,
+  onLock,
+}: ColumnProps) {
   const table = useTable();
   const identity = useIdentity();
   const navigate = useNavigate();
@@ -486,9 +619,46 @@ function DashboardColumn({ row: r, visible, prefs, hurt, update, onLock }: Colum
   return (
     <article
       className="dashboard-column"
+      style={{ "--span": prefs.spans[r.id] ?? 1 } as CSSProperties}
       data-character={r.id}
       aria-label={`Fiche ${r.handle || r.name}`}
     >
+      {frame && (
+        <div className="window-bar">
+          <button
+            type="button"
+            className="grip"
+            aria-label={`Déplacer ${r.handle || r.name}`}
+            onPointerDown={(e) => frame.grab(e, r.id)}
+          >
+            <GripVertical size={16} aria-hidden="true" />
+            <span>{r.handle || r.name}</span>
+          </button>
+          <span className="window-spans" role="radiogroup" aria-label="Largeur de la fiche">
+            {DASHBOARD_SPANS.map((n) => (
+              <button
+                type="button"
+                key={n}
+                role="radio"
+                aria-checked={(prefs.spans[r.id] ?? 1) === n}
+                aria-label={`Largeur ${n} pour ${r.handle || r.name}`}
+                className={(prefs.spans[r.id] ?? 1) === n ? "on" : ""}
+                onClick={() => frame.setSpan(n)}
+              >
+                {n}
+              </button>
+            ))}
+          </span>
+          <button
+            type="button"
+            className="grip-close"
+            aria-label={`Masquer ${r.handle || r.name}`}
+            onClick={frame.hide}
+          >
+            <X size={14} aria-hidden="true" />
+          </button>
+        </div>
+      )}
       <header className="dashboard-column-head">
         <div className={`av neon-${member?.color ?? "cyan"} ${online ? "" : "off"}`}>
           {member?.avatar ? (
@@ -540,9 +710,10 @@ function DashboardColumn({ row: r, visible, prefs, hurt, update, onLock }: Colum
       <section
         className={`dashboard-section dashboard-vitals hp-${status} ${hurt ? "hp-loss" : ""}`}
         hidden={!visible.has("Vitaux")}
+        data-section="Vitaux"
         style={sectionOrder(prefs, "Vitaux")}
       >
-        <h3>Vitaux</h3>
+        <SectionTitle name="Vitaux" tools={tools} />
         <div className="dashboard-hp">
           <b>
             {s ? Math.min(s.hp_current, max) : "—"}
@@ -628,9 +799,10 @@ function DashboardColumn({ row: r, visible, prefs, hurt, update, onLock }: Colum
       <section
         className="dashboard-section"
         hidden={!visible.has("Stats")}
+        data-section="Stats"
         style={sectionOrder(prefs, "Stats")}
       >
-        <h3>Stats</h3>
+        <SectionTitle name="Stats" tools={tools} />
         <div className="dashboard-stats">
           {u.rules.stats
             .filter((st) => !prefs.hiddenStats.includes(st.key))
@@ -645,9 +817,10 @@ function DashboardColumn({ row: r, visible, prefs, hurt, update, onLock }: Colum
       <section
         className="dashboard-section"
         hidden={!visible.has("Compétences")}
+        data-section="Compétences"
         style={sectionOrder(prefs, "Compétences")}
       >
-        <h3>Compétences</h3>
+        <SectionTitle name="Compétences" tools={tools} />
         <div className="dashboard-skills">
           {orderedSkills(skills, u.rules.skillOrder).map(({ skill, index }) => (
             <div key={index} className={top.has(index) ? "top" : ""}>
@@ -660,9 +833,10 @@ function DashboardColumn({ row: r, visible, prefs, hurt, update, onLock }: Colum
       <section
         className="dashboard-section"
         hidden={!visible.has("Combat")}
+        data-section="Combat"
         style={sectionOrder(prefs, "Combat")}
       >
-        <h3>Combat</h3>
+        <SectionTitle name="Combat" tools={tools} />
         <div className="dw-list">
           {weapons.map((w, i) => {
             const a = ammo(i, w);
@@ -787,9 +961,10 @@ function DashboardColumn({ row: r, visible, prefs, hurt, update, onLock }: Colum
       <section
         className="dashboard-section"
         hidden={!visible.has("Sac")}
+        data-section="Sac"
         style={sectionOrder(prefs, "Sac")}
       >
-        <h3>Sac</h3>
+        <SectionTitle name="Sac" tools={tools} />
         {u.modules.money && (
           <div className="dashboard-money">
             <b>
