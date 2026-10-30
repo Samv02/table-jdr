@@ -36,4 +36,5 @@ Studio Supabase local (voir et modifier les tables) : http://127.0.0.1:54323
 6. Avant de dire « c'est fini » : `npx tsc --noEmit`, `npm test`, `npm run lint`.
 7. Interface en français, adaptée au mobile.
 
+Historique, préférences du propriétaire et tâches en attente : @docs/CONTEXTE.md
 Détails techniques complémentaires : @AGENTS.md
