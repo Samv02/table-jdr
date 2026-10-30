@@ -8280,20 +8280,29 @@ body {
     0 16%
   );
 }
-body.corners-scroll .cut,
+/* Grands cadres : la silhouette déchirée suffit, une bordure serait coupée par endroits */
+body.corners-scroll .panel.cut,
+body.corners-scroll .dashboard-column,
+.corner-sample.corner-scroll {
+  border-color: transparent;
+  border-radius: 0;
+  clip-path: var(--torn-edge);
+}
+body.corners-scroll .panel.cut,
+body.corners-scroll .dashboard-column {
+  background: color-mix(in srgb, var(--yellow) 7%, var(--panel));
+  box-shadow: inset 0 0 26px color-mix(in srgb, var(--yellow) 8%, transparent);
+}
+/* Petits éléments : contour irrégulier tracé à la main, bordure intacte */
 body.corners-scroll .cut-s,
 body.corners-scroll .table-navigation nav a,
 body.corners-scroll .table-navigation .nav-profile,
 body.corners-scroll .bubble,
 body.corners-scroll .btn,
-body.corners-scroll .field,
-body.corners-scroll .dashboard-column,
-.corner-sample.corner-scroll {
-  border-radius: 0;
-  clip-path: var(--torn-edge);
-}
-body.corners-scroll .panel.cut {
-  box-shadow: inset 0 0 26px color-mix(in srgb, var(--yellow) 10%, transparent);
+body.corners-scroll .icon-btn,
+body.corners-scroll .field {
+  border-radius: 240px 14px 220px 14px / 14px 220px 14px 240px;
+  clip-path: none;
 }
 .corner-sample.corner-scroll {
   width: 46px;
