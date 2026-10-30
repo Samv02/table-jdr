@@ -1,13 +1,6 @@
-<!-- LOVABLE:BEGIN -->
-> [!IMPORTANT]
-> This project is connected to [Lovable](https://lovable.dev). Avoid rewriting
-> published git history — force pushing, or rebasing/amending/squashing commits
-> that are already pushed — as it rewrites history on Lovable's side and the
-> user will likely lose their project history.
->
-> Commits you push to the connected branch sync back to Lovable and show up in
-> the editor, so keep the branch in a working state.
-<!-- LOVABLE:END -->
+> [!NOTE]
+> Ce dépôt n'est plus relié à Lovable : il se développe en local (VS Code + Claude Code).
+> Ne pas réécrire l'historique déjà poussé (pas de force push) et garder la branche `main` fonctionnelle.
 
 - Shared scene, minimal party directory, and presence are managed by TableEnvironment; keep private sheet reads separate and RLS-protected.
 - Table context and its hook live in the non-component table-context module; all consumers import it directly so Fast Refresh cannot split provider identity.
@@ -35,11 +28,11 @@
 - Dashboard visibility toggles apply to every character and desktop rows use subgrid; this aligns sections while mobile keeps horizontally snapping single-character columns.
 
 - HealthTrace derives its visual state from the shared hpStatus rule; the ECG never determines health or changes persisted state.
-- Critical-hit presentation reads the shared isCriticalRoll rule in lib/roll-crit.ts; the roll animation and the roll feed must never restate the condition, so both stay colored identically.
+- Critical-hit presentation reads the shared isCritical / isFumble / dieClass rules in lib/universe.ts (per-universe crit rules); the roll animation and the roll feed must never restate the condition, so both stay colored identically.
 
 - Universe (lib/universe.ts) holds every game-specific choice: theme, words, rules (stats, skill die, roll-under mode, formulas), modules. Never hard-code a stat name, currency, die size or label: read it from useUniverse()/useWords().
 - Rule formulas go through lib/formula.ts (tokenizer + parser, no eval). Pure rule helpers take the Universe as a parameter so tests can run each preset.
 - The universe lives in session_state.universe, readable before login through get_universe(); UniverseProvider applies the theme (CSS variables + body classes) and caches it for THEME_BOOT.
 - Styles use only theme variables (--bg, --panel, --ink, --text, --mute, --cyan…--violet, --orange, --head, --display, --mono); add new colors through color-mix() on those variables.
-- Database schema: supabase/installation.sql is the source of truth; drizzle/migrations/0000_installation.sql is the same script without BEGIN/COMMIT. Keep both in sync.
+- Database schema: supabase/installation.sql is the full script; supabase/migrations/ (Supabase CLI) and drizzle/migrations/0000_installation.sql hold the same schema. Schema changes go in a NEW timestamped migration, also appended to installation.sql. The dev database is a hosted Supabase project: give the owner the SQL to paste in its SQL Editor.
 
