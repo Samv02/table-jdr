@@ -11,6 +11,8 @@ import { Button } from "@/components/ui/button";
 import { neonVar, useProfiles } from "@/lib/profile";
 import { useTable } from "@/lib/table-context";
 import { useIdentity } from "@/lib/active-character";
+import { useServerFn } from "@tanstack/react-start";
+import { acquireItem } from "@/lib/catalog.functions";
 import { UserMinus } from "lucide-react";
 import { confirmAction } from "@/components/ConfirmDialog";
 import { UniverseEditor } from "@/components/UniverseEditor";
@@ -58,6 +60,7 @@ function GmCharacters() {
   const identity = useIdentity();
   const [deleting, setDeleting] = useState<string | null>(null);
   const { universe: u } = useUniverse();
+  const acquire = useServerFn(acquireItem);
   const [newName, setNewName] = useState("");
 
   const load = useCallback(async () => {
@@ -116,11 +119,15 @@ function GmCharacters() {
     if (!name) return;
     setMsg(null);
     const start = u.rules.rollMode === "under" ? 30 : u.rules.skillDice.sides >= 20 ? 10 : 5;
+    const tpl = u.template;
+    const stats = Object.fromEntries(
+      u.rules.stats.map((st) => [st.key, tpl.stats[st.key] ?? start]),
+    );
     const sheet: Record<string, unknown> = {
       name,
       handle: name,
-      stats: Object.fromEntries(u.rules.stats.map((st) => [st.key, start])),
-      skills: [],
+      stats,
+      skills: tpl.skills,
       weapons: [],
     };
     const { data, error } = await supabase
@@ -129,15 +136,23 @@ function GmCharacters() {
       .select("id")
       .single();
     if (error) return setMsg(error.message);
-    const hp = hpMaxFor(u, Object.fromEntries(u.rules.stats.map((st) => [st.key, start])), sheet);
+    const hp = hpMaxFor(u, stats, sheet);
     const { error: e2 } = await supabase.from("character_state").insert({
       character_id: data.id,
       hp_current: hp,
-      eddies: 0,
+      eddies: tpl.money,
+      program_slots: tpl.slots,
       ammo: {} as Json,
       inventory: [] as Json,
     });
     if (e2) return setMsg(e2.message);
+    try {
+      for (const itemId of tpl.items) {
+        await acquire({ data: { characterId: data.id, itemId, free: true } });
+      }
+    } catch (e) {
+      return setMsg(e instanceof Error ? e.message : "Objets de départ non ajoutés.");
+    }
     setNewName("");
     setMsg(`${name} créé. Ouvre sa fiche et passe en Mode édition pour la remplir.`);
     window.dispatchEvent(new Event("table:refresh"));

@@ -923,6 +923,10 @@ img.av {
   width: 30px;
   height: 30px;
 }
+/* Le bouton de dés reste à l'écran partout ; seule la fiche joueur a sa barre du bas à la place */
+.fab-desk {
+  display: flex;
+}
 .fab-desk.player-fab {
   display: none;
 }
@@ -3629,6 +3633,12 @@ body:has(.sheet.open) .comms-fab {
 .fab-desk svg {
   width: 22px;
   height: 22px;
+}
+@media (max-width: 1099px) {
+  .fab-desk {
+    right: 12px;
+    bottom: calc(16px + env(safe-area-inset-bottom));
+  }
 }
 @media (min-width: 1100px) {
   .fab-desk {
@@ -7107,4 +7117,157 @@ code.bo-card-side {
 }
 .support-page > .support-back {
   margin-bottom: 12px;
+}
+
+/* ===== Catalogue, fiche de départ, boutique ===== */
+.catalog {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.catalog-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.catalog-tools .field {
+  flex: 1 1 180px;
+  min-width: 0;
+}
+.catalog-tools .btn,
+.catalog-effects > .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.catalog-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--panel) 80%, transparent);
+}
+.catalog-form label,
+.catalog-effects > span {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--mute);
+  font-size: 13px;
+}
+.catalog-form .field {
+  width: 100%;
+}
+.catalog-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+}
+.catalog-effects {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+.catalog-effect {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 90px) auto;
+  gap: 6px;
+  width: 100%;
+}
+.catalog-form label.catalog-check {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+.catalog-form .catalog-check input {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  accent-color: var(--cyan);
+}
+.catalog-list,
+.shop-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.catalog-list li,
+.shop-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+}
+.catalog-list li.hidden-item {
+  border-style: dashed;
+}
+.catalog-name {
+  display: flex;
+  flex: 1 1 180px;
+  flex-direction: column;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.catalog-name small {
+  color: var(--mute);
+  font-size: 12px;
+}
+.catalog-name em {
+  color: var(--mute);
+  font-size: 12px;
+}
+.catalog-price {
+  color: var(--yellow);
+  font-family: var(--mono);
+  font-size: 13px;
+  white-space: nowrap;
+}
+.shop {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.shop-list .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.item-desc {
+  display: block;
+  color: var(--mute);
+  font-size: 12px;
+  font-weight: 400;
+}
+.item-use {
+  flex: none;
+}
+.template-skill {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 120px) minmax(0, 70px) auto;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.template-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+}
+.template-items label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+}
+@media (max-width: 560px) {
+  .catalog-effect {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .template-skill {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
 }

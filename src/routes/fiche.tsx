@@ -10,6 +10,9 @@ import { PlayerNotes } from "@/components/PlayerNotes";
 import { ArsenalWeapon } from "@/components/ArsenalWeapon";
 import { SlotPanel } from "@/components/SlotPanel";
 import { readDeckSlots, readPrograms, type Program } from "@/lib/programs";
+import { useServerFn } from "@tanstack/react-start";
+import { consumeItem } from "@/lib/catalog.functions";
+import { ShopPanel } from "@/components/ShopPanel";
 import { sheetCanRoll } from "@/lib/table";
 import { createSaveQueue } from "@/lib/save-queue";
 import { weaponAttack, weaponDamage } from "@/lib/weapon-rules";
@@ -25,7 +28,6 @@ import {
   Lock,
   LockOpen,
 } from "lucide-react";
-import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import { charLabel, useIdentity } from "@/lib/active-character";
@@ -221,6 +223,9 @@ function Sheet({ charId, isGm, userId }: { charId: string; isGm: boolean; userId
   const sheet = useMemo(() => ch?.sheet ?? {}, [ch]);
   const stats = useMemo(() => readStats(sheet, u), [sheet, u]);
   const skills = useMemo(() => readSkills(sheet), [sheet]);
+  const runItem = useServerFn(consumeItem);
+  const [using, setUsing] = useState(false);
+  const [useResult, setUseResult] = useState<string | null>(null);
   const weapons = useMemo(() => readWeapons(sheet), [sheet]);
   const max = hpMax(stats, sheet, u);
   const wounded = woundedFor(u, max, stats, sheet);
@@ -427,6 +432,20 @@ function Sheet({ charId, isGm, userId }: { charId: string; isGm: boolean; userId
     void saveState({ ammo: { ...current, [String(index)]: update(entry) } });
   };
   const setInv = (inv: InventoryItem[]) => saveState({ inventory: inv });
+  async function activateItem(itemId: string) {
+    setUsing(true);
+    setUseResult(null);
+    try {
+      const r = await runItem({ data: { characterId: charId, itemId } });
+      setUseResult(
+        [r.name, r.total === null ? "" : `dé : ${r.total}`, ...r.lines].filter(Boolean).join(" · "),
+      );
+    } catch (e) {
+      setUseResult(e instanceof Error ? e.message : "Utilisation impossible.");
+    } finally {
+      setUsing(false);
+    }
+  }
 
   const sorted = orderedSkills(skills, u.rules.skillOrder);
   const top = topSkillIndexes(skills, stats, u);
@@ -1040,10 +1059,24 @@ function Sheet({ charId, isGm, userId }: { charId: string; isGm: boolean; userId
               <div className="ph">
                 <h2>{w$.inventory}</h2>
               </div>
+              {useResult && <p className="note">{useResult}</p>}
               <div className="inv">
                 {st.inventory.map((it, i) => (
                   <div className="item cut-s" key={i}>
-                    <span className="n">{it.name}</span>
+                    <span className="n">
+                      {it.name}
+                      {it.desc && <small className="item-desc">{it.desc}</small>}
+                    </span>
+                    {it.usable && it.item_id && (
+                      <Button
+                        variant="prototype"
+                        className="btn y item-use"
+                        disabled={!canEdit || using}
+                        onClick={() => void activateItem(it.item_id as string)}
+                      >
+                        Utiliser
+                      </Button>
+                    )}
                     <Button
                       variant="prototype"
                       disabled={!canEdit}
@@ -1113,6 +1146,9 @@ function Sheet({ charId, isGm, userId }: { charId: string; isGm: boolean; userId
                 </form>
               )}
             </section>
+            {u.modules.shop && (
+              <ShopPanel characterId={charId} money={st.eddies} isGm={isGm} canEdit={canEdit} />
+            )}
           </div>
         </div>
       </div>

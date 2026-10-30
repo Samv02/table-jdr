@@ -104,6 +104,53 @@ export type Database = {
           },
         ];
       };
+      catalog_items: {
+        Row: {
+          category: string;
+          created_at: string;
+          data: Json;
+          description: string;
+          id: string;
+          in_shop: boolean;
+          kind: string;
+          name: string;
+          price: number;
+          team_id: string;
+        };
+        Insert: {
+          category?: string;
+          created_at?: string;
+          data?: Json;
+          description?: string;
+          id?: string;
+          in_shop?: boolean;
+          kind?: string;
+          name: string;
+          price?: number;
+          team_id?: string;
+        };
+        Update: {
+          category?: string;
+          created_at?: string;
+          data?: Json;
+          description?: string;
+          id?: string;
+          in_shop?: boolean;
+          kind?: string;
+          name?: string;
+          price?: number;
+          team_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "catalog_items_team_id_fkey";
+            columns: ["team_id"];
+            isOneToOne: false;
+            referencedRelation: "teams";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       character_notes: {
         Row: {
           body: string;

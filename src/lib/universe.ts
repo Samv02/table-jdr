@@ -60,6 +60,7 @@ export type Words = {
   weapons: string;
   features: string;
   inventory: string;
+  shop: string;
   notes: string;
   money: string;
   moneySymbol: string;
@@ -116,7 +117,20 @@ export type Modules = {
   slots: boolean;
   features: boolean;
   ecg: boolean;
+  shop: boolean;
 };
+
+/** Fiche de départ : ce que reçoit chaque nouvelle fiche. Une carac absente garde la valeur habituelle. */
+export type TemplateSkill = { name: string; stat: string; level: number };
+export type Template = {
+  stats: Record<string, number>;
+  money: number;
+  slots: number;
+  skills: TemplateSkill[];
+  /** Objets du catalogue donnés à la création */
+  items: string[];
+};
+export const EMPTY_TEMPLATE: Template = { stats: {}, money: 0, slots: 0, skills: [], items: [] };
 
 export type Universe = {
   version: 1;
@@ -125,6 +139,7 @@ export type Universe = {
   words: Words;
   rules: Rules;
   modules: Modules;
+  template: Template;
 };
 
 /* ------------------------------------------------------------------ */
@@ -265,6 +280,7 @@ const NEUTRAL_WORDS: Words = {
   weapons: "Armes",
   features: "Particularités",
   inventory: "Inventaire",
+  shop: "Boutique",
   notes: "Bloc-notes",
   money: "Argent",
   moneySymbol: "¤",
@@ -338,7 +354,8 @@ const NEUTRAL: Universe = {
     autofire: false,
     skillOrder: [],
   },
-  modules: { ammo: true, money: true, slots: false, features: true, ecg: false },
+  modules: { ammo: true, money: true, slots: false, features: true, ecg: false, shop: true },
+  template: EMPTY_TEMPLATE,
 };
 
 const FANTASY: Universe = {
@@ -422,7 +439,8 @@ const FANTASY: Universe = {
     autofire: false,
     skillOrder: [],
   },
-  modules: { ammo: true, money: true, slots: true, features: true, ecg: false },
+  modules: { ammo: true, money: true, slots: true, features: true, ecg: false, shop: true },
+  template: EMPTY_TEMPLATE,
 };
 
 const GRIMDARK: Universe = {
@@ -525,7 +543,8 @@ const GRIMDARK: Universe = {
     autofire: false,
     skillOrder: [],
   },
-  modules: { ammo: true, money: true, slots: false, features: true, ecg: false },
+  modules: { ammo: true, money: true, slots: false, features: true, ecg: false, shop: true },
+  template: EMPTY_TEMPLATE,
 };
 
 const HORROR: Universe = {
@@ -612,7 +631,8 @@ const HORROR: Universe = {
     autofire: false,
     skillOrder: [],
   },
-  modules: { ammo: true, money: true, slots: true, features: true, ecg: false },
+  modules: { ammo: true, money: true, slots: true, features: true, ecg: false, shop: true },
+  template: EMPTY_TEMPLATE,
 };
 
 const CYBERPUNK: Universe = {
@@ -722,7 +742,8 @@ const CYBERPUNK: Universe = {
       "Volonté",
     ],
   },
-  modules: { ammo: true, money: true, slots: true, features: true, ecg: true },
+  modules: { ammo: true, money: true, slots: true, features: true, ecg: true, shop: true },
+  template: EMPTY_TEMPLATE,
 };
 
 export const PRESETS: { id: string; label: string; description: string; universe: Universe }[] = [
@@ -891,7 +912,40 @@ export function normalizeUniverse(raw: unknown): Universe {
   const modules = { ...base.modules };
   for (const k of Object.keys(modules) as (keyof Modules)[])
     if (typeof m[k] === "boolean") modules[k] = m[k] as boolean;
-  return { version: 1, preset: base.preset, theme, words, rules, modules };
+  return {
+    version: 1,
+    preset: base.preset,
+    theme,
+    words,
+    rules,
+    modules,
+    template: readTemplate(r["template"]),
+  };
+}
+function readTemplate(raw: unknown): Template {
+  const t = obj(raw);
+  const int = (v: unknown, min: number, max: number) => {
+    const n = Math.round(Number(v));
+    return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : min;
+  };
+  const stats: Record<string, number> = {};
+  for (const [k, v] of Object.entries(obj(t["stats"]))) {
+    if (k.length <= 40 && Number.isFinite(Number(v))) stats[k] = Number(v);
+  }
+  const skills = Array.isArray(t["skills"]) ? t["skills"] : [];
+  const items = Array.isArray(t["items"]) ? t["items"] : [];
+  return {
+    stats,
+    money: int(t["money"], 0, 100000000),
+    slots: int(t["slots"], 0, 20),
+    skills: skills.slice(0, 80).flatMap((s) => {
+      const o = obj(s);
+      return isStr(o["name"], 60) && isStr(o["stat"], 40)
+        ? [{ name: o["name"], stat: o["stat"], level: int(o["level"], 0, 1000) }]
+        : [];
+    }),
+    items: items.filter((i): i is string => isStr(i, 40)).slice(0, 50),
+  };
 }
 function dedupe(stats: StatDef[]) {
   const seen = new Set<string>();

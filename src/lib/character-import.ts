@@ -2,7 +2,14 @@
 // Assumed fields: name, handle, hpCurrent, eddies, inventory (text, one item per line),
 // weapons: [{ name, ammo }]. Unknown fields are preserved untouched in `sheet`.
 
-export type InventoryItem = { name: string; qty: number };
+export type InventoryItem = {
+  name: string;
+  qty: number;
+  /** Objet venu du catalogue */
+  item_id?: string | undefined;
+  desc?: string | undefined;
+  usable?: boolean | undefined;
+};
 export type AmmoEntry = { mag: number; spare: number; loose: number };
 
 export function parseInventory(text: unknown): InventoryItem[] {

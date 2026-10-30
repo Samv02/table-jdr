@@ -13,6 +13,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { confirmAction } from "@/components/ConfirmDialog";
 import { useUniverse } from "@/lib/universe-context";
+import { CatalogManager } from "@/components/CatalogManager";
+import { TemplateEditor } from "@/components/TemplateEditor";
 import { varKey } from "@/lib/formula";
 import {
   FONTS,
@@ -639,6 +641,14 @@ export function UniverseEditor() {
         </label>
       </Section>
 
+      <Section title="Catalogue" tag="ARMES · OBJETS · POUVOIRS">
+        <CatalogManager />
+      </Section>
+
+      <Section title="Fiche de départ" tag="NOUVEAUX PERSONNAGES">
+        <TemplateEditor draft={draft} onChange={(template) => set((d) => ({ ...d, template }))} />
+      </Section>
+
       <Section title="Blocs de la fiche" tag="MODULES">
         <div className="uni-grid three">
           <Toggle
@@ -660,6 +670,11 @@ export function UniverseEditor() {
             label={draft.words.features}
             value={draft.modules.features}
             onChange={(v) => mod("features", v)}
+          />
+          <Toggle
+            label={draft.words.shop}
+            value={draft.modules.shop}
+            onChange={(v) => mod("shop", v)}
           />
           <Toggle
             label="Tracé cardiaque animé (ECG)"
@@ -761,6 +776,7 @@ const WORD_GROUPS: [string, [keyof Words, string][]][] = [
       ["weapons", "Armes"],
       ["features", "Particularités"],
       ["inventory", "Inventaire"],
+      ["shop", "Boutique"],
       ["notes", "Bloc-notes"],
     ],
   ],
