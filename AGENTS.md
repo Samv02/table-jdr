@@ -34,5 +34,5 @@
 - Rule formulas go through lib/formula.ts (tokenizer + parser, no eval). Pure rule helpers take the Universe as a parameter so tests can run each preset.
 - The universe lives in session_state.universe, readable before login through get_universe(); UniverseProvider applies the theme (CSS variables + body classes) and caches it for THEME_BOOT.
 - Styles use only theme variables (--bg, --panel, --ink, --text, --mute, --cyan…--violet, --orange, --head, --display, --mono); add new colors through color-mix() on those variables.
-- Database schema: supabase/installation.sql is the full script; supabase/migrations/ (Supabase CLI) holds the same schema. Schema changes go in a NEW timestamped migration, also appended to installation.sql. The dev database is a hosted Supabase project linked through the Supabase CLI: apply new migrations with `npx supabase db push --linked`.
+- Database schema lives only in supabase/migrations/ (Supabase CLI). Schema changes go in a NEW timestamped, idempotent migration. The dev database is a hosted Supabase project linked through the Supabase CLI: apply with `npm run db:push`, then regenerate types with `npm run db:types`.
 

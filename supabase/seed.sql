@@ -1,7 +1,6 @@
 -- =====================================================================
--- DONNÉES DE DÉPART — base LOCALE uniquement
--- Lancé automatiquement par « npm run db:start » (premier démarrage)
--- et par « npm run db:reset » (remise à zéro).
+-- DONNÉES DE DÉPART — base de DÉVELOPPEMENT uniquement
+-- Base de développement seulement : à coller dans le SQL Editor d'un projet neuf, après les migrations.
 --
 -- Comptes de test (mot de passe pour les trois : table1234)
 --   mj@table.local        → MJ

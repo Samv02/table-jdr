@@ -65,19 +65,17 @@ Dans la formule de la base, `STAT` est la valeur de la caractéristique de la co
 
 ## Démarrer
 
-- **Sur ton PC (local)** : voir **[DEMARRAGE.md](DEMARRAGE.md)**. Il faut Node.js, Docker Desktop et VS Code ; Claude Code fonctionne directement dedans.
-- **Plus tard, en ligne** (Supabase hébergé) : voir **[INSTALLATION.md](INSTALLATION.md)**.
+Tout est dans **[DEMARRAGE.md](DEMARRAGE.md)** : installer les outils, brancher la base Supabase, lancer l'appli, repartir d'une base neuve.
 
 ## Technique
 
 TanStack Start, React, Supabase (Postgres, RLS, Realtime, Storage) et Vitest.
 - Les règles : `src/lib/universe.ts` (univers et préréglages) et `src/lib/formula.ts` (formules, sans `eval`).
 - Le thème : `src/lib/theme.ts`.
-- La base : `supabase/installation.sql`.
+- La base : `supabase/migrations/` (appliquées avec `npm run db:push`).
 
 ```sh
 npm install
-npm run db:start && npm run env:local   # base locale (Docker)
-npm run dev                             # http://localhost:8080
+npm run dev       # http://localhost:8080
 npm test
 ```

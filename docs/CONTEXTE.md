@@ -81,12 +81,12 @@ Ouvre-le dès qu'une demande touche une partie existante, pour ne pas défaire u
 
 - **PC** : Windows, PowerShell dans VS Code, Node.js 26. La politique d'exécution est réglée (`Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`).
 - **Dossier** : `C:\Users\vsamv\OneDrive\Bureau\table-jdr`. OneDrive ralentit `node_modules` : à proposer un jour de le déplacer vers `C:\dev\table-jdr`, puis `git clone` et `npm install`.
-- **Docker n'est pas installé** : les scripts `npm run db:start`, `db:reset` et `env:local` ne servent pas pour l'instant.
+- **Pas de Docker** : la base de dev est en ligne. Les scripts Docker ont été supprimés le 30/10/2026.
 - **Base de dev** : projet Supabase en ligne gratuit « **JDR** » (`https://hdbykvymmjwvkhwaazet.supabase.co`, région Europe).
-  - `supabase/installation.sql` puis `supabase/seed.sql` y ont été lancés à la main dans le SQL Editor.
+  - Le schéma (aujourd'hui `supabase/migrations/20261030000000_installation.sql`) puis `supabase/seed.sql` y ont été lancés à la main dans le SQL Editor.
   - Les clés (URL, publishable, secret) sont dans `.env`, ignoré par git.
   - Le dossier est relié au projet avec la CLI Supabase (`npx supabase login` puis `link`, faits le 30/10/2026 ; la migration d'installation est marquée appliquée).
-  - **Toute modification du schéma** : nouvelle migration dans `supabase/migrations/`, puis Claude l'applique lui-même avec `npx supabase db push --linked` (aucun mot de passe nécessaire). Plus besoin de faire coller le SQL à Sam.
+  - **Toute modification du schéma** : nouvelle migration dans `supabase/migrations/`, puis Claude l'applique lui-même avec `npm run db:push` et régénère les types avec `npm run db:types` (aucun mot de passe nécessaire). Plus besoin de faire coller le SQL à Sam.
   - Sans Docker, `supabase db diff` ne marche pas.
 - **GitHub** : le PC est connecté (gestionnaire d'identifiants Windows), `git push` fonctionne.
 - **Comptes de test** (mot de passe `table1234`) :
@@ -94,9 +94,7 @@ Ouvre-le dès qu'une demande touche une partie existante, pour ne pas défaire u
   - `joueur1@table.local` : personnage Alex ;
   - `joueur2@table.local` : personnage Sam.
 - **Lancer** : `npm run dev`, puis http://localhost:8080. Testé : connexion MJ et tableau de bord avec Alex et Sam, tout fonctionne.
-- **Avertissements au lancement, sans effet** :
-  - « vite-tsconfig-paths detected » ;
-  - « localStorage is not available… --localstorage-file ».
+- **Avertissement au lancement, sans effet** : « localStorage is not available… --localstorage-file » (vient de Node 26, pas du projet).
 - `npm install` a signalé 6 vulnérabilités dans des outils de dev. **Ne jamais lancer `npm audit fix --force`**, qui casse les versions. À regarder avant la mise en ligne.
 
 ---

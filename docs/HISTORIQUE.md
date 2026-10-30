@@ -340,7 +340,7 @@ Sommaire :
 - `.env` et `supabase/config.toml` de l'export Lovable pointaient vers la **base de Night City**. Ils ont été vidés, puis remplacés pour le local.
 
 ### 4.8 Base de données de Table JDR
-- `supabase/installation.sql` : un script complet et **idempotent**, en 8 parties :
+- `supabase/migrations/20261030000000_installation.sql` : un script complet et **idempotent**, en 8 parties :
   - profils ;
   - personnages et état, avec verrou et trigger des emplacements ;
   - jets ;
@@ -350,13 +350,13 @@ Sommaire :
   - stockage ;
   - temps réel.
 - Testé sur un faux Supabase : lancé deux fois sans erreur, plus une vingtaine de vérifications d'accès (anonyme, joueur verrouillé, autre joueur, MJ).
-- Le même contenu existe dans `supabase/migrations/20261030000000_installation.sql` (CLI Supabase). L'ancienne copie `drizzle/` pour Lovable a été supprimée le 30/10/2026.
+- Le 30/10/2026, les copies en double ont été supprimées : `supabase/installation.sql` (même script avec BEGIN/COMMIT) et `drizzle/` (pour Lovable). Seules les migrations font foi.
 - `supabase/seed.sql` : 3 comptes (`@table.local`, mot de passe `table1234`), le MJ, et 2 personnages, Alex et Sam. Relançable sans erreur.
 
 ### 4.9 Passage en local
-- Le projet tourne sans Lovable : le paquet npm `@lovable.dev/vite-tanstack-config` fonctionne hors de Lovable, sur le port 8080.
+- Le projet tourne sans Lovable. Depuis le 30/10/2026, `vite.config.ts` est une configuration Vite standard (le paquet `@lovable.dev/vite-tanstack-config` a été retiré), toujours sur le port 8080.
 - `vite.config.ts` charge `.env` dans `process.env`, pour les fonctions serveur (dés, suppression de compte).
-- Scripts : `db:start`, `db:stop`, `db:reset`, `db:status` (CLI Supabase via npx, Docker requis) et `env:local` (`scripts/local-env.mjs` écrit `.env` depuis `supabase status`).
+- Scripts : `db:push` (applique les migrations au projet relié) et `db:types` (régénère les types). Les scripts Docker (`db:start`, `db:reset`, `env:local`…) ont été supprimés le 30/10/2026.
 - `.vscode/` : extensions recommandées (Claude Code, Prettier, ESLint, Tailwind), formatage à l'enregistrement.
 - Docker n'est pas installé chez Sam : il utilise un projet Supabase en ligne (voir `CONTEXTE.md` §4).
 

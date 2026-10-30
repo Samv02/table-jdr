@@ -12,11 +12,8 @@
     "format": "prettier --write .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "db:start": "npx supabase start",
-    "db:stop": "npx supabase stop",
-    "db:reset": "npx supabase db reset",
-    "db:status": "npx supabase status",
-    "env:local": "node scripts/local-env.mjs"
+    "db:push": "npx supabase db push --linked",
+    "db:types": "npx supabase gen types typescript --linked --schema public > src/integrations/supabase/types.ts && prettier --write src/integrations/supabase/types.ts"
   },
   "overrides": {
     "rolldown": "1.2.1"
@@ -35,7 +32,6 @@
     "react-dom": "^19.2.0",
     "tailwind-merge": "^3.5.0",
     "tailwindcss": "^4.2.1",
-    "tw-animate-css": "^1.3.4",
     "zod": "^3.25.76"
   },
   "devDependencies": {
