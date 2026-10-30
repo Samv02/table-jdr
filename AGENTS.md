@@ -37,3 +37,4 @@
 - Styles use only theme variables (--bg, --panel, --ink, --text, --mute, --cyan…--violet, --orange, --head, --display, --mono); add new colors through color-mix() on those variables.
 - Database schema lives only in supabase/migrations/ (Supabase CLI). Schema changes go in a NEW timestamped, idempotent migration. The dev database is a hosted Supabase project linked through the Supabase CLI: apply with `npm run db:push`, then regenerate types with `npm run db:types`.
 
+- Page access lives in one pure rule, routeGuard (lib/team.ts), applied once in the root: a page never renders a dead end, it redirects. useIdentity sets ready=false while a sign-in is resolving, so the rule never reads a stale logged-out state.

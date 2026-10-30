@@ -24,7 +24,7 @@ import { ConfirmHost } from "@/components/ConfirmDialog";
 import { UniverseProvider } from "@/components/UniverseProvider";
 import { THEME_BOOT } from "@/lib/theme";
 import { useIdentity } from "@/lib/active-character";
-import { needsTeam } from "@/lib/team";
+import { routeGuard } from "@/lib/team";
 import { AnnouncementBanner, MaintenanceGate } from "@/components/PlatformNotices";
 
 function NotFoundComponent() {
@@ -132,20 +132,14 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
-/**
- * Dés et messagerie n'existent que dans une équipe ; sans équipe, les pages de jeu renvoient
- * vers le choix d'équipe. L'admin ne joue pas : son espace à lui est le back office.
- */
+/** Dés et messagerie n'existent que dans une équipe. Applique aussi la règle des pages interdites. */
 function TeamScope({ pathname, children }: { pathname: string; children: ReactNode }) {
   const id = useIdentity();
   const navigate = useNavigate();
-  const inGame = needsTeam(pathname) || pathname === "/equipes" || pathname === "/profil";
-  const adminHome = id.ready && id.isAdmin && !id.teamId && inGame;
-  const lost = id.ready && !!id.userId && !id.teamId && needsTeam(pathname);
+  const target = routeGuard(pathname, id);
   useEffect(() => {
-    if (adminHome) void navigate({ to: "/admin", replace: true });
-    else if (lost) void navigate({ to: "/equipes", replace: true });
-  }, [adminHome, lost, navigate]);
+    if (target) void navigate({ to: target, replace: true });
+  }, [target, navigate]);
   return id.teamId && !pathname.startsWith("/admin") ? children : null;
 }
 

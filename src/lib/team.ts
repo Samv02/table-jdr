@@ -14,6 +14,36 @@ export async function openTeam(teamId: string | null, to: string): Promise<strin
 /** Pages de jeu : elles n'ont de sens qu'à l'intérieur d'une équipe. */
 export const needsTeam = (pathname: string) => pathname === "/fiche" || pathname.startsWith("/mj");
 
+/** Pages publiques : tout le reste demande d'être connecté. */
+const PUBLIC_PAGES = ["/", "/confidentialite", "/mot-de-passe"];
+
+/**
+ * Où envoyer un compte qui n'a rien à faire sur cette page ; null s'il peut y rester.
+ * Aucune page ne doit finir sur une impasse sans menu : toute la règle tient ici.
+ */
+export function routeGuard(
+  pathname: string,
+  id: {
+    ready: boolean;
+    userId: string | null;
+    teamId: string | null;
+    isGm: boolean;
+    isAdmin: boolean;
+  },
+): "/" | "/equipes" | "/fiche" | "/admin" | null {
+  if (!id.ready) return null;
+  if (!id.userId) return PUBLIC_PAGES.includes(pathname) ? null : "/";
+  if (pathname.startsWith("/admin")) return id.isAdmin ? null : id.teamId ? "/fiche" : "/equipes";
+  // L'admin ne joue pas : hors équipe, son espace est le back office
+  if (id.isAdmin && !id.teamId)
+    return needsTeam(pathname) || pathname === "/equipes" || pathname === "/profil"
+      ? "/admin"
+      : null;
+  if (needsTeam(pathname) && !id.teamId) return "/equipes";
+  if (pathname.startsWith("/mj") && !id.isGm) return "/fiche";
+  return null;
+}
+
 /** Messages d'authentification en français (Supabase répond en anglais). */
 export function authMessage(error: { code?: string | undefined; message: string }) {
   switch (error.code) {

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 export type MiniChar = { id: string; name: string; handle: string | null };
@@ -18,6 +18,8 @@ export type Identity = {
   setActive: (id: string | null) => void;
 };
 
+const MAX_RETRIES = 4;
+const RETRY_MS = 1500;
 const KEY = "activeCharacterId";
 const EVT = "active-character:changed";
 
@@ -60,16 +62,24 @@ const NOBODY = {
 };
 
 export function useIdentity(): Identity {
+  const retries = useRef(0);
   const [s, setS] = useState<Omit<Identity, "setActive">>({ ready: false, ...NOBODY });
 
   const load = useCallback(async () => {
     const { data: u } = await supabase.auth.getSession();
     const uid = u.session?.user.id ?? null;
     if (!uid) return setS({ ready: true, ...NOBODY });
-    const [{ data: p }, { data: team }] = await Promise.all([
+    const [{ data: p }, { data: team, error }] = await Promise.all([
       supabase.from("profiles").select("username").eq("id", uid).maybeSingle(),
       supabase.rpc("get_team_context").maybeSingle(),
     ]);
+    // Réseau coupé un instant : on réessaie plutôt que de croire que le compte a perdu ses droits
+    if (error && retries.current < MAX_RETRIES) {
+      retries.current += 1;
+      setTimeout(() => void load(), RETRY_MS);
+      return;
+    }
+    retries.current = 0;
     const teamId = team?.id ?? null;
     const isAdmin = team?.is_admin === true;
     const isGm = !!teamId && (team?.role === "gm" || isAdmin);
@@ -94,6 +104,8 @@ export function useIdentity(): Identity {
   useEffect(() => {
     load();
     const { data } = supabase.auth.onAuthStateChange((e) => {
+      // Connexion en cours : l'identité redevient inconnue, personne ne doit conclure « déconnecté »
+      if (e === "SIGNED_IN") setS((old) => (old.userId ? old : { ...old, ready: false }));
       if (e === "SIGNED_IN" || e === "SIGNED_OUT" || e === "USER_UPDATED") load();
     });
     window.addEventListener(EVT, load);

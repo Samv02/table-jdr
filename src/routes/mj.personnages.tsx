@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { rowsToSheet, sheetToRows, type InventoryItem } from "@/lib/character-import";
@@ -213,16 +213,8 @@ function GmCharacters() {
     URL.revokeObjectURL(url);
   }
 
-  if (status === "loading") return <main className="min-h-screen bg-background" />;
-  if (status === "denied")
-    return (
-      <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background">
-        <p className="font-display text-destructive">ACCÈS RÉSERVÉ AU MJ</p>
-        <Link to="/" className="text-accent underline">
-          Retour
-        </Link>
-      </main>
-    );
+  // « denied » : routeGuard renvoie déjà vers la bonne page
+  if (status !== "ok") return <main className="min-h-screen bg-background" />;
 
   const btn = "btn y";
   return (

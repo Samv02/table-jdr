@@ -378,7 +378,8 @@ export function GmDashboard() {
     window.setTimeout(() => node.classList.remove("spot"), 1600);
   };
   if (!identity.ready) return <main className="empty-state">Chargement…</main>;
-  if (!identity.isGm) return <main className="empty-state">ACCÈS RÉSERVÉ AU MJ</main>;
+  // routeGuard renvoie les autres comptes vers la bonne page
+  if (!identity.isGm) return <main className="empty-state">Chargement…</main>;
   return (
     <main
       className={`dashboard-page ${layoutMode ? "layouting" : ""} ${organizing ? "customizing" : ""}`}

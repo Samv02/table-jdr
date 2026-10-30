@@ -107,14 +107,8 @@ function AdminPage() {
     if (target.tab === "equipes" && target.filter) setTeamFilter(target.filter as TeamFilter);
   }
 
-  if (!id.ready) return <main className="bo-shell" />;
-  if (!id.isAdmin)
-    return (
-      <main className="bo-denied">
-        <p>ACCÈS RÉSERVÉ À L’ADMIN</p>
-        <Link to="/">Retour</Link>
-      </main>
-    );
+  // routeGuard renvoie les autres comptes vers la bonne page
+  if (!id.ready || !id.isAdmin) return <main className="bo-shell" />;
 
   return (
     <div className="bo-shell">

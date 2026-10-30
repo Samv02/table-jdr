@@ -11,7 +11,7 @@ import {
   type AccountFilter,
   type EventQuery,
 } from "./admin";
-import { needsTeam } from "./team";
+import { needsTeam, routeGuard } from "./team";
 import type { AdminAccount, AdminEvent, AdminStats, AdminTeam } from "./admin.functions";
 
 const account = (over: Partial<AdminAccount>): AdminAccount => ({
@@ -164,6 +164,47 @@ describe("indicators", () => {
   it("makes spreadsheet-safe CSV", () => {
     const csv = toCsv([["a;b", "=SUM(1)", null, 'dit "oui"']]);
     expect(csv.slice(1)).toBe(`"a;b";'=SUM(1);;"dit ""oui"""`);
+  });
+});
+
+describe("routeGuard", () => {
+  const nobody = { ready: true, userId: null, teamId: null, isGm: false, isAdmin: false };
+  const player = { ...nobody, userId: "u", teamId: "t" };
+  const gm = { ...player, isGm: true };
+  const admin = { ...nobody, userId: "a", isAdmin: true };
+  it("waits until the account is known", () =>
+    expect(routeGuard("/mj/tableau", { ...nobody, ready: false })).toBeNull());
+  it("sends logged-out visitors to the login page", () => {
+    for (const page of [
+      "/mj/tableau",
+      "/mj/personnages",
+      "/fiche",
+      "/profil",
+      "/support",
+      "/admin",
+    ])
+      expect(routeGuard(page, nobody)).toBe("/");
+    expect(routeGuard("/", nobody)).toBeNull();
+    expect(routeGuard("/confidentialite", nobody)).toBeNull();
+  });
+  it("never leaves a player on a GM or admin page", () => {
+    expect(routeGuard("/mj/tableau", player)).toBe("/fiche");
+    expect(routeGuard("/mj/personnages", player)).toBe("/fiche");
+    expect(routeGuard("/admin", player)).toBe("/fiche");
+    expect(routeGuard("/fiche", player)).toBeNull();
+  });
+  it("sends a member without an open team to the team choice", () => {
+    const free = { ...nobody, userId: "u" };
+    expect(routeGuard("/mj/tableau", free)).toBe("/equipes");
+    expect(routeGuard("/admin", free)).toBe("/equipes");
+    expect(routeGuard("/equipes", free)).toBeNull();
+  });
+  it("lets the GM and the admin in", () => {
+    expect(routeGuard("/mj/tableau", gm)).toBeNull();
+    expect(routeGuard("/admin", admin)).toBeNull();
+    expect(routeGuard("/equipes", admin)).toBe("/admin");
+    expect(routeGuard("/mj/tableau", admin)).toBe("/admin");
+    expect(routeGuard("/mj/tableau", { ...admin, teamId: "t", isGm: true })).toBeNull();
   });
 });
 
