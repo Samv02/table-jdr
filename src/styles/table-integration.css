@@ -6208,3 +6208,6 @@ body.clean .atmo {
   flex: none;
   position: static;
 }
+.teams-forms .field {
+  width: 100%;
+}
