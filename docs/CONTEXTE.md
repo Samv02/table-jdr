@@ -1,66 +1,141 @@
-# Contexte du projet (reprise depuis la conversation claude.ai)
+# Contexte du projet — à lire avant toute chose
 
-Ce fichier résume l'historique et les décisions prises avant l'arrivée du projet dans VS Code.
-Claude Code : lis-le pour connaître le propriétaire, ses préférences et ce qui reste à faire.
+Résumé de plusieurs semaines de travail menées dans une conversation claude.ai avant l'arrivée du projet dans VS Code.
+**Tous les détails** (chaque fonctionnalité, ses règles, les bugs déjà corrigés et pourquoi) : `docs/HISTORIQUE.md`.
+Ouvre-le dès qu'une demande touche une partie existante, pour ne pas défaire une décision déjà prise.
 
-## Le propriétaire
+---
 
-- Sam, francophone, MJ et joueur de jeu de rôle (surtout Cyberpunk RED).
-- Débutant en gestion de données et en hébergement : explique simplement, en français, une étape à la fois. Avant chaque commande, dis ce qu'elle fait et pourquoi.
-- Sous Windows, avec PowerShell dans VS Code et Node.js 26. La politique d'exécution est déjà réglée (`RemoteSigned`).
-- Le projet est dans `C:\Users\vsamv\OneDrive\Bureau\table-jdr` : OneDrive le ralentit. Proposer de le déplacer vers `C:\dev\table-jdr` à un moment calme.
-- Il aime : les interfaces immersives, belles et lisibles, qui marchent aussi sur mobile, et les animations sobres (le clignotement du bouton de messagerie « était bien »).
-- Il refuse :
-  - les pop-ups de notification (toasts) ;
-  - les confirmations du navigateur (on utilise `confirmAction`) ;
-  - qu'un e-mail soit affiché ailleurs que sur la page de connexion (toujours le pseudo du personnage) ;
-  - qu'on touche à ce qui marche déjà quand il demande autre chose.
+## 1. Qui est Sam (le propriétaire)
 
-## Règles de jeu non négociables
+- Francophone. Il joue surtout à **Cyberpunk RED** : il est joueur (son personnage s'appelle **SUDO**, un netrunner) et parfois MJ.
+- Il a commencé avec Lovable, puis a codé « à l'ancienne » : il envoyait des zips, recevait des zips de fichiers modifiés et des scripts SQL à coller dans Supabase.
+- **Débutant en gestion de données et en hébergement.** Il apprend vite, mais il faut :
+  - expliquer chaque commande avant de la lui faire lancer : ce qu'elle fait et pourquoi ;
+  - avancer une étape à la fois et attendre son retour ;
+  - lire ses erreurs avec lui (il colle la sortie du terminal) ;
+  - ne jamais lui demander de coller une clé secrète dans une conversation.
+- Il écrit vite, avec des fautes et en abrégé (« pk », « tkt », « fix moi ça »). Comprendre l'intention, ne pas corriger.
+- Il réagit par captures d'écran : souvent une zone entourée de rouge et une phrase courte. La zone entourée est le sujet.
+- Il dit franchement quand ça ne va pas : « raté », « on a cassé un truc », « pas foufou », « pas possible ça ». Il faut alors chercher la cause réelle, pas réessayer à l'aveugle.
 
-- Personne ne lance un dé à la place d'un autre, **même le MJ**. Le MJ lance au nom de « MJ ». Les dés sont tirés côté serveur.
-- Un joueur ne voit jamais la fiche d'un autre ; le MJ voit et modifie tout.
-- Le MJ peut verrouiller les fiches : le joueur ne modifie alors plus ses PV, son argent, ses munitions ni son inventaire. Ses notes et ses jets restent possibles.
-- Les PV ne dépassent jamais le maximum.
+### Ce qu'il aime
+- Une interface **immersive** et soignée, fidèle à l'univers (néons et chrome pour Cyberpunk), mais **lisible**. Il a fait réduire la transparence du tableau de bord : « trop transparent, ça fait mal aux yeux ».
+- **Mobile d'abord** : beaucoup de joueurs jouent sur téléphone. Tout doit être centré et accessible au pouce.
+- Les animations **sobres** :
+  - le bouton de messagerie qui clignote quand il y a un message non lu « était bien » ;
+  - le dé du critique qui passe en vert (`#00ff88`), celui de l'échec critique en rouge ;
+  - le tracé ECG des PV.
+- Les boutons flottants **petits et discrets** : messagerie en bas à gauche, dés en bas à droite.
+- Que le MJ ait « la main sur tout » : musique, scènes, fiches, verrous, permissions.
 
-## Historique
+### Ce qu'il refuse
+- Les **pop-ups de notification** (toasts) : il les a tous fait retirer.
+- Les **confirmations du navigateur** (`window.confirm`) : on utilise la fenêtre maison `confirmAction()`.
+- Qu'un **e-mail** s'affiche où que ce soit : on montre toujours le pseudo du personnage (le MJ apparaît comme « MJ »).
+- **Qu'on touche à ce qui marche** quand il demande autre chose. Il l'a écrit : « ne touche à rien d'autre, type clignotement, ils sont bien ».
+- Les PV au-dessus du maximum (« pas possible ça »).
 
-1. **Night City Table** (projet Lovable d'origine, toujours en ligne, réservé à Cyberpunk RED).
-   - On y a ajouté au fil du temps :
-     - le verrou MJ et le bloc-notes privé ;
-     - la messagerie (annonces, canal MJ, échanges entre joueurs autorisés par le MJ) ;
-     - le panneau musique v2 (ambiances, bibliothèque, enchaînements) ;
-     - le cyberdeck (programmes rangés dans des slots) ;
-     - les confirmations de suppression dans l'appli ;
-     - l'alignement des colonnes de la fiche ;
-     - le choix de la caractéristique d'une compétence ;
-     - le bouton de dés du MJ sur mobile.
-   - Ces changements ont été livrés en zips et appliqués à la main dans Lovable. Ce dépôt-ci ne contient pas Night City.
-2. **Table JDR** (ce dépôt) : copie **neutre et multi-univers** de Night City.
-   - Le MJ règle tout dans MJ → Univers : thème, vocabulaire, règles, blocs de la fiche.
-   - 5 modèles : Neutre, Fantasy, Grimdark (façon Warhammer, jets en %), Horreur 1920, Cyberpunk.
-   - Le code a été rendu indépendant de Lovable pour tourner en local.
+---
 
-## Installation actuelle (30/10/2026)
+## 2. Règles de jeu et de sécurité non négociables
 
-- L'appli tourne en local avec `npm run dev`, sur http://localhost:8080.
-- La base de développement est un projet **Supabase en ligne gratuit** nommé « JDR », sans Docker. Docker n'est pas installé : les commandes `npm run db:*` ne servent pas pour l'instant.
-  - `supabase/installation.sql` et `supabase/seed.sql` y ont été lancés à la main dans le SQL Editor.
-  - Les clés sont dans `.env`, qui n'est pas sur GitHub.
-- **Base en ligne = toute modification du schéma doit aussi être lancée à la main** dans le SQL Editor de Supabase. Donne à Sam le script exact à coller, puis garde `supabase/migrations/` à jour.
-- Comptes de test (mot de passe `table1234`) : `mj@table.local`, `joueur1@table.local`, `joueur2@table.local`.
-- Tout a été testé et fonctionne : connexion MJ, tableau de bord avec Alex et Sam.
+1. **Personne ne lance un dé à la place d'un autre, même le MJ.**
+   - Le MJ lance sous le nom « MJ ».
+   - Un joueur lance avec SON personnage, jamais avec celui d'un autre.
+   - Les dés sont tirés **côté serveur** (`crypto.getRandomValues` avec rejet pour éviter les biais) ; le navigateur n'écrit jamais dans la table `rolls`.
+2. **Fiches privées** : un joueur ne voit que la sienne. Le groupe est visible (pseudo, avatar, couleur) via `get_party()`, jamais les fiches.
+3. **Le MJ voit et modifie tout.**
+4. **Verrou MJ** (`players_can_edit`) : fiche verrouillée = le joueur ne peut plus changer PV, argent, munitions, inventaire ni emplacements. Il garde ses **jets** et son **bloc-notes**. Vérifié par la base (RLS), pas seulement par l'interface.
+5. **Bloc-notes** : seul le joueur écrit ; le MJ lit ; les autres joueurs ne voient rien.
+6. **Messagerie** :
+   - Le MJ lit tout et écrit partout.
+   - Les annonces sont écrites par le MJ seulement.
+   - Le canal joueur ↔ MJ est toujours ouvert.
+   - Les échanges entre deux joueurs n'existent que si le MJ a autorisé cette paire.
+7. **Emplacements** (cyberdeck, grimoire…) :
+   - Le MJ fixe la capacité et, pour chaque élément, son coût, son dé et son effet.
+   - Le joueur crée, renomme, retire et active ses éléments sans jamais dépasser la capacité.
+   - Un élément créé par le joueur reste « en attente MJ » tant que son coût n'est pas fixé.
+   - Tout cela est vérifié par un trigger en base.
+8. **PV** : jamais au-dessus du maximum. Ils sont corrigés automatiquement si le max baisse.
+9. **Suppressions** : toujours confirmées avec `confirmAction()`.
 
-## À faire / idées en attente
+---
 
-- Enregistrer `package-lock.json` sur GitHub (créé par `npm install`).
-- Avant la mise en ligne :
+## 3. Les deux projets
+
+| | **Night City Table** | **Table JDR** (ce dépôt) |
+|---|---|---|
+| Où | Projet Lovable en ligne, utilisé par le vrai groupe | GitHub `Samv02/table-jdr`, développé en local |
+| Jeu | Cyberpunk RED uniquement | N'importe quel jeu (univers réglable) |
+| Base | Supabase de Lovable | Projet Supabase gratuit « JDR » (dev) |
+| Code | Pas dans ce dépôt | Ici |
+
+**Night City** continue de vivre à part, avec les vrais joueurs (voir `docs/HISTORIQUE.md` §2).
+**Table JDR** est la copie neutre : tout ce qui est propre à un jeu est passé dans **l'univers**, réglé par le MJ dans **MJ → Univers** (voir `docs/HISTORIQUE.md` §4).
+
+---
+
+## 4. Installation actuelle (30/10/2026)
+
+- **PC** : Windows, PowerShell dans VS Code, Node.js 26. La politique d'exécution est réglée (`Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`).
+- **Dossier** : `C:\Users\vsamv\OneDrive\Bureau\table-jdr`. OneDrive ralentit `node_modules` : à proposer un jour de le déplacer vers `C:\dev\table-jdr`, puis `git clone` et `npm install`.
+- **Docker n'est pas installé** : les scripts `npm run db:start`, `db:reset` et `env:local` ne servent pas pour l'instant.
+- **Base de dev** : projet Supabase en ligne gratuit « **JDR** » (`https://hdbykvymmjwvkhwaazet.supabase.co`, région Europe).
+  - `supabase/installation.sql` puis `supabase/seed.sql` y ont été lancés à la main dans le SQL Editor.
+  - Les clés (URL, publishable, secret) sont dans `.env`, ignoré par git.
+  - **Conséquence : toute modification du schéma** doit être donnée à Sam sous forme de SQL à coller dans le SQL Editor de ce projet, **en plus** de la nouvelle migration dans `supabase/migrations/`.
+- **Comptes de test** (mot de passe `table1234`) :
+  - `mj@table.local` : MJ, pseudo « MaitreDuJeu » ;
+  - `joueur1@table.local` : personnage Alex ;
+  - `joueur2@table.local` : personnage Sam.
+- **Lancer** : `npm run dev`, puis http://localhost:8080. Testé : connexion MJ et tableau de bord avec Alex et Sam, tout fonctionne.
+- **Avertissements au lancement, sans effet** :
+  - « vite-tsconfig-paths detected » ;
+  - « localStorage is not available… --localstorage-file ».
+- `npm install` a signalé 6 vulnérabilités dans des outils de dev. **Ne jamais lancer `npm audit fix --force`**, qui casse les versions. À regarder avant la mise en ligne.
+
+---
+
+## 5. Comment travailler avec Sam
+
+- Avant de modifier : relire la zone concernée, et `docs/HISTORIQUE.md` si c'est une fonctionnalité existante.
+- Après chaque modification :
+  - `npx tsc --noEmit`, `npm test` et `npm run lint` ;
+  - expliquer en 3 à 6 phrases ce qui a changé, **ce que Sam doit faire** (SQL à coller ? relancer `npm run dev` ?) et ce qui reste à tester.
+- Pour l'interface : vérifier sur mobile (390 px de large) **et** sur ordinateur.
+- Les changements de base sont **idempotents** (`if not exists`, `drop policy if exists`…) et testés autant que possible.
+- Commits : en français, clairs, sur `main`. Pas de force push.
+- Quand une demande est floue ou coûteuse, poser **une** question précise, avec des options courtes.
+
+---
+
+## 6. À faire / idées en attente
+
+**Technique**
+- [ ] Enregistrer `package-lock.json` sur GitHub (créé par `npm install` chez Sam).
+- [ ] Proposer de déplacer le projet hors de OneDrive.
+- [ ] Avant la mise en ligne :
+  - un projet Supabase propre, sans comptes de test ;
   - regarder `npm audit` sans `--force` ;
-  - créer un projet Supabase propre, sans les comptes de test ;
-  - choisir un hébergeur pour l'appli et expliquer chaque étape à Sam.
-- Le message « vite-tsconfig-paths détecté » au lancement est sans effet. On peut le nettoyer si la config Lovable le permet.
-- Idées proposées, non commencées :
-  - scènes : réordonner par glisser-déposer, musique liée à une scène, transitions, aperçu avant diffusion, dossiers ;
-  - armes : deviner la capacité et la compétence à partir du nom ;
-  - tableau de bord MJ : section notes, et vue compacte des emplacements (cyberdeck, grimoire…) de chaque joueur.
-- Côté jeu (Night City) : Sam voulait proposer à son MJ la compétence officielle **Contrefaçon (TECH)** pour son netrunner SUDO. Rien n'a été appliqué.
+  - choisir un hébergeur pour l'appli ;
+  - tout expliquer pas à pas (Sam l'a demandé : « il va falloir me guider »).
+
+**Fonctionnalités proposées, pas encore commencées**
+- [ ] **Scènes** :
+  - réordonner par glisser-déposer ;
+  - musique liée à une scène ;
+  - transitions entre scènes ;
+  - effets d'ambiance par scène ;
+  - aperçu avant diffusion ;
+  - dossiers ;
+  - import de plusieurs images.
+- [ ] **Armes** : deviner la capacité et la compétence à partir du nom.
+- [ ] **Tableau de bord MJ** :
+  - une section « Notes » pour lire les bloc-notes des joueurs ;
+  - une vue compacte des emplacements de chaque joueur.
+- [ ] Réactiver des notifications uniquement pour les **erreurs**. Proposé, pas demandé : Sam n'aime pas les pop-ups, donc à redemander.
+
+**Côté jeu (Night City, hors code)**
+- Sam voulait demander à son MJ la compétence officielle **Contrefaçon (TECH)** pour SUDO : faux badges, cartes d'accès, documents de corpo. Rien n'a été appliqué en base.
