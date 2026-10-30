@@ -6,8 +6,9 @@
 --   mj@table.local        → MJ
 --   joueur1@table.local   → joueur, personnage « Alex »
 --   joueur2@table.local   → joueur, personnage « Sam »
+--   joueur3@table.local   → joueur, personnage « Mika »
 --   admin@table.local     → admin du back office (hors équipe)
--- Les trois premiers forment l'équipe « Table de test » (code TESTTEST).
+-- Les quatre premiers forment l'équipe « Table de test » (code TESTTEST).
 -- Ne jamais utiliser ce fichier sur une base en ligne.
 -- =====================================================================
 
@@ -26,7 +27,8 @@ from (values
   ('a0000000-0000-4000-8000-000000000001'::uuid, 'mj@table.local'),
   ('a0000000-0000-4000-8000-000000000002'::uuid, 'joueur1@table.local'),
   ('a0000000-0000-4000-8000-000000000003'::uuid, 'joueur2@table.local'),
-  ('a0000000-0000-4000-8000-000000000004'::uuid, 'admin@table.local')
+  ('a0000000-0000-4000-8000-000000000004'::uuid, 'admin@table.local'),
+  ('a0000000-0000-4000-8000-000000000005'::uuid, 'joueur3@table.local')
 ) as u(id, email)
 on conflict (id) do nothing;
 
@@ -45,6 +47,8 @@ update public.profiles set username = 'Joueur1', color = 'cyan'
  where id = 'a0000000-0000-4000-8000-000000000002';
 update public.profiles set username = 'Joueur2', color = 'violet'
  where id = 'a0000000-0000-4000-8000-000000000003';
+update public.profiles set username = 'Joueur3', color = 'green'
+ where id = 'a0000000-0000-4000-8000-000000000005';
 update public.profiles set username = 'Admin', color = 'green'
  where id = 'a0000000-0000-4000-8000-000000000004';
 insert into public.platform_admins (user_id) values ('a0000000-0000-4000-8000-000000000004')
@@ -57,11 +61,12 @@ on conflict (id) do nothing;
 insert into public.team_members (team_id, user_id, role) values
   ('b0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000001', 'gm'),
   ('b0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000002', 'player'),
-  ('b0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000003', 'player')
+  ('b0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000003', 'player'),
+  ('b0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000005', 'player')
 on conflict (team_id, user_id) do nothing;
 update public.profiles set active_team_id = 'b0000000-0000-4000-8000-000000000001'
  where id in ('a0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000002',
-              'a0000000-0000-4000-8000-000000000003');
+              'a0000000-0000-4000-8000-000000000003', 'a0000000-0000-4000-8000-000000000005');
 
 -- Deux personnages d'exemple (univers Neutre : PHY AGI ESP PER VOL PRE)
 insert into public.characters (id, team_id, owner_id, name, handle, players_can_edit, sheet) values
@@ -97,7 +102,22 @@ insert into public.characters (id, team_id, owner_id, name, handle, players_can_
 )
 on conflict (id) do nothing;
 
+insert into public.characters (id, team_id, owner_id, name, handle, players_can_edit, sheet) values
+(
+  'c0000000-0000-4000-8000-000000000003', 'b0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000005', 'Mika', 'Mika', true,
+  '{
+    "role": "Exploratrice", "level": "1",
+    "stats": { "PHY": 3, "AGI": 5, "ESP": 4, "PER": 5, "VOL": 3, "PRE": 3 },
+    "skills": [ { "name": "Discrétion", "stat": "AGI", "level": 3 }, { "name": "Observation", "stat": "PER", "level": 2 } ],
+    "weapons": [ { "name": "Pistolet léger", "dmg": "2d6", "ammo": "12", "rof": 2, "skill": "Armes de poing" } ],
+    "cyberware": "Vision nocturne",
+    "armor": "1"
+  }'::jsonb
+)
+on conflict (id) do nothing;
+
 insert into public.character_state (character_id, hp_current, eddies, ammo, inventory) values
+  ('c0000000-0000-4000-8000-000000000003', 16, 300, '{"0":{"mag":5,"spare":2,"loose":0}}', '[{"name":"Trousse de soin","qty":2}]'),
   ('c0000000-0000-4000-8000-000000000001', 16, 120, '{"0":{"mag":8,"spare":2,"loose":0}}', '[{"name":"Carnet","qty":1},{"name":"Lampe torche","qty":1}]'),
   ('c0000000-0000-4000-8000-000000000002', 20, 45, '{}', '[{"name":"Caisse à outils","qty":1}]')
 on conflict (character_id) do nothing;

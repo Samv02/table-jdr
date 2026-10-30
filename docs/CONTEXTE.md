@@ -93,8 +93,9 @@ Ouvre-le dès qu'une demande touche une partie existante, pour ne pas défaire u
   - `mj@table.local` : MJ, pseudo « MaitreDuJeu » ;
   - `joueur1@table.local` : personnage Alex ;
   - `joueur2@table.local` : personnage Sam ;
+  - `joueur3@table.local` : personnage Mika ;
   - `admin@table.local` : admin du back office, hors équipe.
-  Les trois premiers forment l'équipe « Table de test ».
+  Les quatre premiers forment l'équipe « Table de test ».
 - **Lancer** : `npm run dev`, puis http://localhost:8080. Testé : connexion MJ et tableau de bord avec Alex et Sam, tout fonctionne.
 - **Avertissement au lancement, sans effet** : « localStorage is not available… --localstorage-file » (vient de Node 26, pas du projet).
 - `npm install` a signalé 6 vulnérabilités dans des outils de dev. **Ne jamais lancer `npm audit fix --force`**, qui casse les versions. À regarder avant la mise en ligne.

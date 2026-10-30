@@ -71,7 +71,23 @@ export type DashboardPrefs = {
   /** Largeur de chaque fiche, en colonnes */
   spans: Record<string, number>;
   density: "comfort" | "compact";
+  views: SavedView[];
 };
+
+/** Ce qu'une vue enregistrée retient : tout l'affichage, pas les filtres du moment. */
+const VIEW_KEYS = [
+  "order",
+  "sort",
+  "sections",
+  "hiddenStats",
+  "hiddenFields",
+  "hiddenCharacters",
+  "columns",
+  "spans",
+  "density",
+] as const;
+export type ViewSnapshot = Pick<DashboardPrefs, (typeof VIEW_KEYS)[number]>;
+export type SavedView = { id: string; name: string; snapshot: ViewSnapshot };
 
 export const DEFAULT_PREFS: DashboardPrefs = {
   order: [],
@@ -85,7 +101,30 @@ export const DEFAULT_PREFS: DashboardPrefs = {
   columns: 0,
   spans: {},
   density: "comfort",
+  views: [],
 };
+
+/** Vues toutes prêtes : elles ne changent que les sections affichées. */
+export const QUICK_VIEWS: { key: string; label: string; sections: DashboardSection[] }[] = [
+  { key: "all", label: "Tout", sections: [...DASHBOARD_SECTIONS] },
+  { key: "combat", label: "Combat", sections: ["Vitaux", "Combat"] },
+  { key: "social", label: "Social", sections: ["Stats", "Compétences"] },
+  { key: "inventory", label: "Inventaire", sections: ["Sac"] },
+];
+
+export const applyQuickView = (prefs: DashboardPrefs, sections: DashboardSection[]) => ({
+  ...prefs,
+  sections: prefs.sections.map((s) => ({ ...s, visible: sections.includes(s.key) })),
+});
+
+export const isQuickView = (prefs: DashboardPrefs, sections: DashboardSection[]) =>
+  prefs.sections.every((s) => s.visible === sections.includes(s.key));
+
+export const snapshotView = (prefs: DashboardPrefs): ViewSnapshot =>
+  Object.fromEntries(VIEW_KEYS.map((k) => [k, prefs[k]])) as ViewSnapshot;
+
+export const isSavedView = (prefs: DashboardPrefs, view: SavedView) =>
+  JSON.stringify(snapshotView(prefs)) === JSON.stringify(view.snapshot);
 
 export const DASHBOARD_COLUMNS = [0, 1, 2, 3, 4, 6] as const;
 
@@ -150,6 +189,17 @@ export function readPrefs(raw: unknown): DashboardPrefs {
       ),
     ) as Record<string, number>,
     density: o["density"] === "compact" ? "compact" : "comfort",
+    views: (Array.isArray(o["views"]) ? o["views"] : []).slice(0, 12).flatMap((v) => {
+      const x = (v ?? {}) as Record<string, unknown>;
+      if (typeof x["id"] !== "string" || typeof x["name"] !== "string") return [];
+      return [
+        {
+          id: x["id"],
+          name: x["name"].slice(0, 24),
+          snapshot: snapshotView(readPrefs(x["snapshot"])),
+        },
+      ];
+    }),
   };
 }
 

@@ -54,6 +54,10 @@ import {
   arrangeRows,
   dropCharacter,
   dropSection,
+  QUICK_VIEWS,
+  applyQuickView,
+  isQuickView,
+  isSavedView,
   manualOrder,
   moveCharacter,
   moveSection,
@@ -109,6 +113,28 @@ export function GmDashboard() {
     },
     onCancel: () => setDragOrder(null),
   });
+  const reorderDrag = {
+    onOver: (from: string, to: string) =>
+      setDragOrder((order) => dropCharacter(order ?? rowsRef.current, rowsRef.current, from, to)),
+    onDrop: () => {
+      const order = dragOrderRef.current;
+      if (order) commit({ ...prefsRef.current, sort: "manual", order });
+      setDragOrder(null);
+    },
+    onCancel: () => setDragOrder(null),
+  };
+  const sectionDrag = {
+    onOver: (from: string, to: string) =>
+      setDragSections((list) => dropSection(list ?? prefsRef.current.sections, from, to)),
+    onDrop: () => {
+      const sections = dragSectionsRef.current;
+      if (sections) commit({ ...prefsRef.current, sections });
+      setDragSections(null);
+    },
+    onCancel: () => setDragSections(null),
+  };
+  const grabOrderRow = useDragSort({ attr: "orderRow", ...reorderDrag });
+  const grabSectionRow = useDragSort({ attr: "sectionRow", ...sectionDrag });
   const grabSection = useDragSort({
     attr: "section",
     onOver: (from, to) =>
@@ -354,7 +380,9 @@ export function GmDashboard() {
   if (!identity.ready) return <main className="empty-state">Chargement…</main>;
   if (!identity.isGm) return <main className="empty-state">ACCÈS RÉSERVÉ AU MJ</main>;
   return (
-    <main className={`dashboard-page ${layoutMode ? "layouting" : ""}`}>
+    <main
+      className={`dashboard-page ${layoutMode ? "layouting" : ""} ${organizing ? "customizing" : ""}`}
+    >
       <div className="dashboard-heading">
         <div>
           <small>{u.words.tableName.toUpperCase()} · TABLE MJ</small>
@@ -401,39 +429,6 @@ export function GmDashboard() {
                 <small>
                   {state ? Math.min(state.hp_current, max) : "—"}/{max} {u.words.hp}
                 </small>
-                {u.modules.ammo &&
-                  (() => {
-                    const guns = readWeapons(r.sheet)
-                      .map((w, i) => ({ w, a: state?.ammo[String(i)] }))
-                      .filter((x) => x.w.capacity > 0);
-                    return guns.length ? (
-                      <div className="dm-ammo">
-                        {guns.slice(0, 2).map(({ w, a }, i) => {
-                          const mag = a?.mag ?? w.capacity;
-                          const low = mag <= w.capacity / 3;
-                          return (
-                            <span
-                              key={i}
-                              className={low ? "low" : ""}
-                              title={`${w.name} : ${mag}/${w.capacity} · ${u.words.spare} ${a?.spare ?? 0} · ${u.words.loose} ${a?.loose ?? 0}`}
-                            >
-                              <i
-                                style={{
-                                  width: `${Math.round((Math.max(0, mag) / w.capacity) * 42)}px`,
-                                }}
-                              />
-                              <b>
-                                {mag}/{w.capacity}
-                              </b>
-                              <em>×{a?.spare ?? 0}</em>
-                            </span>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <div className="dm-ammo none">Pas d'arme à {u.words.rounds}</div>
-                    );
-                  })()}
               </div>
               <span className="dashboard-alerts">
                 {alerts.health && (
@@ -453,22 +448,26 @@ export function GmDashboard() {
       </div>
       <div className="dashboard-toolbar">
         <div className="dashboard-sections">
-          {prefs.sections.map((s) => (
+          {QUICK_VIEWS.map((v) => (
             <Button
               variant="prototype"
-              className={`btn ${s.visible ? "on" : ""}`}
-              key={s.key}
-              aria-pressed={s.visible}
-              onClick={() =>
-                changePrefs({
-                  ...prefs,
-                  sections: prefs.sections.map((x) =>
-                    x.key === s.key ? { ...x, visible: !x.visible } : x,
-                  ),
-                })
-              }
+              className={`btn ${isQuickView(prefs, v.sections) ? "on" : ""}`}
+              key={v.key}
+              aria-pressed={isQuickView(prefs, v.sections)}
+              onClick={() => commit(applyQuickView(prefs, v.sections))}
             >
-              {s.key}
+              {v.label}
+            </Button>
+          ))}
+          {prefs.views.map((v) => (
+            <Button
+              variant="prototype"
+              className={`btn ${isSavedView(prefs, v) ? "on" : ""}`}
+              key={v.id}
+              aria-pressed={isSavedView(prefs, v)}
+              onClick={() => commit({ ...prefs, ...v.snapshot })}
+            >
+              {v.name}
             </Button>
           ))}
           <Button
@@ -477,7 +476,7 @@ export function GmDashboard() {
             aria-expanded={organizing}
             onClick={() => setOrganizing((v) => !v)}
           >
-            <SlidersHorizontal size={15} /> Organiser
+            <SlidersHorizontal size={15} /> Personnaliser
           </Button>
           <Button
             variant="prototype"
@@ -535,7 +534,18 @@ export function GmDashboard() {
           Blessés seulement
         </label>
       </div>
-      {organizing && <DashboardSettings rows={ordered} prefs={prefs} onChange={changePrefs} />}
+      {organizing && (
+        <DashboardSettings
+          rows={ordered}
+          prefs={view}
+          grabRow={grabOrderRow}
+          grabSection={grabSectionRow}
+          canUndo={history.length > 0}
+          onUndo={undo}
+          onChange={commit}
+          onClose={() => setOrganizing(false)}
+        />
+      )}
       {loading ? (
         <p className="empty-state">Chargement…</p>
       ) : !filtered.length ? (

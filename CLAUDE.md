@@ -15,7 +15,7 @@ npm run db:types    # régénère src/integrations/supabase/types.ts depuis la b
 npm run admin -- <e-mail>   # donne l'accès au back office à un compte existant
 ```
 
-Comptes de test (mot de passe `table1234`) : `mj@table.local` (MJ), `joueur1@table.local`, `joueur2@table.local`, `admin@table.local` (back office).
+Comptes de test (mot de passe `table1234`) : `mj@table.local` (MJ), `joueur1@table.local`, `joueur2@table.local`, `joueur3@table.local`, `admin@table.local` (back office).
 
 ## Architecture
 

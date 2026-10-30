@@ -2,8 +2,12 @@ import {
   DEFAULT_PREFS,
   LAYOUT_PRESETS,
   applyLayout,
+  applyQuickView,
   arrangeRows,
   isLayout,
+  isQuickView,
+  isSavedView,
+  snapshotView,
   dropCharacter,
   dropSection,
   moveCharacter,
@@ -145,6 +149,25 @@ describe("dashboard layout", () => {
     expect(isLayout(next, focus, ["a", "b"])).toBe(true);
     expect(isLayout(next, focus, ["b", "a"])).toBe(false);
     expect(isLayout(DEFAULT_PREFS, focus, ["a", "b"])).toBe(false);
+  });
+  it("switches quick views without touching the order", () => {
+    const moved = { ...DEFAULT_PREFS, sections: moveSection(DEFAULT_PREFS.sections, "Sac", -1) };
+    const combat = applyQuickView(moved, ["Vitaux", "Combat"]);
+    expect(combat.sections.map((s) => s.key)).toEqual(moved.sections.map((s) => s.key));
+    expect(combat.sections.filter((s) => s.visible).map((s) => s.key)).toEqual([
+      "Vitaux",
+      "Combat",
+    ]);
+    expect(isQuickView(combat, ["Vitaux", "Combat"])).toBe(true);
+    expect(isQuickView(combat, ["Sac"])).toBe(false);
+  });
+  it("saves a view and recognises it", () => {
+    const prefs = { ...DEFAULT_PREFS, columns: 3, hiddenStats: ["INT"] };
+    const view = { id: "v", name: "Ma vue", snapshot: snapshotView(prefs) };
+    expect(isSavedView(prefs, view)).toBe(true);
+    expect(isSavedView({ ...prefs, onlineOnly: true }, view)).toBe(true);
+    expect(isSavedView({ ...prefs, columns: 2 }, view)).toBe(false);
+    expect(readPrefs({ views: [view, { name: "x" }] }).views).toEqual([view]);
   });
   it("moves a section", () => {
     const moved = moveSection(DEFAULT_PREFS.sections, "Stats", -1).map((s) => s.key);

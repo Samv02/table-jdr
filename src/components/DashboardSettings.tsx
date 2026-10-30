@@ -1,37 +1,168 @@
-import { ArrowDown, ArrowUp, RotateCcw } from "lucide-react";
+import { useState, type PointerEvent } from "react";
+import { Eye, EyeOff, GripVertical, RotateCcw, Save, Undo2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DASHBOARD_SORTS,
   DEFAULT_PREFS,
+  QUICK_VIEWS,
+  applyQuickView,
+  isQuickView,
+  isSavedView,
   moveCharacter,
   moveSection,
+  snapshotView,
   toggleIn,
   type DashboardPrefs,
   type DashboardRow,
   type DashboardSort,
 } from "@/lib/dashboard";
+import { hpMax, readStats } from "@/lib/sheet";
 import { useUniverse } from "@/lib/universe-context";
 
-/** Panneau « Organiser » : tout ce que le MJ choisit d'afficher, et dans quel ordre. */
+type Grab = (e: PointerEvent<HTMLElement>, id: string) => void;
+const MAX_VIEWS = 12;
+
+const arrow = (key: string) =>
+  key === "ArrowUp" || key === "ArrowLeft"
+    ? -1
+    : key === "ArrowDown" || key === "ArrowRight"
+      ? 1
+      : 0;
+
+function EyeToggle({ label, on, onToggle }: { label: string; on: boolean; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      className="custom-eye"
+      aria-label={`Afficher ${label}`}
+      aria-pressed={on}
+      title={on ? "Masquer" : "Afficher"}
+      onClick={onToggle}
+    >
+      {on ? <Eye size={18} aria-hidden="true" /> : <EyeOff size={18} aria-hidden="true" />}
+    </button>
+  );
+}
+
+/** Panneau Personnaliser : tout se voit en direct dans le tableau, juste à côté. */
 export function DashboardSettings({
   rows,
   prefs,
+  grabRow,
+  grabSection,
+  canUndo,
+  onUndo,
   onChange,
+  onClose,
 }: {
   rows: DashboardRow[];
   prefs: DashboardPrefs;
+  grabRow: Grab;
+  grabSection: Grab;
+  canUndo: boolean;
+  onUndo: () => void;
   onChange: (next: DashboardPrefs) => void;
+  onClose: () => void;
 }) {
   const { universe: u } = useUniverse();
+  const [viewName, setViewName] = useState("");
   const ids = rows.map((r) => r.id);
   const fields = [...u.rules.defenses, ...u.rules.gauges];
+  const statKeys = u.rules.stats.map((s) => s.key);
+  const manual = prefs.sort === "manual";
+
+  function saveView() {
+    const name = viewName.trim();
+    if (!name || prefs.views.length >= MAX_VIEWS) return;
+    onChange({
+      ...prefs,
+      views: [...prefs.views, { id: crypto.randomUUID(), name, snapshot: snapshotView(prefs) }],
+    });
+    setViewName("");
+  }
 
   return (
-    <section className="dashboard-settings" aria-label="Organiser le tableau de bord">
-      <div>
-        <h3>Ordre des fiches</h3>
-        <label className="ds-sort">
-          Trier par
+    <aside className="customize" aria-label="Personnaliser le tableau de bord">
+      <header className="customize-head">
+        <h2>Personnaliser</h2>
+        <button
+          type="button"
+          aria-label="Annuler la dernière modification"
+          title="Annuler"
+          disabled={!canUndo}
+          onClick={onUndo}
+        >
+          <Undo2 size={18} aria-hidden="true" />
+        </button>
+        <button type="button" aria-label="Fermer le panneau" onClick={onClose}>
+          <X size={18} aria-hidden="true" />
+        </button>
+      </header>
+      <div className="customize-body">
+        <section className="customize-group">
+          <h3>Vues</h3>
+          <div className="custom-chips">
+            {QUICK_VIEWS.map((v) => (
+              <button
+                type="button"
+                key={v.key}
+                aria-pressed={isQuickView(prefs, v.sections)}
+                onClick={() => onChange(applyQuickView(prefs, v.sections))}
+              >
+                {v.label}
+              </button>
+            ))}
+            {prefs.views.map((v) => (
+              <span className="custom-view" key={v.id}>
+                <button
+                  type="button"
+                  aria-pressed={isSavedView(prefs, v)}
+                  onClick={() => onChange({ ...prefs, ...v.snapshot })}
+                >
+                  {v.name}
+                </button>
+                <button
+                  type="button"
+                  className="remove"
+                  aria-label={`Supprimer la vue ${v.name}`}
+                  onClick={() =>
+                    onChange({ ...prefs, views: prefs.views.filter((x) => x.id !== v.id) })
+                  }
+                >
+                  <X size={13} aria-hidden="true" />
+                </button>
+              </span>
+            ))}
+          </div>
+          <form
+            className="custom-save"
+            onSubmit={(e) => {
+              e.preventDefault();
+              saveView();
+            }}
+          >
+            <input
+              className="field"
+              placeholder="Nom de la vue"
+              aria-label="Nom de la vue à enregistrer"
+              maxLength={24}
+              value={viewName}
+              onChange={(e) => setViewName(e.target.value)}
+            />
+            <Button
+              variant="prototype"
+              className="btn y"
+              disabled={!viewName.trim() || prefs.views.length >= MAX_VIEWS}
+            >
+              <Save size={15} /> Garder
+            </Button>
+          </form>
+        </section>
+
+        <section className="customize-group">
+          <h3>
+            Fiches <small>glisse pour ranger</small>
+          </h3>
           <select
             className="field"
             aria-label="Trier les fiches"
@@ -44,62 +175,82 @@ export function DashboardSettings({
               </option>
             ))}
           </select>
-        </label>
-        <ul className="ds-list">
-          {rows.map((r, i) => (
-            <li key={r.id}>
-              <label>
-                <input
-                  type="checkbox"
-                  aria-label={`Afficher ${r.handle || r.name}`}
-                  checked={!prefs.hiddenCharacters.includes(r.id)}
-                  onChange={() =>
-                    onChange({
-                      ...prefs,
-                      hiddenCharacters: toggleIn(prefs.hiddenCharacters, r.id),
-                    })
-                  }
-                />
-                {r.handle || r.name}
-              </label>
-              <Button
-                variant="prototype"
-                className="icon-btn cut-s"
-                aria-label={`Monter ${r.handle || r.name}`}
-                disabled={prefs.sort !== "manual" || i === 0}
-                onClick={() =>
-                  onChange({ ...prefs, order: moveCharacter(prefs.order, ids, r.id, -1) })
-                }
-              >
-                <ArrowUp />
-              </Button>
-              <Button
-                variant="prototype"
-                className="icon-btn cut-s"
-                aria-label={`Descendre ${r.handle || r.name}`}
-                disabled={prefs.sort !== "manual" || i === rows.length - 1}
-                onClick={() =>
-                  onChange({ ...prefs, order: moveCharacter(prefs.order, ids, r.id, 1) })
-                }
-              >
-                <ArrowDown />
-              </Button>
-            </li>
-          ))}
-        </ul>
-      </div>
+          <ul className="custom-rows">
+            {rows.map((r) => {
+              const name = r.handle || r.name;
+              const max = hpMax(readStats(r.sheet, u), r.sheet, u);
+              const hp = Math.max(0, Math.min(r.character_state?.hp_current ?? 0, max));
+              const shown = !prefs.hiddenCharacters.includes(r.id);
+              return (
+                <li key={r.id} data-order-row={r.id} className={shown ? "" : "off"}>
+                  <button
+                    type="button"
+                    className="grip"
+                    aria-label={`Déplacer ${name}`}
+                    title="Glisse, ou utilise les flèches du clavier"
+                    onPointerDown={(e) => grabRow(e, r.id)}
+                    onKeyDown={(e) => {
+                      const delta = arrow(e.key);
+                      if (!delta) return;
+                      e.preventDefault();
+                      onChange({
+                        ...prefs,
+                        sort: "manual",
+                        order: moveCharacter(manual ? prefs.order : ids, ids, r.id, delta),
+                      });
+                    }}
+                  >
+                    <GripVertical size={16} aria-hidden="true" />
+                  </button>
+                  <span className="custom-name">
+                    {name}
+                    <i aria-hidden="true">
+                      <b style={{ width: `${max ? (hp / max) * 100 : 0}%` }} />
+                    </i>
+                  </span>
+                  <EyeToggle
+                    label={name}
+                    on={shown}
+                    onToggle={() =>
+                      onChange({
+                        ...prefs,
+                        hiddenCharacters: toggleIn(prefs.hiddenCharacters, r.id),
+                      })
+                    }
+                  />
+                </li>
+              );
+            })}
+          </ul>
+        </section>
 
-      <div>
-        <h3>Sections</h3>
-        <ul className="ds-list">
-          {prefs.sections.map((s, i) => (
-            <li key={s.key}>
-              <label>
-                <input
-                  type="checkbox"
-                  aria-label={`Afficher la section ${s.key}`}
-                  checked={s.visible}
-                  onChange={() =>
+        <section className="customize-group">
+          <h3>
+            Sections <small>glisse pour ranger</small>
+          </h3>
+          <ul className="custom-rows">
+            {prefs.sections.map((s) => (
+              <li key={s.key} data-section-row={s.key} className={s.visible ? "" : "off"}>
+                <button
+                  type="button"
+                  className="grip"
+                  aria-label={`Déplacer la section ${s.key}`}
+                  title="Glisse, ou utilise les flèches du clavier"
+                  onPointerDown={(e) => grabSection(e, s.key)}
+                  onKeyDown={(e) => {
+                    const delta = arrow(e.key);
+                    if (!delta) return;
+                    e.preventDefault();
+                    onChange({ ...prefs, sections: moveSection(prefs.sections, s.key, delta) });
+                  }}
+                >
+                  <GripVertical size={16} aria-hidden="true" />
+                </button>
+                <span className="custom-name">{s.key}</span>
+                <EyeToggle
+                  label={`la section ${s.key}`}
+                  on={s.visible}
+                  onToggle={() =>
                     onChange({
                       ...prefs,
                       sections: prefs.sections.map((x) =>
@@ -108,80 +259,75 @@ export function DashboardSettings({
                     })
                   }
                 />
-                {s.key}
-              </label>
-              <Button
-                variant="prototype"
-                className="icon-btn cut-s"
-                aria-label={`Monter la section ${s.key}`}
-                disabled={i === 0}
-                onClick={() =>
-                  onChange({ ...prefs, sections: moveSection(prefs.sections, s.key, -1) })
-                }
-              >
-                <ArrowUp />
-              </Button>
-              <Button
-                variant="prototype"
-                className="icon-btn cut-s"
-                aria-label={`Descendre la section ${s.key}`}
-                disabled={i === prefs.sections.length - 1}
-                onClick={() =>
-                  onChange({ ...prefs, sections: moveSection(prefs.sections, s.key, 1) })
-                }
-              >
-                <ArrowDown />
-              </Button>
-            </li>
-          ))}
-        </ul>
-      </div>
+              </li>
+            ))}
+          </ul>
+        </section>
 
-      <div>
-        <h3>{u.words.stats} affichées</h3>
-        <div className="ds-checks">
-          {u.rules.stats.map((s) => (
-            <label key={s.key}>
-              <input
-                type="checkbox"
-                aria-label={`Afficher ${s.label}`}
-                checked={!prefs.hiddenStats.includes(s.key)}
-                onChange={() =>
+        <section className="customize-group">
+          <h3>
+            {u.words.stats}
+            <span>
+              <button
+                type="button"
+                className="customize-link"
+                onClick={() => onChange({ ...prefs, hiddenStats: [] })}
+              >
+                Tout
+              </button>
+              <button
+                type="button"
+                className="customize-link"
+                onClick={() => onChange({ ...prefs, hiddenStats: statKeys })}
+              >
+                Aucune
+              </button>
+            </span>
+          </h3>
+          <div className="custom-chips">
+            {u.rules.stats.map((s) => (
+              <button
+                type="button"
+                key={s.key}
+                aria-pressed={!prefs.hiddenStats.includes(s.key)}
+                onClick={() =>
                   onChange({ ...prefs, hiddenStats: toggleIn(prefs.hiddenStats, s.key) })
                 }
-              />
-              {s.label}
-            </label>
-          ))}
-        </div>
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+        </section>
+
         {fields.length > 0 && (
-          <>
-            <h3>{u.words.vitals} affichés</h3>
-            <div className="ds-checks">
+          <section className="customize-group">
+            <h3>{u.words.vitals}</h3>
+            <div className="custom-chips">
               {fields.map((f) => (
-                <label key={f.key}>
-                  <input
-                    type="checkbox"
-                    aria-label={`Afficher ${f.label}`}
-                    checked={!prefs.hiddenFields.includes(f.key)}
-                    onChange={() =>
-                      onChange({ ...prefs, hiddenFields: toggleIn(prefs.hiddenFields, f.key) })
-                    }
-                  />
+                <button
+                  type="button"
+                  key={f.key}
+                  aria-pressed={!prefs.hiddenFields.includes(f.key)}
+                  onClick={() =>
+                    onChange({ ...prefs, hiddenFields: toggleIn(prefs.hiddenFields, f.key) })
+                  }
+                >
                   {f.label}
-                </label>
+                </button>
               ))}
             </div>
-          </>
+          </section>
         )}
-        <Button
-          variant="prototype"
-          className="btn ds-reset"
-          onClick={() => onChange(DEFAULT_PREFS)}
+
+        <button
+          type="button"
+          className="custom-reset"
+          onClick={() => onChange({ ...DEFAULT_PREFS, views: prefs.views })}
         >
-          <RotateCcw size={15} /> Tout réinitialiser
-        </Button>
+          <RotateCcw size={15} aria-hidden="true" /> Tout réinitialiser
+        </button>
       </div>
-    </section>
+    </aside>
   );
 }
