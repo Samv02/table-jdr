@@ -38,7 +38,7 @@ export function AppHeader() {
   return (
     <>
       <header className="hud">
-        <Link to={id.teamId ? "/fiche" : "/equipes"} className="brand">
+        <Link to={id.teamId ? "/fiche" : id.isAdmin ? "/admin" : "/equipes"} className="brand">
           <b>{(id.teamName ?? W.tableName).toUpperCase()}</b>
           <small>{table.activeScene?.name ?? W.tagline.toUpperCase()}</small>
         </Link>
@@ -97,7 +97,9 @@ export function AppHeader() {
           {id.isVisitor
             ? "ADMIN EN VISITE"
             : !id.teamId
-              ? "Aucune équipe ouverte"
+              ? id.isAdmin
+                ? "ADMIN"
+                : "Aucune équipe ouverte"
               : id.isGm
                 ? "MJ"
                 : (charLabel(id.active) ?? "Aucun personnage assigné, demande au MJ")}

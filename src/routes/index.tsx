@@ -37,7 +37,9 @@ function Index() {
         if (disposed || error) return;
         const to = data?.id
           ? loginDestination(data.role === "gm" || data.is_admin)
-          : ("/equipes" as const);
+          : data?.is_admin
+            ? ("/admin" as const)
+            : ("/equipes" as const);
         void navigate({ to, replace: true });
       });
     return () => {

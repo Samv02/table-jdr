@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { InlineError } from "@/components/InlineError";
 import { confirmAction } from "@/components/ConfirmDialog";
 import { openTeam } from "@/lib/team";
+import { useIdentity } from "@/lib/active-character";
 import { loginDestination } from "@/lib/dashboard";
 
 export const Route = createFileRoute("/equipes")({
@@ -22,6 +23,7 @@ export const Route = createFileRoute("/equipes")({
 type MyTeam = { id: string; name: string; role: string; members: number; active: boolean };
 
 function TeamsPage() {
+  const identity = useIdentity();
   const [teams, setTeams] = useState<MyTeam[] | null>(null);
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
@@ -78,7 +80,16 @@ function TeamsPage() {
         {teams === null ? (
           <p className="note">Chargement…</p>
         ) : teams.length === 0 ? (
-          <p className="note">Tu n’as pas encore d’équipe. Crées-en une ou rejoins tes amis.</p>
+          <p className="note">
+            {identity.isAdmin ? (
+              <>
+                Ton compte admin n’est membre d’aucune équipe. Pour entrer dans celles des autres,
+                passe par le <Link to="/admin">back office</Link>.
+              </>
+            ) : (
+              "Tu n’as pas encore d’équipe. Crées-en une ou rejoins tes amis."
+            )}
+          </p>
         ) : (
           <ul className="pcards">
             {teams.map((t) => (
