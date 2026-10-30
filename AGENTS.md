@@ -4,11 +4,12 @@
 
 - Shared scene, minimal party directory, and presence are managed by TableEnvironment; keep private sheet reads separate and RLS-protected.
 - Table context and its hook live in the non-component table-context module; all consumers import it directly so Fast Refresh cannot split provider identity.
-- Session scene/music state lives in the singleton session_state; music writes use set_table_music to stamp server time.
+- Teams: every game row carries team_id defaulting to current_team(), and RLS filters on it, so client queries stay unfiltered; session_state has one row per team (created by a trigger on teams), and writes to it filter on team_id because Supabase rejects unfiltered updates. Switching team goes through openTeam (full reload) so every provider and realtime subscription restarts.
+- Session scene/music state lives in the per-team session_state; music writes use set_table_music to stamp server time.
 - TableMusic owns one persistent visible YouTube player outside the immersive UI wrapper, so playback continues when UI is hidden.
 - YouTube calls require the current instance's onReady and callable API methods; reset readiness on replacement and ignore disposed callbacks to prevent initialization races.
 - Music metadata writes preserve the server-derived playhead for the current track and skip unchanged metadata; closing the visible player destroys only the local instance without writing shared playback state.
-- Account deletion runs only in an authenticated GM-authorized server function, rejects self-deletion, and uses existing FK actions to preserve character sheets while removing profile-linked data.
+- Account deletion runs only in authenticated server functions (deleteAccount for the platform admin, deleteMyAccount for one's own account) and uses existing FK actions to preserve character sheets while removing profile-linked data. GMs only remove members from their team (remove_team_member).
 - Character state persistence stays in the fiche controller; presentation tabs must not unmount realtime listeners.
 - Character-state writes are serialized and pending optimistic state is protected from stale reads so older requests cannot overwrite newer counter changes.
 - Characters and character_state stay in the Realtime publication; sheet reloads wait for local write queues and refresh on subscription to keep HP live across clients and reconnects.
@@ -32,7 +33,7 @@
 
 - Universe (lib/universe.ts) holds every game-specific choice: theme, words, rules (stats, skill die, roll-under mode, formulas), modules. Never hard-code a stat name, currency, die size or label: read it from useUniverse()/useWords().
 - Rule formulas go through lib/formula.ts (tokenizer + parser, no eval). Pure rule helpers take the Universe as a parameter so tests can run each preset.
-- The universe lives in session_state.universe, readable before login through get_universe(); UniverseProvider applies the theme (CSS variables + body classes) and caches it for THEME_BOOT.
+- The universe lives in session_state.universe of the active team, read through get_universe() (empty, so neutral, outside a team and before login); UniverseProvider applies the theme (CSS variables + body classes) and caches it for THEME_BOOT.
 - Styles use only theme variables (--bg, --panel, --ink, --text, --mute, --cyan…--violet, --orange, --head, --display, --mono); add new colors through color-mix() on those variables.
 - Database schema lives only in supabase/migrations/ (Supabase CLI). Schema changes go in a NEW timestamped, idempotent migration. The dev database is a hosted Supabase project linked through the Supabase CLI: apply with `npm run db:push`, then regenerate types with `npm run db:types`.
 

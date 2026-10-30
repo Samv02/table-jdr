@@ -45,7 +45,7 @@ Ouvre-le dès qu'une demande touche une partie existante, pour ne pas défaire u
    - Un joueur lance avec SON personnage, jamais avec celui d'un autre.
    - Les dés sont tirés **côté serveur** (`crypto.getRandomValues` avec rejet pour éviter les biais) ; le navigateur n'écrit jamais dans la table `rolls`.
 2. **Fiches privées** : un joueur ne voit que la sienne. Le groupe est visible (pseudo, avatar, couleur) via `get_party()`, jamais les fiches.
-3. **Le MJ voit et modifie tout.**
+3. **Le MJ voit et modifie tout dans son équipe**, et rien ailleurs. Seul l'admin du back office (Sam) a accès à toutes les équipes ; il lance sous le nom « Admin » et signe ses messages « Admin ».
 4. **Verrou MJ** (`players_can_edit`) : fiche verrouillée = le joueur ne peut plus changer PV, argent, munitions, inventaire ni emplacements. Il garde ses **jets** et son **bloc-notes**. Vérifié par la base (RLS), pas seulement par l'interface.
 5. **Bloc-notes** : seul le joueur écrit ; le MJ lit ; les autres joueurs ne voient rien.
 6. **Messagerie** :
@@ -80,7 +80,7 @@ Ouvre-le dès qu'une demande touche une partie existante, pour ne pas défaire u
 ## 4. Installation actuelle (30/10/2026)
 
 - **PC** : Windows, PowerShell dans VS Code, Node.js 26. La politique d'exécution est réglée (`Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`).
-- **Dossier** : `C:\Users\vsamv\OneDrive\Bureau\table-jdr`. OneDrive ralentit `node_modules` : à proposer un jour de le déplacer vers `C:\dev\table-jdr`, puis `git clone` et `npm install`.
+- **Dossier** : `C:\dev\table-jdr` depuis le 30/10/2026 (hors de OneDrive, qui faisait planter Node sur `node_modules`). L'ancien dossier sous OneDrive n'est plus utilisé.
 - **Pas de Docker** : la base de dev est en ligne. Les scripts Docker ont été supprimés le 30/10/2026.
 - **Base de dev** : projet Supabase en ligne gratuit « **JDR** » (`https://hdbykvymmjwvkhwaazet.supabase.co`, région Europe).
   - Le schéma (aujourd'hui `supabase/migrations/20261030000000_installation.sql`) puis `supabase/seed.sql` y ont été lancés à la main dans le SQL Editor.
@@ -92,7 +92,9 @@ Ouvre-le dès qu'une demande touche une partie existante, pour ne pas défaire u
 - **Comptes de test** (mot de passe `table1234`) :
   - `mj@table.local` : MJ, pseudo « MaitreDuJeu » ;
   - `joueur1@table.local` : personnage Alex ;
-  - `joueur2@table.local` : personnage Sam.
+  - `joueur2@table.local` : personnage Sam ;
+  - `admin@table.local` : admin du back office, hors équipe.
+  Les trois premiers forment l'équipe « Table de test ».
 - **Lancer** : `npm run dev`, puis http://localhost:8080. Testé : connexion MJ et tableau de bord avec Alex et Sam, tout fonctionne.
 - **Avertissement au lancement, sans effet** : « localStorage is not available… --localstorage-file » (vient de Node 26, pas du projet).
 - `npm install` a signalé 6 vulnérabilités dans des outils de dev. **Ne jamais lancer `npm audit fix --force`**, qui casse les versions. À regarder avant la mise en ligne.
@@ -116,9 +118,12 @@ Ouvre-le dès qu'une demande touche une partie existante, pour ne pas défaire u
 
 **Technique**
 - [x] Enregistrer `package-lock.json` sur GitHub (fait le 30/10/2026).
-- [ ] Proposer de déplacer le projet hors de OneDrive.
+- [x] Déplacer le projet hors de OneDrive (fait le 30/10/2026).
 - [ ] Avant la mise en ligne :
   - un projet Supabase propre, sans comptes de test ;
+  - créer le compte réel de Sam puis `npm run admin -- <son e-mail>` (ne jamais lancer `seed.sql`) ;
+  - brancher un service d'envoi d'e-mails (Supabase → Authentication → SMTP), sinon les inscriptions ne reçoivent pas leur lien ;
+  - régler Site URL et Redirect URLs dans Supabase avec l'adresse du site, et compléter `/confidentialite` (nom et contact du responsable) ;
   - regarder `npm audit` sans `--force` ;
   - choisir un hébergeur pour l'appli ;
   - tout expliquer pas à pas (Sam l'a demandé : « il va falloir me guider »).

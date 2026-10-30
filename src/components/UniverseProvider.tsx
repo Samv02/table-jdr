@@ -8,7 +8,7 @@ import { applyTheme } from "@/lib/theme";
 const CACHE_KEY = "table:universe";
 
 /**
- * Charge l'univers de la table (lisible même avant connexion, pour la page d'accueil),
+ * Charge l'univers de l'équipe active (univers neutre hors équipe et avant connexion),
  * le garde à jour en direct et applique son thème.
  */
 export function UniverseProvider({ children }: { children: ReactNode }) {
@@ -63,11 +63,13 @@ export function UniverseProvider({ children }: { children: ReactNode }) {
 
   const save = useCallback(async (next: Universe) => {
     const clean = normalizeUniverse(next);
+    const { data: team } = await supabase.rpc("current_team");
+    if (!team) return "Accès refusé (réservé au MJ).";
     const { data, error } = await supabase
       .from("session_state")
       .update({ universe: clean as unknown as Json })
-      .eq("id", 1)
-      .select("id");
+      .eq("team_id", team)
+      .select("team_id");
     if (error) return error.message;
     if (!data?.length) return "Accès refusé (réservé au MJ).";
     setSaved(clean);

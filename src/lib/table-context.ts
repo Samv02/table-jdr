@@ -17,6 +17,7 @@ export type PartyMember = {
   avatar?: string | null | undefined;
 };
 export type TableState = {
+  teamId: string | null;
   scenes: Scene[];
   activeScene: Scene | null;
   music: Music;

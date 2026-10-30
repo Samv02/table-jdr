@@ -26,11 +26,12 @@ export function TableEnvironment({ children }: { children: ReactNode }) {
   const [layers, setLayers] = useState<{ url: string; id: string }[]>([]);
   const [titleVisible, setTitleVisible] = useState(false);
   async function refresh() {
-    const [s, state, members, gm] = await Promise.all([
+    const [s, state, members, team] = await Promise.all([
       supabase.from("scenes").select("*").order("sort_order"),
-      supabase.from("session_state").select("*").eq("id", 1).maybeSingle(),
+      // Une seule ligne visible : celle de l'équipe active
+      supabase.from("session_state").select("*").maybeSingle(),
       supabase.rpc("get_party"),
-      supabase.from("profiles").select("avatar_url,color").eq("role", "gm").limit(1).maybeSingle(),
+      supabase.rpc("get_team_members"),
     ]);
     // Échec normal avant connexion (get_party est réservé aux comptes) : on n'affiche rien.
     if (s.error || state.error || members.error) return;
@@ -43,11 +44,12 @@ export function TableEnvironment({ children }: { children: ReactNode }) {
     setActiveId(state.data?.active_scene_id ?? null);
     setMusic((state.data?.music ?? {}) as Music);
     // Le MJ apparaît avec sa propre photo et sa couleur (profil du compte MJ)
+    const gm = team.data?.find((m) => m.role === "gm");
     const gmRow: PartyMember = {
       character_id: "mj",
       handle: "MJ",
-      avatar_url: gm.data?.avatar_url ?? null,
-      color: gm.data?.color ?? "cyan",
+      avatar_url: gm?.avatar_url ?? null,
+      color: gm?.color ?? "cyan",
     };
     const rows = [...((members.data ?? []) as PartyMember[]), gmRow];
     const avatars = await supabase.storage.from("avatars").createSignedUrls(
@@ -85,7 +87,7 @@ export function TableEnvironment({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("keydown", key);
   }, [clean]);
   useEffect(() => {
-    if (!identity.userId) return;
+    if (!identity.userId || !identity.teamId) return;
     void refresh();
     const clock = async () => {
       const before = Date.now();
@@ -117,10 +119,12 @@ export function TableEnvironment({ children }: { children: ReactNode }) {
       window.removeEventListener("table:refresh", refresh);
       window.removeEventListener("profile:changed", refresh);
     };
-  }, [identity.userId]);
+  }, [identity.userId, identity.teamId]);
   useEffect(() => {
-    if (!identity.userId) return;
-    const channel = supabase.channel("table", { config: { presence: { key: identity.userId } } });
+    if (!identity.userId || !identity.teamId) return;
+    const channel = supabase.channel(`table-${identity.teamId}`, {
+      config: { presence: { key: identity.userId } },
+    });
     channel.on("presence", { event: "sync" }, () => {
       const ids = new Set<string>();
       Object.values(channel.presenceState()).forEach((entries) =>
@@ -132,14 +136,15 @@ export function TableEnvironment({ children }: { children: ReactNode }) {
       setOnline(ids);
     });
     channel.subscribe((status) => {
-      if (status === "SUBSCRIBED")
+      // L'admin en visite n'allume pas le point vert du MJ de l'équipe
+      if (status === "SUBSCRIBED" && !identity.isVisitor)
         void channel.track({ character_id: identity.isGm ? "mj" : (identity.active?.id ?? null) });
     });
     return () => {
       void channel.untrack();
       void supabase.removeChannel(channel);
     };
-  }, [identity.userId, identity.isGm, identity.active?.id]);
+  }, [identity.userId, identity.teamId, identity.isGm, identity.isVisitor, identity.active?.id]);
   const activeScene = scenes.find((x) => x.id === activeId) ?? null;
   useEffect(() => {
     let cancelled = false;
@@ -167,6 +172,7 @@ export function TableEnvironment({ children }: { children: ReactNode }) {
   return (
     <TableContext.Provider
       value={{
+        teamId: identity.teamId,
         scenes,
         activeScene,
         music,

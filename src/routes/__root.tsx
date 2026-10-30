@@ -3,13 +3,14 @@ import {
   Outlet,
   Link,
   createRootRouteWithContext,
+  useNavigate,
   useRouter,
   useRouterState,
   HeadContent,
   Scripts,
   type ErrorComponentProps,
 } from "@tanstack/react-router";
-import { type ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import baseCss from "../styles/table-base.css?url";
@@ -22,6 +23,8 @@ import { AppHeader } from "@/components/AppHeader";
 import { ConfirmHost } from "@/components/ConfirmDialog";
 import { UniverseProvider } from "@/components/UniverseProvider";
 import { THEME_BOOT } from "@/lib/theme";
+import { useIdentity } from "@/lib/active-character";
+import { needsTeam } from "@/lib/team";
 
 function NotFoundComponent() {
   return (
@@ -128,6 +131,17 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+/** Dés et messagerie n'existent que dans une équipe ; sans équipe, les pages de jeu renvoient vers le choix. */
+function TeamScope({ pathname, children }: { pathname: string; children: ReactNode }) {
+  const id = useIdentity();
+  const navigate = useNavigate();
+  const lost = id.ready && !!id.userId && !id.teamId && needsTeam(pathname);
+  useEffect(() => {
+    if (lost) void navigate({ to: "/equipes", replace: true });
+  }, [lost, navigate]);
+  return id.teamId ? children : null;
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -141,8 +155,10 @@ function RootComponent() {
           <TableMusic>
             <AppHeader />
             <Outlet />
-            <DicePanel fiche={fiche} />
-            <Comms />
+            <TeamScope pathname={pathname}>
+              <DicePanel fiche={fiche} />
+              <Comms />
+            </TeamScope>
             <ConfirmHost />
           </TableMusic>
         </TableEnvironment>

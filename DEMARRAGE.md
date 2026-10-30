@@ -63,6 +63,7 @@ Ouvre http://localhost:8080 et connecte-toi :
 | `mj@table.local` | `table1234` | MJ |
 | `joueur1@table.local` | `table1234` | Joueur (Alex) |
 | `joueur2@table.local` | `table1234` | Joueur (Sam) |
+| `admin@table.local` | `table1234` | Admin (back office : http://localhost:8080/admin) |
 
 > Astuce : pour jouer MJ et joueur en même temps, ouvre une seconde fenêtre en **navigation privée**.
 > Sur ton téléphone, connecté au même Wi-Fi : utilise l'adresse « Network » affichée dans le terminal.

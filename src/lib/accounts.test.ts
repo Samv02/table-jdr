@@ -42,13 +42,13 @@ beforeEach(() => {
   mocks.deleteUser.mockResolvedValue({ error: null });
 });
 describe("account deletion", () => {
-  it("rejects players before any privileged operation", async () => {
+  it("rejects non-admins before any privileged operation", async () => {
     mocks.rpc.mockResolvedValue({ data: false, error: null });
-    await expect(execute(request())).rejects.toThrow("Suppression réservée au MJ.");
+    await expect(execute(request())).rejects.toThrow("Suppression réservée à l’admin.");
     expect(mocks.getUserById).not.toHaveBeenCalled();
     expect(mocks.deleteUser).not.toHaveBeenCalled();
   });
-  it("rejects GM self deletion", async () => {
+  it("rejects admin self deletion", async () => {
     await expect(execute(request("gm"))).rejects.toThrow(
       "Tu ne peux pas supprimer ton propre compte.",
     );

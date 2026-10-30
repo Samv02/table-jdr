@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { hudParty } from "@/lib/dashboard";
 import { usePinnedFeed } from "@/lib/pinned-feed";
 import { useWords } from "@/lib/universe-context";
+import { openTeam } from "@/lib/team";
 export function AppHeader() {
   const id = useIdentity();
   const table = useTable();
@@ -37,12 +38,12 @@ export function AppHeader() {
   return (
     <>
       <header className="hud">
-        <Link to="/fiche" className="brand">
-          <b>{W.tableName.toUpperCase()}</b>
+        <Link to={id.teamId ? "/fiche" : "/equipes"} className="brand">
+          <b>{(id.teamName ?? W.tableName).toUpperCase()}</b>
           <small>{table.activeScene?.name ?? W.tagline.toUpperCase()}</small>
         </Link>
         <div className="party">
-          {hudParty(table.party).map((p) => (
+          {hudParty(id.teamId ? table.party : []).map((p) => (
             <div
               className={`member ${!id.isGm && p.character_id === id.active?.id ? "me" : ""}`}
               key={p.character_id}
@@ -65,19 +66,21 @@ export function AppHeader() {
           ))}
         </div>
         <div className="hud-actions">
-          <Button
-            variant="prototype"
-            className="icon-btn cut-s"
-            title="Fil des jets"
-            aria-label="Fil des jets"
-            onClick={() => {
-              setUnread(0);
-              window.dispatchEvent(new Event("dice:feed"));
-            }}
-          >
-            <List />
-            {!pinned && unread > 0 && <span className="badge">{unread}</span>}
-          </Button>
+          {id.teamId && (
+            <Button
+              variant="prototype"
+              className="icon-btn cut-s"
+              title="Fil des jets"
+              aria-label="Fil des jets"
+              onClick={() => {
+                setUnread(0);
+                window.dispatchEvent(new Event("dice:feed"));
+              }}
+            >
+              <List />
+              {!pinned && unread > 0 && <span className="badge">{unread}</span>}
+            </Button>
+          )}
           <Button
             variant="prototype"
             className="icon-btn cut-s"
@@ -91,7 +94,13 @@ export function AppHeader() {
       </header>
       <div className="table-navigation">
         <span className="active-identity">
-          {id.isGm ? "MJ" : (charLabel(id.active) ?? "Aucun personnage assigné, demande au MJ")}
+          {id.isVisitor
+            ? "ADMIN EN VISITE"
+            : !id.teamId
+              ? "Aucune équipe ouverte"
+              : id.isGm
+                ? "MJ"
+                : (charLabel(id.active) ?? "Aucun personnage assigné, demande au MJ")}
         </span>
         {id.characters.length > (id.isGm ? 0 : 1) && (
           <select
@@ -99,7 +108,7 @@ export function AppHeader() {
             value={id.active?.id ?? ""}
             onChange={(e) => id.setActive(e.target.value || null)}
           >
-            {id.isGm && <option value="">MJ</option>}
+            {id.isGm && <option value="">{id.isVisitor ? "Admin" : "MJ"}</option>}
             {id.characters.map((c) => (
               <option key={c.id} value={c.id}>
                 {charLabel(c)}
@@ -113,8 +122,13 @@ export function AppHeader() {
               Tableau de bord
             </Link>
           )}
-          <Link to="/fiche" activeProps={{ className: "active" }}>
-            {id.isGm ? "Fiche" : "Ma fiche"}
+          {id.teamId && (
+            <Link to="/fiche" activeProps={{ className: "active" }}>
+              {id.isGm ? "Fiche" : "Ma fiche"}
+            </Link>
+          )}
+          <Link to="/equipes" activeProps={{ className: "active" }}>
+            Équipes
           </Link>
           <Link to="/profil" activeProps={{ className: "active" }}>
             Profil
@@ -124,8 +138,22 @@ export function AppHeader() {
               MJ
             </Link>
           )}
+          {id.isAdmin && (
+            <Link to="/admin" activeProps={{ className: "active" }}>
+              Admin
+            </Link>
+          )}
         </nav>
         <div className="nav-actions">
+          {id.isVisitor && (
+            <Button
+              variant="prototype"
+              className="btn y visit-exit"
+              onClick={() => void openTeam(null, "/admin")}
+            >
+              Quitter la visite
+            </Button>
+          )}
           <Button
             variant="prototype"
             className="icon-btn cut-s"

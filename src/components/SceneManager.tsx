@@ -27,7 +27,7 @@ export function SceneManager() {
     let path = editing?.image_path ?? "";
     try {
       if (file) {
-        path = `${crypto.randomUUID()}.${file.name.split(".").pop()}`;
+        path = `${table.teamId}/${crypto.randomUUID()}.${file.name.split(".").pop()}`;
         const upload = await supabase.storage
           .from("scenes")
           .upload(path, file, { contentType: file.type });
@@ -55,10 +55,11 @@ export function SceneManager() {
     }
   }
   async function activate(s: Scene) {
+    if (!table.teamId) return;
     const { error } = await supabase
       .from("session_state")
       .update({ active_scene_id: s.id })
-      .eq("id", 1);
+      .eq("team_id", table.teamId);
     if (error) setErr(error.message);
     else await table.refresh();
   }

@@ -6072,3 +6072,139 @@ body.clean .atmo {
   text-align: center;
   line-height: 30px;
 }
+
+/* ===== Équipes, back office ===== */
+.admin-page .ph {
+  align-items: center;
+}
+.admin-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.admin-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: center;
+}
+.admin-stat b {
+  color: var(--cyan);
+  font-family: var(--display);
+  font-size: 30px;
+}
+.admin-stat small {
+  color: var(--mute);
+}
+.admin-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.admin-card.off {
+  opacity: 0.65;
+}
+.admin-card .record-name {
+  flex: 1 1 240px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.admin-card .tag {
+  margin-left: 8px;
+}
+.admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.admin-search {
+  width: 100%;
+  margin-bottom: 12px;
+}
+.teams-page {
+  max-width: 760px;
+  margin-inline: auto;
+}
+.teams-forms {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px;
+  margin: 18px 0;
+}
+.teams-forms form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.team-code {
+  font-family: var(--mono);
+  letter-spacing: 0.12em;
+}
+.team-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.team-code-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.team-code-row code {
+  flex: 1;
+  color: var(--cyan);
+  font-size: 20px;
+}
+.auth-switch {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+}
+.auth-switch button,
+.auth-link,
+.auth-link a {
+  color: var(--mute);
+  font-size: 13px;
+}
+.auth-switch button,
+.auth-link a {
+  text-decoration: underline;
+}
+.profile-account {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.privacy-page {
+  max-width: 720px;
+  margin-inline: auto;
+  color: var(--text);
+}
+.privacy-page h2 {
+  margin-top: 18px;
+}
+.privacy-page ul {
+  padding-left: 20px;
+  list-style: disc;
+}
+.team-delete,
+.admin-actions .btn,
+.teams-forms .btn,
+.profile-account .btn,
+.visit-exit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.team-delete svg,
+.admin-actions .btn svg,
+.teams-forms .btn svg,
+.profile-account .btn svg {
+  flex: none;
+  position: static;
+}

@@ -10,12 +10,11 @@ import { MusicManager } from "@/components/TableMusic";
 import { Button } from "@/components/ui/button";
 import { neonVar, useProfiles } from "@/lib/profile";
 import { useTable } from "@/lib/table-context";
-import { useServerFn } from "@tanstack/react-start";
-import { deleteAccount } from "@/lib/accounts.functions";
 import { useIdentity } from "@/lib/active-character";
-import { Trash2 } from "lucide-react";
+import { UserMinus } from "lucide-react";
 import { confirmAction } from "@/components/ConfirmDialog";
 import { UniverseEditor } from "@/components/UniverseEditor";
+import { TeamSettings } from "@/components/TeamSettings";
 import { useUniverse } from "@/lib/universe-context";
 import { hpMaxFor } from "@/lib/universe";
 
@@ -57,7 +56,6 @@ function GmCharacters() {
   const profiles = useProfiles();
   const table = useTable();
   const identity = useIdentity();
-  const removeAccount = useServerFn(deleteAccount);
   const [deleting, setDeleting] = useState<string | null>(null);
   const { universe: u } = useUniverse();
   const [newName, setNewName] = useState("");
@@ -68,22 +66,16 @@ function GmCharacters() {
         .from("characters")
         .select("id,name,handle,owner_id,sheet,character_state(hp_current,eddies,inventory)")
         .order("created_at"),
-      supabase.from("profiles").select("id,username,role").order("username"),
+      supabase.rpc("get_team_members"),
     ]);
     setRows((c as Row[]) ?? []);
-    setPlayers(p ?? []);
+    setPlayers((p ?? []).map((m) => ({ id: m.user_id, username: m.username, role: m.role })));
   }, []);
 
   useEffect(() => {
     (async () => {
-      const { data: u } = await supabase.auth.getUser();
-      if (!u.user) return setStatus("denied");
-      const { data } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", u.user.id)
-        .maybeSingle();
-      if (data?.role !== "gm") return setStatus("denied");
+      const { data } = await supabase.rpc("is_gm");
+      if (data !== true) return setStatus("denied");
       setStatus("ok");
       load();
     })();
@@ -174,24 +166,20 @@ function GmCharacters() {
     const name = p.username ?? p.id.slice(0, 8);
     if (
       !(await confirmAction({
-        title: `Supprimer le compte « ${name} » ?`,
+        title: `Retirer « ${name} » de l’équipe ?`,
         message:
-          "Son accès, son profil, ses avatars et ses jets seront supprimés. Ses personnages et leur état seront conservés, sans propriétaire. Action irréversible.",
-        confirmLabel: "Supprimer le compte",
+          "Son compte est conservé. Ses personnages restent dans l’équipe, sans joueur. Pour revenir, il lui faudra le code d’invitation.",
+        confirmLabel: "Retirer de l’équipe",
       }))
     )
       return;
     setDeleting(p.id);
-    try {
-      await removeAccount({ data: { userId: p.id } });
-      window.dispatchEvent(new Event("profile:changed"));
-      window.dispatchEvent(new Event("table:refresh"));
-      await load();
-    } catch (error) {
-      setPlayersErr(error instanceof Error ? error.message : "Suppression impossible.");
-    } finally {
-      setDeleting(null);
-    }
+    const { error } = await supabase.rpc("remove_team_member", { _user: p.id });
+    setDeleting(null);
+    if (error) return void setPlayersErr(error.message);
+    window.dispatchEvent(new Event("profile:changed"));
+    window.dispatchEvent(new Event("table:refresh"));
+    await load();
   }
 
   function exportJson(r: Row) {
@@ -253,6 +241,7 @@ function GmCharacters() {
           <>
             <div className="gm-grid">
               <GmTable />
+              <TeamSettings />
               <section className="panel cut">
                 <div className="ph">
                   <h2>Raccourcis</h2>
@@ -377,16 +366,16 @@ function GmCharacters() {
                   <Button
                     variant="prototype"
                     className="btn red"
-                    aria-label={`Supprimer le compte ${p.username ?? p.id.slice(0, 8)}`}
+                    aria-label={`Retirer ${p.username ?? p.id.slice(0, 8)} de l’équipe`}
                     title={
                       p.id === identity.userId
-                        ? "Tu ne peux pas supprimer ton propre compte"
-                        : "Supprimer le compte"
+                        ? "Pour partir, utilise « Quitter » dans Équipes"
+                        : "Retirer de l’équipe"
                     }
                     disabled={deleting !== null || p.id === identity.userId}
                     onClick={() => deletePlayer(p)}
                   >
-                    <Trash2 size={16} />
+                    <UserMinus size={16} />
                   </Button>
                 </li>
               ))}

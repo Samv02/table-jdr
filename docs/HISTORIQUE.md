@@ -80,7 +80,7 @@ Sommaire :
 > Sauf mention contraire, chacune existe dans Night City **et** dans Table JDR (rendue générique).
 
 ### 3.1 Comptes, profils, rôles
-- Pas d'inscription publique : le MJ crée les comptes (tableau de bord Supabase → Authentication).
+- Night City : pas d'inscription publique, le MJ crée les comptes (tableau de bord Supabase → Authentication). Table JDR : inscription ouverte depuis le 30/10/2026 (voir §7, n° 20).
 - À la création d'un compte, le trigger `handle_new_user` donne un pseudo provisoire (`Joueur-XXXX` ; `Runner-XXXX` dans Night City), **jamais l'e-mail**.
 - Page Profil : pseudo (3 à 20 caractères, unique), couleur néon (jaune, rouge, cyan, vert, violet, orange) et avatar (bucket privé `avatars/<user_id>/…`, liens signés). Le changement de mot de passe a été retiré.
 - Le rôle (`player` / `gm`) se change seulement par le MJ : fonction `set_user_role`, plus un trigger `protect_role`.
@@ -429,3 +429,4 @@ Sommaire :
 17. Conseils de jeu pour SUDO (compétences de netrunner, Contrefaçon).
 18. **Version neutre** pour d'autres univers : tout configurable, réglage dans l'appli, nouveau projet, SQL complet.
 19. « On le fait avec Claude Code » : dépôt GitHub `Samv02/table-jdr` ; React + TypeScript confirmé comme bon choix ; passage en local avec VS Code et Claude Code ; base Supabase en ligne (sans Docker) ; premier lancement réussi le 30/10/2026.
+20. **Plateforme multi-équipes et back office** (30/10/2026) : plusieurs groupes séparés, inscription libre, créer une équipe (on en devient MJ) ou en rejoindre une avec un code, back office `/admin` (vue globale, équipes, comptes, activité). Choix : équipe active côté base (une requête ne peut pas sortir de son équipe) ; une équipe active par compte, donc pas deux équipes ouvertes en même temps sur deux appareils ; changer d'équipe recharge la page ; un compte peut être MJ ici et joueur là ; une équipe garde toujours un MJ (le plus ancien membre est promu si le dernier MJ part) ; un MJ retire un membre de son équipe mais seul l'admin supprime ou suspend un compte ; chacun peut supprimer son propre compte.

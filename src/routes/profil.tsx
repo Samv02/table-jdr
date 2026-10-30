@@ -1,12 +1,16 @@
 import { useWords } from "@/lib/universe-context";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { AVATAR_MAX_MB, NEON_COLORS, validateAvatar, validateUsername } from "@/lib/profile";
+import { useIdentity } from "@/lib/active-character";
+import { deleteMyAccount } from "@/lib/accounts.functions";
 
 import { Button } from "@/components/ui/button";
 import { InlineError } from "@/components/InlineError";
-import { Save, Upload, UserRound, ArrowUpRight, Check, Users } from "lucide-react";
+import { confirmAction } from "@/components/ConfirmDialog";
+import { Save, Upload, UserRound, ArrowUpRight, Check, Trash2, Users } from "lucide-react";
 
 export const Route = createFileRoute("/profil")({
   ssr: false,
@@ -29,13 +33,14 @@ export const Route = createFileRoute("/profil")({
 type Me = {
   id: string;
   username: string | null;
-  role: string;
   color: string;
   avatar_url: string | null;
 };
 
 function ProfilePage() {
   const W = useWords();
+  const identity = useIdentity();
+  const removeMe = useServerFn(deleteMyAccount);
   const [me, setMe] = useState<Me | null | "none">(null);
   const [avatar, setAvatar] = useState<string | null>(null);
   const [chars, setChars] = useState<{ id: string; name: string; handle: string | null }[]>([]);
@@ -47,7 +52,7 @@ function ProfilePage() {
     if (!u.user) return setMe("none");
     const { data: p } = await supabase
       .from("profiles")
-      .select("id,username,role,color,avatar_url")
+      .select("id,username,color,avatar_url")
       .eq("id", u.user.id)
       .single();
     if (!p) return setMe("none");
@@ -121,6 +126,23 @@ function ProfilePage() {
     load();
   }
 
+  async function deleteMe() {
+    const ok = await confirmAction({
+      title: "Supprimer mon compte ?",
+      message:
+        "Ton profil, tes avatars et tes jets seront supprimés, ainsi que les équipes où tu es seul. Tes fiches restent dans leur équipe, sans joueur. Action irréversible.",
+      confirmLabel: "Supprimer mon compte",
+    });
+    if (!ok) return;
+    try {
+      await removeMe();
+      await supabase.auth.signOut();
+      window.location.assign("/");
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : "Suppression impossible.");
+    }
+  }
+
   return (
     <main className="profile-page">
       <div className="profile-content">
@@ -129,7 +151,9 @@ function ProfilePage() {
             <p className="profile-eyebrow">{W.tableName.toUpperCase()} / COMPTE</p>
             <h1>MON PROFIL</h1>
           </div>
-          <span className="profile-role">{me.role === "gm" ? "MJ" : "JOUEUR"}</span>
+          <span className="profile-role">
+            {identity.isVisitor ? "ADMIN" : identity.isGm ? "MJ" : "JOUEUR"}
+          </span>
         </header>
 
         <div className="profile-layout">
@@ -241,6 +265,24 @@ function ProfilePage() {
                   ))}
                 </ul>
               )}
+            </section>
+            <section className="profile-section">
+              <div className="ph">
+                <h2>COMPTE</h2>
+              </div>
+              <div className="profile-account">
+                <Button variant="prototype" asChild className="btn profile-action">
+                  <Link to="/mot-de-passe">Changer le mot de passe</Link>
+                </Button>
+                {!identity.isAdmin && (
+                  <Button variant="prototype" className="btn red" onClick={deleteMe}>
+                    <Trash2 size={16} /> Supprimer mon compte
+                  </Button>
+                )}
+              </div>
+              <p className="note">
+                <Link to="/confidentialite">Confidentialité</Link>
+              </p>
             </section>
           </div>
         </div>

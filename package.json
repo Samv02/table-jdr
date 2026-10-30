@@ -12,6 +12,7 @@
     "format": "prettier --write .",
     "test": "vitest run",
     "test:watch": "vitest",
+    "admin": "node --env-file=.env scripts/make-admin.mjs",
     "db:push": "npx supabase db push --linked",
     "db:types": "npx supabase gen types typescript --linked --schema public > src/integrations/supabase/types.ts && prettier --write src/integrations/supabase/types.ts"
   },

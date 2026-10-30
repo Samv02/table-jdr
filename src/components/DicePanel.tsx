@@ -248,8 +248,8 @@ export function DicePanel({ fiche = false }: { fiche?: boolean }) {
 function Launcher() {
   const roll = useServerFn(rollDice);
   const id = useIdentity();
-  // Règle absolue : le MJ lance toujours en tant que "MJ" ; un joueur lance avec SON personnage.
-  const asName = id.isGm ? "MJ" : (charLabel(id.active) ?? null);
+  // Règle absolue : le MJ lance toujours en tant que "MJ" (l'admin en visite sous "Admin") ; un joueur lance avec SON personnage.
+  const asName = id.isVisitor ? "Admin" : id.isGm ? "MJ" : (charLabel(id.active) ?? null);
   const canRoll = id.isGm || !!id.active;
   const [count, setCount] = useState(1);
   const { universe: u } = useUniverse();

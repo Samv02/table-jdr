@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { loginDestination } from "@/lib/dashboard";
 import { LogIn } from "lucide-react";
 import { useWords } from "@/lib/universe-context";
+import { authMessage } from "@/lib/team";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -30,13 +31,14 @@ function Index() {
     if (!ready || !session) return;
     let disposed = false;
     void supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", session.user.id)
+      .rpc("get_team_context")
       .maybeSingle()
       .then(({ data, error }) => {
-        if (!disposed && !error)
-          void navigate({ to: loginDestination(data?.role === "gm"), replace: true });
+        if (disposed || error) return;
+        const to = data?.id
+          ? loginDestination(data.role === "gm" || data.is_admin)
+          : ("/equipes" as const);
+        void navigate({ to, replace: true });
       });
     return () => {
       disposed = true;
@@ -65,19 +67,52 @@ function Index() {
   );
 }
 
+type Mode = "login" | "signup" | "reset";
+const SUBMIT: Record<Mode, { idle: string; busy: string }> = {
+  login: { idle: "CONNEXION", busy: "CONNEXION…" },
+  signup: { idle: "CRÉER MON COMPTE", busy: "CRÉATION…" },
+  reset: { idle: "RECEVOIR UN LIEN", busy: "ENVOI…" },
+};
+
 function AuthForm() {
+  const [mode, setMode] = useState<Mode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  function switchMode(next: Mode) {
+    setMode(next);
+    setMsg(null);
+    setNotice(null);
+  }
 
   async function submit(e: FormEvent) {
     e.preventDefault();
     setBusy(true);
     setMsg(null);
+    setNotice(null);
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) setMsg(error.message);
+      if (mode === "login") {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) setMsg(authMessage(error));
+      } else if (mode === "signup") {
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: { emailRedirectTo: window.location.origin },
+        });
+        if (error) setMsg(authMessage(error));
+        else if (!data.session)
+          setNotice("Compte créé. Clique sur le lien reçu par e-mail pour l’activer.");
+      } else {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/mot-de-passe`,
+        });
+        if (error) setMsg(authMessage(error));
+        else setNotice("Si ce compte existe, un lien vient de lui être envoyé.");
+      }
     } catch {
       setMsg("Connexion impossible. Réessaie dans un instant.");
     } finally {
@@ -100,29 +135,58 @@ function AuthForm() {
           required
         />
       </div>
-      <div className="auth-field">
-        <label htmlFor="login-password">Mot de passe</label>
-        <input
-          id="login-password"
-          className="field"
-          type="password"
-          placeholder="Mot de passe"
-          autoComplete="current-password"
-          minLength={6}
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
-      </div>
+      {mode !== "reset" && (
+        <div className="auth-field">
+          <label htmlFor="login-password">Mot de passe</label>
+          <input
+            id="login-password"
+            className="field"
+            type="password"
+            placeholder={mode === "signup" ? "8 caractères minimum" : "Mot de passe"}
+            autoComplete={mode === "signup" ? "new-password" : "current-password"}
+            minLength={mode === "signup" ? 8 : 6}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
+        </div>
+      )}
+      {mode === "signup" && (
+        <p className="auth-link">
+          En créant un compte, tu acceptes notre{" "}
+          <Link to="/confidentialite">politique de confidentialité</Link>.
+        </p>
+      )}
       <Button variant="prototype" type="submit" disabled={busy} className="auth-submit cut">
         <LogIn aria-hidden="true" />
-        {busy ? "CONNEXION…" : "CONNEXION"}
+        {busy ? SUBMIT[mode].busy : SUBMIT[mode].idle}
       </Button>
       {msg && (
         <p className="auth-error" role="alert">
           {msg}
         </p>
       )}
+      {notice && (
+        <p className="auth-link" role="status">
+          {notice}
+        </p>
+      )}
+      <div className="auth-switch">
+        {mode === "login" ? (
+          <>
+            <button type="button" onClick={() => switchMode("signup")}>
+              Créer un compte
+            </button>
+            <button type="button" onClick={() => switchMode("reset")}>
+              Mot de passe oublié
+            </button>
+          </>
+        ) : (
+          <button type="button" onClick={() => switchMode("login")}>
+            J’ai déjà un compte
+          </button>
+        )}
+      </div>
     </form>
   );
 }

@@ -24,6 +24,7 @@ describe("shared table context", () => {
 
   it("reads updated provider values without replacing context identity", () => {
     const initial: TableState = {
+      teamId: null,
       scenes: [],
       activeScene: null,
       music: {},

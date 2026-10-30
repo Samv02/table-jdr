@@ -6,6 +6,8 @@
 --   mj@table.local        → MJ
 --   joueur1@table.local   → joueur, personnage « Alex »
 --   joueur2@table.local   → joueur, personnage « Sam »
+--   admin@table.local     → admin du back office (hors équipe)
+-- Les trois premiers forment l'équipe « Table de test » (code TESTTEST).
 -- Ne jamais utiliser ce fichier sur une base en ligne.
 -- =====================================================================
 
@@ -23,7 +25,8 @@ select
 from (values
   ('a0000000-0000-4000-8000-000000000001'::uuid, 'mj@table.local'),
   ('a0000000-0000-4000-8000-000000000002'::uuid, 'joueur1@table.local'),
-  ('a0000000-0000-4000-8000-000000000003'::uuid, 'joueur2@table.local')
+  ('a0000000-0000-4000-8000-000000000003'::uuid, 'joueur2@table.local'),
+  ('a0000000-0000-4000-8000-000000000004'::uuid, 'admin@table.local')
 ) as u(id, email)
 on conflict (id) do nothing;
 
@@ -35,18 +38,35 @@ from auth.users u
 where u.email like '%@table.local'
   and not exists (select 1 from auth.identities i where i.user_id = u.id and i.provider = 'email');
 
--- Pseudos lisibles et rôle MJ (le profil est créé automatiquement par le trigger)
-update public.profiles set username = 'MaitreDuJeu', role = 'gm', color = 'yellow'
+-- Pseudos lisibles (le profil est créé automatiquement par le trigger)
+update public.profiles set username = 'MaitreDuJeu', color = 'yellow'
  where id = 'a0000000-0000-4000-8000-000000000001';
 update public.profiles set username = 'Joueur1', color = 'cyan'
  where id = 'a0000000-0000-4000-8000-000000000002';
 update public.profiles set username = 'Joueur2', color = 'violet'
  where id = 'a0000000-0000-4000-8000-000000000003';
+update public.profiles set username = 'Admin', color = 'green'
+ where id = 'a0000000-0000-4000-8000-000000000004';
+insert into public.platform_admins (user_id) values ('a0000000-0000-4000-8000-000000000004')
+on conflict (user_id) do nothing;
+
+-- Une équipe de test : le MJ et les deux joueurs
+insert into public.teams (id, name, join_code, owner_id) values
+  ('b0000000-0000-4000-8000-000000000001', 'Table de test', 'TESTTEST', 'a0000000-0000-4000-8000-000000000001')
+on conflict (id) do nothing;
+insert into public.team_members (team_id, user_id, role) values
+  ('b0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000001', 'gm'),
+  ('b0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000002', 'player'),
+  ('b0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000003', 'player')
+on conflict (team_id, user_id) do nothing;
+update public.profiles set active_team_id = 'b0000000-0000-4000-8000-000000000001'
+ where id in ('a0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000002',
+              'a0000000-0000-4000-8000-000000000003');
 
 -- Deux personnages d'exemple (univers Neutre : PHY AGI ESP PER VOL PRE)
-insert into public.characters (id, owner_id, name, handle, players_can_edit, sheet) values
+insert into public.characters (id, team_id, owner_id, name, handle, players_can_edit, sheet) values
 (
-  'c0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000002', 'Alex', 'Alex', true,
+  'c0000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000002', 'Alex', 'Alex', true,
   '{
     "role": "Enquêtrice", "level": "1",
     "stats": { "PHY": 3, "AGI": 4, "ESP": 5, "PER": 4, "VOL": 3, "PRE": 2 },
@@ -61,7 +81,7 @@ insert into public.characters (id, owner_id, name, handle, players_can_edit, she
   }'::jsonb
 ),
 (
-  'c0000000-0000-4000-8000-000000000002', 'a0000000-0000-4000-8000-000000000003', 'Sam', 'Sam', true,
+  'c0000000-0000-4000-8000-000000000002', 'b0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000003', 'Sam', 'Sam', true,
   '{
     "role": "Mécano", "level": "1",
     "stats": { "PHY": 5, "AGI": 3, "ESP": 3, "PER": 3, "VOL": 4, "PRE": 3 },

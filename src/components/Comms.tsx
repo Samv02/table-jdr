@@ -30,11 +30,11 @@ import { useWords } from "@/lib/universe-context";
 import { InlineError } from "@/components/InlineError";
 import { confirmAction } from "@/components/ConfirmDialog";
 
-const readKey = (uid: string) => `holonet:read:${uid}`;
-function loadRead(uid: string | null): Record<string, string> {
+const readKey = (uid: string, team: string | null) => `holonet:read:${uid}:${team}`;
+function loadRead(uid: string | null, team: string | null): Record<string, string> {
   if (!uid) return {};
   try {
-    return JSON.parse(localStorage.getItem(readKey(uid)) ?? "{}") as Record<string, string>;
+    return JSON.parse(localStorage.getItem(readKey(uid, team)) ?? "{}") as Record<string, string>;
   } catch {
     return {};
   }
@@ -94,7 +94,7 @@ export function Comms() {
   // ---------- Chargement + temps réel ----------
   useEffect(() => {
     if (!id.userId) return;
-    setLastRead(loadRead(id.userId));
+    setLastRead(loadRead(id.userId, id.teamId));
     let alive = true;
     const loadMessages = async () => {
       const { data, error } = await supabase
@@ -151,7 +151,7 @@ export function Comms() {
       window.removeEventListener("comms:open", show);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id.userId]);
+  }, [id.userId, id.teamId]);
 
   // Non-lus : total publié pour le badge du HUD
   const unread = (ch: string) => unreadCount(messages, ch, lastRead[ch], id.userId);
@@ -168,7 +168,7 @@ export function Comms() {
       const next = { ...lastRead, [active]: last };
       setLastRead(next);
       try {
-        localStorage.setItem(readKey(id.userId), JSON.stringify(next));
+        localStorage.setItem(readKey(id.userId, id.teamId), JSON.stringify(next));
       } catch {
         /* stockage indisponible */
       }
@@ -177,7 +177,7 @@ export function Comms() {
       const el = scroller.current;
       if (el) el.scrollTop = el.scrollHeight;
     });
-  }, [open, view, active, messages, id.userId, lastRead]);
+  }, [open, view, active, messages, id.userId, id.teamId, lastRead]);
 
   useEffect(() => {
     const esc = (e: KeyboardEvent) => {

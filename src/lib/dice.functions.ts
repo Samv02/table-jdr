@@ -22,12 +22,13 @@ export const rollDice = createServerFn({ method: "POST" })
   })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("username, role")
-      .eq("id", userId)
-      .maybeSingle();
-    const isGm = profile?.role === "gm";
+    const [{ data: profile }, { data: team }] = await Promise.all([
+      supabase.from("profiles").select("username").eq("id", userId).maybeSingle(),
+      supabase.rpc("get_team_context").maybeSingle(),
+    ]);
+    if (!team?.id) throw new Error("Entre d’abord dans une équipe.");
+    const isMember = team.role !== null;
+    const isGm = team.role === "gm" || team.is_admin;
 
     let characterName: string | null = null;
     if (data.character_id) {
@@ -43,7 +44,8 @@ export const rollDice = createServerFn({ method: "POST" })
     } else if (!isGm) {
       throw new Error("Choisis ton personnage pour lancer les dés.");
     }
-    const display_name = characterName ?? "MJ";
+    // Même l'admin en visite ne lance jamais au nom d'un autre : il signe « Admin »
+    const display_name = characterName ?? (isMember ? "MJ" : "Admin");
 
     const results = Array.from({ length: data.dice_count }, () => rollDie(data.dice_sides));
     const total = results.reduce((a, b) => a + b, 0) + data.modifier;
@@ -53,6 +55,7 @@ export const rollDice = createServerFn({ method: "POST" })
       .from("rolls")
       .insert({
         ...data,
+        team_id: team.id,
         user_id: userId,
         results,
         total,

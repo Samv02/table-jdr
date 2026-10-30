@@ -30,19 +30,18 @@ export function validateAvatar(file: { size: number; type: string }): string | n
 export type PublicProfile = {
   id: string;
   username: string | null;
-  role: string;
   color: string;
   avatar_url: string | null;
   avatar?: string | undefined;
 };
 
-/** All profiles with signed avatar URLs; refreshes when any profile changes. */
+/** Profiles of the active team with signed avatar URLs; refreshes when any profile changes. */
 export function useProfiles() {
   const [profiles, setProfiles] = useState<Record<string, PublicProfile>>({});
   useEffect(() => {
     let alive = true;
     const load = async () => {
-      const { data } = await supabase.from("profiles").select("id,username,role,color,avatar_url");
+      const { data } = await supabase.from("profiles").select("id,username,color,avatar_url");
       const list = (data ?? []) as PublicProfile[];
       const paths = list.map((p) => p.avatar_url).filter((x): x is string => !!x);
       const urls: Record<string, string> = {};
