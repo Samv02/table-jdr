@@ -5,7 +5,7 @@ import { InlineError } from "@/components/InlineError";
 import { DieIcon } from "@/components/DieIcon";
 import { orderedSkills, shortSkillName, topSkillIndexes } from "@/lib/skill-presentation";
 import { useTable } from "@/lib/table-context";
-import { HealthTrace } from "@/components/HealthTrace";
+import { HpVisual } from "@/components/HpVisual";
 import { PlayerNotes } from "@/components/PlayerNotes";
 import { ArsenalWeapon } from "@/components/ArsenalWeapon";
 import { SlotPanel } from "@/components/SlotPanel";
@@ -589,7 +589,7 @@ function Sheet({ charId, isGm, userId }: { charId: string; isGm: boolean; userId
                   {status === "ok" ? w$.hpOk : status === "blesse" ? w$.hpHurt : w$.hpDying}
                 </span>
               </div>
-              {u.modules.ecg && <HealthTrace hp={Math.min(st.hp_current, max)} max={max} />}
+              <HpVisual style={u.theme.hpVisual} hp={Math.min(st.hp_current, max)} max={max} />
               <div className="segs">
                 {Array.from({ length: 15 }, (_, i) => (
                   <i

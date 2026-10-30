@@ -13,6 +13,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { confirmAction } from "@/components/ConfirmDialog";
 import { useUniverse } from "@/lib/universe-context";
+import { HpVisual } from "@/components/HpVisual";
+import { hpVisualsFor } from "@/lib/hp-visual";
+import { Ban, CloudFog, CloudRain, Flame, Sparkles, Wind } from "lucide-react";
 import { CatalogManager } from "@/components/CatalogManager";
 import { TemplateEditor } from "@/components/TemplateEditor";
 import { varKey } from "@/lib/formula";
@@ -38,10 +41,25 @@ import {
  * Les changements s'affichent tout de suite sur l'écran du MJ (aperçu) ;
  * « Enregistrer » les envoie à toute la table, en direct.
  */
+const CORNERS = [
+  { key: "cut", label: "Coupés" },
+  { key: "round", label: "Arrondis" },
+  { key: "square", label: "Droits" },
+] as const;
+const ATMOSPHERES = [
+  { key: "none", label: "Aucune", icon: Ban },
+  { key: "rain", label: "Pluie", icon: CloudRain },
+  { key: "embers", label: "Braises", icon: Flame },
+  { key: "ash", label: "Cendres", icon: Wind },
+  { key: "stars", label: "Étoiles", icon: Sparkles },
+  { key: "fog", label: "Brume", icon: CloudFog },
+] as const;
+
 export function UniverseEditor() {
   const { saved, save, preview } = useUniverse();
   const [draft, setDraft] = useState<Universe>(saved);
   const [busy, setBusy] = useState(false);
+  const [previewHp, setPreviewHp] = useState(60);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const file = useRef<HTMLInputElement>(null);
   const dirty = JSON.stringify(draft) !== JSON.stringify(saved);
@@ -250,33 +268,80 @@ export function UniverseEditor() {
             onChange={(v) => theme("fontMono", v)}
           />
         </div>
+        <h3 className="uni-sub">Visuel de la santé</h3>
+        <p className="note">
+          Comment les joueurs voient leurs {draft.words.hp}. Les visuels conseillés pour ton thème
+          passent en premier.
+        </p>
+        <label className="uni-field hp-preview-range">
+          <span>Aperçu à {previewHp} %</span>
+          <input
+            type="range"
+            min={0}
+            max={100}
+            aria-label="Santé de l’aperçu"
+            value={previewHp}
+            onChange={(e) => setPreviewHp(Number(e.target.value))}
+          />
+        </label>
+        <div className="visual-choices" role="radiogroup" aria-label="Visuel de la santé">
+          {hpVisualsFor(draft.preset).map((v) => (
+            <button
+              type="button"
+              key={v.key}
+              role="radio"
+              aria-checked={draft.theme.hpVisual === v.key}
+              className={`visual-choice ${draft.theme.hpVisual === v.key ? "on" : ""}`}
+              onClick={() => theme("hpVisual", v.key)}
+            >
+              <span className="visual-sample">
+                <HpVisual style={v.key} hp={previewHp} max={100} />
+              </span>
+              <b>{v.label}</b>
+              {v.recommended && <small>Conseillé</small>}
+            </button>
+          ))}
+        </div>
+        <h3 className="uni-sub">Coins des cadres</h3>
+        <div className="visual-choices small" role="radiogroup" aria-label="Coins des cadres">
+          {CORNERS.map((c) => (
+            <button
+              type="button"
+              key={c.key}
+              role="radio"
+              aria-checked={draft.theme.corners === c.key}
+              className={`visual-choice ${draft.theme.corners === c.key ? "on" : ""}`}
+              onClick={() => theme("corners", c.key)}
+            >
+              <span className={`corner-sample ${c.key}`} />
+              <b>{c.label}</b>
+            </button>
+          ))}
+        </div>
+        <h3 className="uni-sub">Ambiance animée du fond</h3>
+        <div
+          className="visual-choices small"
+          role="radiogroup"
+          aria-label="Ambiance animée du fond"
+        >
+          {ATMOSPHERES.map(({ key, label, icon: Icon }) => (
+            <button
+              type="button"
+              key={key}
+              role="radio"
+              aria-checked={draft.theme.atmosphere === key}
+              className={`visual-choice ${draft.theme.atmosphere === key ? "on" : ""}`}
+              onClick={() => theme("atmosphere", key)}
+            >
+              <span className="visual-sample">
+                <Icon size={26} aria-hidden="true" />
+              </span>
+              <b>{label}</b>
+            </button>
+          ))}
+        </div>
         <h3 className="uni-sub">Style</h3>
         <div className="uni-grid two">
-          <Seg
-            label="Coins des cadres"
-            value={draft.theme.corners}
-            options={[
-              ["cut", "Coupés"],
-              ["round", "Arrondis"],
-              ["square", "Droits"],
-            ]}
-            onChange={(v) => theme("corners", v)}
-          />
-          <label className="uni-field">
-            <span>Ambiance animée du fond</span>
-            <select
-              className="field"
-              value={draft.theme.atmosphere}
-              onChange={(e) => theme("atmosphere", e.target.value as Atmosphere)}
-            >
-              <option value="none">Aucune</option>
-              <option value="rain">Pluie</option>
-              <option value="embers">Braises</option>
-              <option value="ash">Cendres</option>
-              <option value="stars">Étoiles</option>
-              <option value="fog">Brume</option>
-            </select>
-          </label>
           <Toggle
             label="Effets néon (lueurs)"
             value={draft.theme.glow}
@@ -675,11 +740,6 @@ export function UniverseEditor() {
             label={draft.words.shop}
             value={draft.modules.shop}
             onChange={(v) => mod("shop", v)}
-          />
-          <Toggle
-            label="Tracé cardiaque animé (ECG)"
-            value={draft.modules.ecg}
-            onChange={(v) => mod("ecg", v)}
           />
         </div>
       </Section>

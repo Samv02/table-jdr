@@ -4,10 +4,21 @@ import { fillRow, hpLevel, hpLevelColor, type HpVisualKey } from "@/lib/hp-visua
 
 const HEART =
   "M12 21s-7.5-4.6-10-9.3C.4 8.4 2.2 4.5 6 4.5c2.300 0 4.300 1.200 6 3.500 1.700-2.300 3.700-3.500 6-3.500 3.800 0 5.600 3.900 4 7.200C19.500 16.400 12 21 12 21z";
-const DROP = "M12 2.500C12 2.500 4.500 11 4.500 15.500a7.500 7.500 0 0 0 15 0C19.500 11 12 2.500 12 2.500z";
+const DROP =
+  "M12 2.500C12 2.500 4.500 11 4.500 15.500a7.500 7.500 0 0 0 15 0C19.500 11 12 2.500 12 2.500z";
 
 /** Rangée d'icônes qui se vident une à une, de droite à gauche. */
-function IconRow({ path, hp, max, count }: { path: string; hp: number; max: number; count: number }) {
+function IconRow({
+  path,
+  hp,
+  max,
+  count,
+}: {
+  path: string;
+  hp: number;
+  max: number;
+  count: number;
+}) {
   const id = useId();
   const color = hpLevelColor(hpLevel(hp, max));
   return (
@@ -32,7 +43,10 @@ function Segments({ hp, max }: { hp: number; max: number }) {
   return (
     <div className="hp-segments">
       {fillRow(hp, max, 20).map((part, i) => (
-        <i key={i} style={part > 0 ? { background: color, opacity: 0.35 + part * 0.65 } : undefined} />
+        <i
+          key={i}
+          style={part > 0 ? { background: color, opacity: 0.35 + part * 0.65 } : undefined}
+        />
       ))}
     </div>
   );
@@ -65,12 +79,23 @@ function Shield({ hp, max }: { hp: number; max: number }) {
   const shape = "M26 3l20 7v15c0 13-9 22-20 26C15 47 6 38 6 25V10z";
   return (
     <svg className="hp-single" viewBox="0 0 52 54" aria-hidden="true">
-      <path d={shape} fill={color} fillOpacity={level === "mourant" ? 0.08 : 0.3} stroke={color} strokeWidth="2" />
+      <path
+        d={shape}
+        fill={color}
+        fillOpacity={level === "mourant" ? 0.08 : 0.3}
+        stroke={color}
+        strokeWidth="2"
+      />
       {level !== "stable" && (
         <path d="M26 3l-4 12 7 8-6 10 4 8" fill="none" stroke="var(--text)" strokeWidth="1.5" />
       )}
       {(level === "critique" || level === "mourant") && (
-        <path d="M46 16l-11 5-3 9 7 7M6 22l10 3 5 9-6 7" fill="none" stroke="var(--text)" strokeWidth="1.5" />
+        <path
+          d="M46 16l-11 5-3 9 7 7M6 22l10 3 5 9-6 7"
+          fill="none"
+          stroke="var(--text)"
+          strokeWidth="1.5"
+        />
       )}
     </svg>
   );

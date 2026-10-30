@@ -12,6 +12,8 @@
  */
 import { checkFormula, evalFormula, varKey } from "./formula";
 
+import { HP_VISUALS, type HpVisualKey } from "./hp-visual";
+
 export type Hue = "cyan" | "pink" | "yellow" | "red" | "green" | "violet";
 export type Corners = "cut" | "round" | "square";
 export type Atmosphere = "none" | "rain" | "embers" | "ash" | "stars" | "fog";
@@ -43,6 +45,7 @@ export type Theme = {
   glow: boolean;
   scanlines: boolean;
   atmosphere: Atmosphere;
+  hpVisual: HpVisualKey;
 };
 
 export type Words = {
@@ -116,7 +119,6 @@ export type Modules = {
   money: boolean;
   slots: boolean;
   features: boolean;
-  ecg: boolean;
   shop: boolean;
 };
 
@@ -323,6 +325,7 @@ const NEUTRAL: Universe = {
     glow: false,
     scanlines: false,
     atmosphere: "none",
+    hpVisual: "bar",
   },
   words: NEUTRAL_WORDS,
   rules: {
@@ -354,7 +357,7 @@ const NEUTRAL: Universe = {
     autofire: false,
     skillOrder: [],
   },
-  modules: { ammo: true, money: true, slots: false, features: true, ecg: false, shop: true },
+  modules: { ammo: true, money: true, slots: false, features: true, shop: true },
   template: EMPTY_TEMPLATE,
 };
 
@@ -379,6 +382,7 @@ const FANTASY: Universe = {
     glow: false,
     scanlines: false,
     atmosphere: "embers",
+    hpVisual: "hearts",
   },
   words: {
     ...NEUTRAL_WORDS,
@@ -439,7 +443,7 @@ const FANTASY: Universe = {
     autofire: false,
     skillOrder: [],
   },
-  modules: { ammo: true, money: true, slots: true, features: true, ecg: false, shop: true },
+  modules: { ammo: true, money: true, slots: true, features: true, shop: true },
   template: EMPTY_TEMPLATE,
 };
 
@@ -464,6 +468,7 @@ const GRIMDARK: Universe = {
     glow: false,
     scanlines: false,
     atmosphere: "ash",
+    hpVisual: "blood",
   },
   words: {
     ...NEUTRAL_WORDS,
@@ -543,7 +548,7 @@ const GRIMDARK: Universe = {
     autofire: false,
     skillOrder: [],
   },
-  modules: { ammo: true, money: true, slots: false, features: true, ecg: false, shop: true },
+  modules: { ammo: true, money: true, slots: false, features: true, shop: true },
   template: EMPTY_TEMPLATE,
 };
 
@@ -568,6 +573,7 @@ const HORROR: Universe = {
     glow: false,
     scanlines: false,
     atmosphere: "fog",
+    hpVisual: "candle",
   },
   words: {
     ...NEUTRAL_WORDS,
@@ -631,7 +637,7 @@ const HORROR: Universe = {
     autofire: false,
     skillOrder: [],
   },
-  modules: { ammo: true, money: true, slots: true, features: true, ecg: false, shop: true },
+  modules: { ammo: true, money: true, slots: true, features: true, shop: true },
   template: EMPTY_TEMPLATE,
 };
 
@@ -656,6 +662,7 @@ const CYBERPUNK: Universe = {
     glow: true,
     scanlines: true,
     atmosphere: "rain",
+    hpVisual: "ecg",
   },
   words: {
     ...NEUTRAL_WORDS,
@@ -742,7 +749,7 @@ const CYBERPUNK: Universe = {
       "Volonté",
     ],
   },
-  modules: { ammo: true, money: true, slots: true, features: true, ecg: true, shop: true },
+  modules: { ammo: true, money: true, slots: true, features: true, shop: true },
   template: EMPTY_TEMPLATE,
 };
 
@@ -832,6 +839,9 @@ export function normalizeUniverse(raw: unknown): Universe {
     ["none", "rain", "embers", "ash", "stars", "fog"] as const,
     base.theme.atmosphere,
   );
+  // Une table qui avait coupé le tracé cardiaque garde une fiche sans visuel
+  const hpDefault = obj(r["modules"])["ecg"] === false ? "none" : base.theme.hpVisual;
+  theme.hpVisual = HP_VISUALS.find((v) => v.key === t["hpVisual"])?.key ?? hpDefault;
   if (typeof t["glow"] === "boolean") theme.glow = t["glow"];
   if (typeof t["scanlines"] === "boolean") theme.scanlines = t["scanlines"];
 

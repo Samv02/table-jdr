@@ -7351,3 +7351,134 @@ code.bo-card-side {
   align-items: center;
   gap: 6px;
 }
+
+/* ===== Visuels de santé et vignettes de l'univers ===== */
+.hp-visual {
+  margin: 8px 0;
+}
+.hp-row {
+  display: flex;
+  gap: 4px;
+}
+.hp-row svg {
+  width: 26px;
+  height: 26px;
+}
+.hp-single {
+  display: block;
+  width: 54px;
+  height: 56px;
+}
+.hp-segments {
+  display: grid;
+  grid-template-columns: repeat(20, 1fr);
+  gap: 2px;
+  height: 14px;
+}
+.hp-segments i {
+  background: var(--line2);
+}
+.hp-flame {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: hp-flame 1.6s ease-in-out infinite;
+}
+@keyframes hp-flame {
+  50% {
+    transform: scaleY(0.88) scaleX(1.06);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hp-flame {
+    animation: none;
+  }
+}
+.hp-preview-range {
+  max-width: 320px;
+}
+.hp-preview-range input {
+  accent-color: var(--cyan);
+}
+.visual-choices {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.visual-choices.small {
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+}
+.visual-choice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 10px 8px;
+  border: 1px solid var(--line);
+  color: var(--text);
+  font-size: 13px;
+  text-align: center;
+}
+.visual-choice:hover {
+  border-color: var(--cyan);
+}
+.visual-choice.on {
+  border-color: var(--cyan);
+  box-shadow: inset 0 0 0 1px var(--cyan);
+  background: color-mix(in srgb, var(--cyan) 10%, transparent);
+}
+.visual-choice b {
+  font-weight: 600;
+}
+.visual-choice small {
+  color: var(--cyan);
+  font-size: 11px;
+}
+.visual-sample {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 60px;
+  overflow: hidden;
+  color: var(--mute);
+}
+.visual-sample > * {
+  width: 100%;
+  min-width: 0;
+}
+.visual-sample .hp-row {
+  justify-content: center;
+}
+.visual-sample .hp-row svg {
+  width: 20px;
+  height: 20px;
+}
+.visual-sample .hp-single {
+  margin-inline: auto;
+}
+.visual-sample svg.lucide {
+  width: 26px;
+}
+.corner-sample {
+  display: block;
+  width: 44px;
+  height: 30px;
+  margin: 6px 0;
+  background: color-mix(in srgb, var(--cyan) 35%, transparent);
+  border: 1px solid var(--cyan);
+}
+.corner-sample.round {
+  border-radius: 9px;
+}
+.corner-sample.cut {
+  clip-path: polygon(
+    0 0,
+    calc(100% - 10px) 0,
+    100% 10px,
+    100% 100%,
+    10px 100%,
+    0 calc(100% - 10px)
+  );
+}

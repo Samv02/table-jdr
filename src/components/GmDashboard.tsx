@@ -42,6 +42,7 @@ import { confirmAction } from "@/components/ConfirmDialog";
 import { useUniverse } from "@/lib/universe-context";
 import { gaugeMax, woundedFor } from "@/lib/universe";
 import { DashboardSettings } from "@/components/DashboardSettings";
+import { HpVisual } from "@/components/HpVisual";
 import {
   DEFAULT_PREFS,
   arrangeRows,
@@ -553,6 +554,7 @@ function DashboardColumn({ row: r, visible, prefs, hurt, update, onLock }: Colum
             {status === "ok" ? W.hpOk : status === "blesse" ? W.hpHurt : W.hpDying}
           </span>
         </div>
+        {s && <HpVisual style={u.theme.hpVisual} hp={Math.min(s.hp_current, max)} max={max} />}
         <div className="segs">
           {Array.from({ length: 15 }, (_, i) => (
             <i

@@ -40,9 +40,9 @@ describe("hpVisualsFor", () => {
 
 describe("normalizeUniverse", () => {
   it("keeps a valid choice and refuses an unknown one", () => {
-    expect(normalizeUniverse({ preset: "fantasy", theme: { hpVisual: "candle" } }).theme.hpVisual).toBe(
-      "candle",
-    );
+    expect(
+      normalizeUniverse({ preset: "fantasy", theme: { hpVisual: "candle" } }).theme.hpVisual,
+    ).toBe("candle");
     expect(normalizeUniverse({ preset: "fantasy", theme: { hpVisual: "x" } }).theme.hpVisual).toBe(
       "hearts",
     );

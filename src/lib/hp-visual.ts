@@ -15,7 +15,10 @@ export type HpVisualKey = (typeof HP_VISUALS)[number]["key"];
 export function hpVisualsFor(preset: string) {
   const fits = (v: (typeof HP_VISUALS)[number]) => (v.themes as readonly string[]).includes(preset);
   return [...HP_VISUALS]
-    .sort((a, b) => Number(b.key !== "none") - Number(a.key !== "none") || Number(fits(b)) - Number(fits(a)))
+    .sort(
+      (a, b) =>
+        Number(b.key !== "none") - Number(a.key !== "none") || Number(fits(b)) - Number(fits(a)),
+    )
     .map((v) => ({ key: v.key, label: v.label, recommended: fits(v) }));
 }
 
@@ -35,7 +38,5 @@ export const hpLevelColor = (level: HpLevel) =>
 /** Part remplie (0 à 1) de chaque élément d'une rangée, ex. 2,5 cœurs sur 5 : 1, 1, 0.5, 0, 0. */
 export function fillRow(hp: number, max: number, count: number) {
   const ratio = max > 0 ? Math.max(0, Math.min(1, hp / max)) : 0;
-  return Array.from({ length: count }, (_, i) =>
-    Math.max(0, Math.min(1, ratio * count - i)),
-  );
+  return Array.from({ length: count }, (_, i) => Math.max(0, Math.min(1, ratio * count - i)));
 }

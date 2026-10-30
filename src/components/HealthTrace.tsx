@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { hpLevel, type HpLevel } from "@/lib/hp-visual";
 
 /*
  * Tracé ECG des signes vitaux — 4 états :
@@ -15,10 +16,8 @@ import { useState } from "react";
  *    exactement là où il en était au lieu de repartir de zéro.
  */
 
-type Level = "stable" | "blesse" | "critique" | "mourant";
-
 const LEVELS: Record<
-  Exclude<Level, "mourant">,
+  Exclude<HpLevel, "mourant">,
   { beat: string; len: number; dur: number; color: string; label: string }
 > = {
   // 120 unités → 4 battements par boucle de 4 s (60 bpm)
@@ -47,15 +46,8 @@ const LEVELS: Record<
   },
 };
 
-function levelFor(hp: number, max: number): Level {
-  if (hp <= 0) return "mourant";
-  if (hp <= Math.ceil(max / 4)) return "critique";
-  if (hp <= Math.ceil(max / 2)) return "blesse";
-  return "stable";
-}
-
 export function HealthTrace({ hp, max }: { hp: number; max: number }) {
-  const level = levelFor(hp, max);
+  const level = hpLevel(hp, max);
   // Instant de création de l'élément, figé : les re-rendus ne modifient pas la phase
   const [mountedAt] = useState(() => Date.now() / 1000);
 
