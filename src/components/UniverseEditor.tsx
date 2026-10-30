@@ -47,6 +47,7 @@ const CORNERS = [
   { key: "cut", label: "Coupés" },
   { key: "round", label: "Arrondis" },
   { key: "square", label: "Droits" },
+  { key: "scroll", label: "Parchemin" },
 ] as const;
 const ATMOSPHERES = [
   { key: "none", label: "Aucune", icon: Ban },

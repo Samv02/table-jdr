@@ -8248,3 +8248,55 @@ body.is-resizing .layout-dock {
 .custom-rows {
   user-select: none;
 }
+
+/* ===== Coins Parchemin : bords irréguliers, comme une feuille déchirée ===== */
+body {
+  --torn-edge: polygon(
+    0 3px,
+    4% 0,
+    12% 2px,
+    23% 0,
+    35% 3px,
+    48% 1px,
+    61% 3px,
+    74% 0,
+    88% 2px,
+    100% 1px,
+    calc(100% - 2px) 18%,
+    100% 37%,
+    calc(100% - 3px) 58%,
+    100% 79%,
+    calc(100% - 1px) 100%,
+    86% calc(100% - 3px),
+    71% 100%,
+    55% calc(100% - 2px),
+    39% 100%,
+    22% calc(100% - 3px),
+    8% 100%,
+    0 calc(100% - 2px),
+    2px 78%,
+    0 56%,
+    3px 35%,
+    0 16%
+  );
+}
+body.corners-scroll .cut,
+body.corners-scroll .cut-s,
+body.corners-scroll .table-navigation nav a,
+body.corners-scroll .table-navigation .nav-profile,
+body.corners-scroll .bubble,
+body.corners-scroll .btn,
+body.corners-scroll .field,
+body.corners-scroll .dashboard-column,
+.corner-sample.corner-scroll {
+  border-radius: 0;
+  clip-path: var(--torn-edge);
+}
+body.corners-scroll .panel.cut {
+  box-shadow: inset 0 0 26px color-mix(in srgb, var(--yellow) 10%, transparent);
+}
+.corner-sample.corner-scroll {
+  width: 46px;
+  background: color-mix(in srgb, var(--yellow) 30%, transparent);
+  border-color: transparent;
+}

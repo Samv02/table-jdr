@@ -15,7 +15,7 @@ import { checkFormula, evalFormula, varKey } from "./formula";
 import { HP_VISUALS, type HpVisualKey } from "./hp-visual";
 
 export type Hue = "cyan" | "pink" | "yellow" | "red" | "green" | "violet";
-export type Corners = "cut" | "round" | "square";
+export type Corners = "cut" | "round" | "square" | "scroll";
 export type Atmosphere = "none" | "rain" | "embers" | "ash" | "stars" | "fog";
 export type RollMode = "over" | "under";
 /** Critique : dé au maximum, au minimum, doubles (d100), ou jamais */
@@ -833,7 +833,11 @@ export function normalizeUniverse(raw: unknown): Universe {
     if (isColor(t[k])) theme[k] = t[k];
   for (const k of ["fontDisplay", "fontBody", "fontMono"] as const)
     if (isStr(t[k], 60) && t[k]) theme[k] = t[k];
-  theme.corners = pick(t["corners"], ["cut", "round", "square"] as const, base.theme.corners);
+  theme.corners = pick(
+    t["corners"],
+    ["cut", "round", "square", "scroll"] as const,
+    base.theme.corners,
+  );
   theme.atmosphere = pick(
     t["atmosphere"],
     ["none", "rain", "embers", "ash", "stars", "fog"] as const,

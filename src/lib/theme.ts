@@ -45,6 +45,7 @@ const ALL_CLASSES = [
   "corners-cut",
   "corners-round",
   "corners-square",
+  "corners-scroll",
   "fx-glow",
   "fx-noglow",
   "fx-scan",
