@@ -16,6 +16,7 @@ import { Route as EquipesRouteImport } from './routes/equipes'
 import { Route as FicheRouteImport } from './routes/fiche'
 import { Route as MotDePasseRouteImport } from './routes/mot-de-passe'
 import { Route as ProfilRouteImport } from './routes/profil'
+import { Route as SupportRouteImport } from './routes/support'
 import { Route as MjPersonnagesRouteImport } from './routes/mj.personnages'
 import { Route as MjTableauRouteImport } from './routes/mj.tableau'
 
@@ -54,6 +55,11 @@ const ProfilRoute = ProfilRouteImport.update({
   path: '/profil',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SupportRoute = SupportRouteImport.update({
+  id: '/support',
+  path: '/support',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MjPersonnagesRoute = MjPersonnagesRouteImport.update({
   id: '/mj/personnages',
   path: '/mj/personnages',
@@ -73,6 +79,7 @@ export interface FileRoutesByFullPath {
   '/fiche': typeof FicheRoute
   '/mot-de-passe': typeof MotDePasseRoute
   '/profil': typeof ProfilRoute
+  '/support': typeof SupportRoute
   '/mj/personnages': typeof MjPersonnagesRoute
   '/mj/tableau': typeof MjTableauRoute
 }
@@ -84,6 +91,7 @@ export interface FileRoutesByTo {
   '/fiche': typeof FicheRoute
   '/mot-de-passe': typeof MotDePasseRoute
   '/profil': typeof ProfilRoute
+  '/support': typeof SupportRoute
   '/mj/personnages': typeof MjPersonnagesRoute
   '/mj/tableau': typeof MjTableauRoute
 }
@@ -96,6 +104,7 @@ export interface FileRoutesById {
   '/fiche': typeof FicheRoute
   '/mot-de-passe': typeof MotDePasseRoute
   '/profil': typeof ProfilRoute
+  '/support': typeof SupportRoute
   '/mj/personnages': typeof MjPersonnagesRoute
   '/mj/tableau': typeof MjTableauRoute
 }
@@ -109,6 +118,7 @@ export interface FileRouteTypes {
     | '/fiche'
     | '/mot-de-passe'
     | '/profil'
+    | '/support'
     | '/mj/personnages'
     | '/mj/tableau'
   fileRoutesByTo: FileRoutesByTo
@@ -120,6 +130,7 @@ export interface FileRouteTypes {
     | '/fiche'
     | '/mot-de-passe'
     | '/profil'
+    | '/support'
     | '/mj/personnages'
     | '/mj/tableau'
   id:
@@ -131,6 +142,7 @@ export interface FileRouteTypes {
     | '/fiche'
     | '/mot-de-passe'
     | '/profil'
+    | '/support'
     | '/mj/personnages'
     | '/mj/tableau'
   fileRoutesById: FileRoutesById
@@ -143,6 +155,7 @@ export interface RootRouteChildren {
   FicheRoute: typeof FicheRoute
   MotDePasseRoute: typeof MotDePasseRoute
   ProfilRoute: typeof ProfilRoute
+  SupportRoute: typeof SupportRoute
   MjPersonnagesRoute: typeof MjPersonnagesRoute
   MjTableauRoute: typeof MjTableauRoute
 }
@@ -198,6 +211,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProfilRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/support': {
+      id: '/support'
+      path: '/support'
+      fullPath: '/support'
+      preLoaderRoute: typeof SupportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/mj/personnages': {
       id: '/mj/personnages'
       path: '/mj/personnages'
@@ -223,6 +243,7 @@ const rootRouteChildren: RootRouteChildren = {
   FicheRoute: FicheRoute,
   MotDePasseRoute: MotDePasseRoute,
   ProfilRoute: ProfilRoute,
+  SupportRoute: SupportRoute,
   MjPersonnagesRoute: MjPersonnagesRoute,
   MjTableauRoute: MjTableauRoute,
 }

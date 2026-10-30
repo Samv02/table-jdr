@@ -18,7 +18,8 @@ function Privacy() {
         <h2>Ce qui est enregistré</h2>
         <p>
           Ton e-mail et ton mot de passe (chiffré) pour te connecter, ton pseudo, ton avatar, et ce
-          que tu crées en jouant : fiches, jets de dés, bloc-notes et messages.
+          que tu crées en jouant : fiches, jets de dés, bloc-notes et messages, ainsi que tes
+          échanges avec le support.
         </p>
         <h2>Qui peut le voir</h2>
         <ul>

@@ -6,7 +6,8 @@ import type { Database } from "@/integrations/supabase/types";
 import { validateUsername } from "./profile";
 
 const WEEK_MS = 7 * 24 * 3600 * 1000;
-const ACTIVITY_LIMIT = 100;
+const ACTIVITY_LIMIT = 200;
+const CHART_DAYS = 14;
 /** Durée de bannissement côté Auth : l'équivalent de « jusqu'à réactivation ». */
 const BAN_FOREVER = "876000h";
 
@@ -18,6 +19,7 @@ export type AdminAccount = {
   last_sign_in_at: string | null;
   suspended: boolean;
   admin: boolean;
+  note: string;
   teams: { id: string; name: string; role: string }[];
 };
 export type AdminCharacter = { id: string; name: string; owner_id: string | null };
@@ -30,44 +32,82 @@ export type AdminTeam = {
   members: { user_id: string; username: string | null; role: string }[];
   characters: AdminCharacter[];
   last_activity: string | null;
-};
-export type AdminEvent = {
-  id: string;
-  kind: "roll" | "message" | "admin";
-  at: string;
-  team: string;
-  who: string;
-  text: string;
-  secret: boolean;
-};
-export type AdminStats = {
-  accounts: number;
-  newAccounts7d: number;
-  active7d: number;
-  suspended: number;
-  noTeam: number;
-  teams: number;
-  emptyTeams: number;
-  characters: number;
   rolls7d: number;
   messages7d: number;
 };
+export type AdminEvent = {
+  id: string;
+  rawId: string;
+  kind: "roll" | "message" | "admin";
+  at: string;
+  teamId: string | null;
+  team: string;
+  who: string;
+  /** Jet : raison ; message : texte ; journal : action. */
+  text: string;
+  /** Jet : dés et résultat ; message : canal ; journal : cible. */
+  detail: string;
+  secret: boolean;
+};
+export type AdminDay = { day: string; signups: number; rolls: number; messages: number };
+export type AdminSettings = {
+  maintenance: boolean;
+  maintenance_message: string;
+  signups_open: boolean;
+  team_creation_open: boolean;
+  joins_open: boolean;
+  max_teams_per_user: number;
+};
+export type AdminAnnouncement = {
+  id: string;
+  body: string;
+  level: string;
+  team_id: string | null;
+  active: boolean;
+  expires_at: string | null;
+  created_at: string;
+};
+export type AdminStats = {
+  accounts: number;
+  active7d: number;
+  active30d: number;
+  newAccounts7d: number;
+  newAccountsPrev7d: number;
+  neverSignedIn: number;
+  suspended: number;
+  noTeam: number;
+  teams: number;
+  activeTeams7d: number;
+  emptyTeams: number;
+  noGmTeams: number;
+  characters: number;
+  orphanCharacters: number;
+  rolls7d: number;
+  rollsPrev7d: number;
+  messages7d: number;
+  messagesPrev7d: number;
+  ticketsOpen: number;
+  ticketsInProgress: number;
+  ticketsResolved7d: number;
+  firstReplyHours: number | null;
+};
 export type AdminOverview = {
   stats: AdminStats;
+  days: AdminDay[];
   accounts: AdminAccount[];
   teams: AdminTeam[];
   activity: AdminEvent[];
+  settings: AdminSettings;
+  announcements: AdminAnnouncement[];
 };
 
 async function requireAdmin(supabase: SupabaseClient<Database>) {
-  const { data, error } = await supabase.rpc("is_platform_admin");
-  if (error || data !== true) throw new Error("Accès réservé à l’admin.");
-  const [{ supabaseAdmin }, { logAdmin }] = await Promise.all([
-    import("@/integrations/supabase/client.server"),
-    import("./admin-log.server"),
-  ]);
-  return { admin: supabaseAdmin, logAdmin };
+  const { requireAdminAccess } = await import("./admin-guard.server");
+  return requireAdminAccess(supabase);
 }
+
+const channelLabel = (channel: string) =>
+  channel === "all" ? "Annonce" : channel.startsWith("gm:") ? "Canal MJ" : "Entre joueurs";
 
 const teamId = z.string().uuid();
 const userId = z.string().uuid();
@@ -77,33 +117,50 @@ export const adminOverview = createServerFn({ method: "GET" })
   .handler(async ({ context }): Promise<AdminOverview> => {
     const { admin } = await requireAdmin(context.supabase);
     const since = new Date(Date.now() - WEEK_MS).toISOString();
-    const [users, profiles, admins, teams, members, characters, rolls, messages, log] =
-      await Promise.all([
-        admin.auth.admin.listUsers({ perPage: 1000 }),
-        admin.from("profiles").select("id,username,suspended_at"),
-        admin.from("platform_admins").select("user_id"),
-        admin.from("teams").select("id,name,join_code,owner_id,created_at").order("created_at"),
-        admin.from("team_members").select("team_id,user_id,role"),
-        admin.from("characters").select("id,name,team_id,owner_id").order("name"),
-        admin
-          .from("rolls")
-          .select("id,team_id,display_name,label,dice_count,dice_sides,total,is_secret,created_at")
-          .order("created_at", { ascending: false })
-          .limit(ACTIVITY_LIMIT),
-        admin
-          .from("messages")
-          .select("id,team_id,sender_name,channel,body,created_at")
-          .order("created_at", { ascending: false })
-          .limit(ACTIVITY_LIMIT),
-        admin
-          .from("admin_log")
-          .select("id,admin_id,action,target,created_at")
-          .order("created_at", { ascending: false })
-          .limit(ACTIVITY_LIMIT),
-      ]);
-    const [rolls7d, messages7d] = await Promise.all([
-      admin.from("rolls").select("id", { count: "exact", head: true }).gte("created_at", since),
-      admin.from("messages").select("id", { count: "exact", head: true }).gte("created_at", since),
+    const [
+      users,
+      profiles,
+      admins,
+      teams,
+      members,
+      characters,
+      rolls,
+      messages,
+      log,
+      daily,
+      activity7d,
+      notes,
+      settings,
+      announcements,
+      tickets,
+    ] = await Promise.all([
+      admin.auth.admin.listUsers({ perPage: 1000 }),
+      admin.from("profiles").select("id,username,suspended_at"),
+      admin.from("platform_admins").select("user_id"),
+      admin.from("teams").select("id,name,join_code,owner_id,created_at").order("created_at"),
+      admin.from("team_members").select("team_id,user_id,role"),
+      admin.from("characters").select("id,name,team_id,owner_id").order("name"),
+      admin
+        .from("rolls")
+        .select("id,team_id,display_name,label,dice_count,dice_sides,total,is_secret,created_at")
+        .order("created_at", { ascending: false })
+        .limit(ACTIVITY_LIMIT),
+      admin
+        .from("messages")
+        .select("id,team_id,sender_name,channel,body,created_at")
+        .order("created_at", { ascending: false })
+        .limit(ACTIVITY_LIMIT),
+      admin
+        .from("admin_log")
+        .select("id,admin_id,action,target,created_at")
+        .order("created_at", { ascending: false })
+        .limit(ACTIVITY_LIMIT),
+      admin.rpc("admin_daily_stats", { _days: CHART_DAYS }),
+      admin.rpc("admin_team_activity", { _since: since }),
+      admin.from("account_notes").select("user_id,body"),
+      admin.from("platform_settings").select("*").eq("id", 1).single(),
+      admin.from("announcements").select("*").order("created_at", { ascending: false }),
+      admin.from("support_tickets").select("status,created_at,first_reply_at,resolved_at"),
     ]);
 
     const profileOf = new Map((profiles.data ?? []).map((p) => [p.id, p]));
@@ -112,6 +169,11 @@ export const adminOverview = createServerFn({ method: "GET" })
     const adminIds = new Set((admins.data ?? []).map((a) => a.user_id));
     const memberRows = members.data ?? [];
     const characterRows = characters.data ?? [];
+    const noteOf = new Map((notes.data ?? []).map((n) => [n.user_id, n.body]));
+    const teamActivity = new Map((activity7d.data ?? []).map((t) => [t.team_id, t]));
+    const days = (daily.data ?? []) as AdminDay[];
+    const sum = (key: "signups" | "rolls" | "messages", from: number, to: number) =>
+      days.slice(from, to).reduce((n, d) => n + d[key], 0);
     const lastActivity = new Map<string, string>();
     for (const e of [...(rolls.data ?? []), ...(messages.data ?? [])]) {
       if (e.created_at > (lastActivity.get(e.team_id) ?? "")) {
@@ -127,6 +189,7 @@ export const adminOverview = createServerFn({ method: "GET" })
       last_sign_in_at: u.last_sign_in_at ?? null,
       suspended: !!profileOf.get(u.id)?.suspended_at,
       admin: adminIds.has(u.id),
+      note: noteOf.get(u.id) ?? "",
       teams: memberRows
         .filter((m) => m.user_id === u.id)
         .map((m) => ({ id: m.team_id, name: teamName.get(m.team_id) ?? "?", role: m.role })),
@@ -148,53 +211,90 @@ export const adminOverview = createServerFn({ method: "GET" })
         .filter((c) => c.team_id === t.id)
         .map((c) => ({ id: c.id, name: c.name, owner_id: c.owner_id })),
       last_activity: lastActivity.get(t.id) ?? null,
+      rolls7d: teamActivity.get(t.id)?.rolls ?? 0,
+      messages7d: teamActivity.get(t.id)?.messages ?? 0,
     }));
     const activity: AdminEvent[] = [
       ...(rolls.data ?? []).map((r) => ({
         id: `r${r.id}`,
+        rawId: r.id,
         kind: "roll" as const,
         at: r.created_at,
+        teamId: r.team_id,
         team: teamName.get(r.team_id) ?? "?",
         who: r.display_name ?? "?",
-        text: `${r.label ? `${r.label} : ` : ""}${r.dice_count}d${r.dice_sides} → ${r.total}`,
+        text: r.label ?? "",
+        detail: `${r.dice_count}d${r.dice_sides} → ${r.total}`,
         secret: r.is_secret,
       })),
       ...(messages.data ?? []).map((m) => ({
         id: `m${m.id}`,
+        rawId: m.id,
         kind: "message" as const,
         at: m.created_at,
+        teamId: m.team_id,
         team: teamName.get(m.team_id) ?? "?",
         who: m.sender_name,
         text: m.body,
+        detail: channelLabel(m.channel),
         secret: m.channel !== "all",
       })),
       ...(log.data ?? []).map((l) => ({
         id: `a${l.id}`,
+        rawId: l.id,
         kind: "admin" as const,
         at: l.created_at,
+        teamId: null,
         team: "",
         who: (l.admin_id && profileOf.get(l.admin_id)?.username) || "Admin",
-        text: l.target ? `${l.action} : ${l.target}` : l.action,
+        text: l.action,
+        detail: l.target,
         secret: false,
       })),
     ].sort((a, b) => b.at.localeCompare(a.at));
+    const ticketRows = tickets.data ?? [];
+    const replyHours = ticketRows
+      .filter((t) => t.first_reply_at)
+      .map((t) => (Date.parse(t.first_reply_at ?? "") - Date.parse(t.created_at)) / 3600000);
+    const since30 = new Date(Date.now() - 30 * 86400000).toISOString();
 
     return {
       stats: {
         accounts: accounts.length,
-        newAccounts7d: accounts.filter((a) => a.created_at >= since).length,
         active7d: accounts.filter((a) => (a.last_sign_in_at ?? "") >= since).length,
+        active30d: accounts.filter((a) => (a.last_sign_in_at ?? "") >= since30).length,
+        newAccounts7d: sum("signups", CHART_DAYS - 7, CHART_DAYS),
+        newAccountsPrev7d: sum("signups", 0, CHART_DAYS - 7),
+        neverSignedIn: accounts.filter((a) => !a.last_sign_in_at).length,
         suspended: accounts.filter((a) => a.suspended).length,
         noTeam: accounts.filter((a) => !a.admin && a.teams.length === 0).length,
         teams: teamRows.length,
+        activeTeams7d: teamRows.filter((t) => t.rolls7d + t.messages7d > 0).length,
         emptyTeams: teamRows.filter((t) => t.members.length === 0).length,
+        noGmTeams: teamRows.filter(
+          (t) => t.members.length > 0 && !t.members.some((m) => m.role === "gm"),
+        ).length,
         characters: characterRows.length,
-        rolls7d: rolls7d.count ?? 0,
-        messages7d: messages7d.count ?? 0,
+        orphanCharacters: characterRows.filter((c) => !c.owner_id).length,
+        rolls7d: sum("rolls", CHART_DAYS - 7, CHART_DAYS),
+        rollsPrev7d: sum("rolls", 0, CHART_DAYS - 7),
+        messages7d: sum("messages", CHART_DAYS - 7, CHART_DAYS),
+        messagesPrev7d: sum("messages", 0, CHART_DAYS - 7),
+        ticketsOpen: ticketRows.filter((t) => t.status === "open").length,
+        ticketsInProgress: ticketRows.filter((t) => t.status === "in_progress").length,
+        ticketsResolved7d: ticketRows.filter(
+          (t) => t.status === "resolved" && (t.resolved_at ?? "") >= since,
+        ).length,
+        firstReplyHours: replyHours.length
+          ? replyHours.reduce((a, b) => a + b, 0) / replyHours.length
+          : null,
       },
+      days,
       accounts,
       teams: teamRows,
       activity,
+      settings: settings.data as AdminSettings,
+      announcements: announcements.data ?? [],
     };
   });
 
@@ -215,11 +315,14 @@ export const adminCreateAccount = createServerFn({ method: "POST" })
       const invalid = validateUsername(data.username);
       if (invalid) throw new Error(invalid);
     }
+    // Laisse passer ce seul e-mail quand les inscriptions sont fermées
+    await admin.from("platform_settings").update({ signup_allowed_email: data.email }).eq("id", 1);
     const { data: created, error } = await admin.auth.admin.createUser({
       email: data.email,
       password: data.password,
       email_confirm: true,
     });
+    await admin.from("platform_settings").update({ signup_allowed_email: null }).eq("id", 1);
     if (error || !created.user) throw new Error("Création impossible : e-mail déjà utilisé ?");
     if (data.username) {
       const { error: nameError } = await admin

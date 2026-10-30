@@ -8,6 +8,32 @@ export type Database = {
   };
   public: {
     Tables: {
+      account_notes: {
+        Row: {
+          body: string;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          body?: string;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          body?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "account_notes_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: true;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       admin_log: {
         Row: {
           action: string;
@@ -36,6 +62,44 @@ export type Database = {
             columns: ["admin_id"];
             isOneToOne: false;
             referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      announcements: {
+        Row: {
+          active: boolean;
+          body: string;
+          created_at: string;
+          expires_at: string | null;
+          id: string;
+          level: string;
+          team_id: string | null;
+        };
+        Insert: {
+          active?: boolean;
+          body: string;
+          created_at?: string;
+          expires_at?: string | null;
+          id?: string;
+          level?: string;
+          team_id?: string | null;
+        };
+        Update: {
+          active?: boolean;
+          body?: string;
+          created_at?: string;
+          expires_at?: string | null;
+          id?: string;
+          level?: string;
+          team_id?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "announcements_team_id_fkey";
+            columns: ["team_id"];
+            isOneToOne: false;
+            referencedRelation: "teams";
             referencedColumns: ["id"];
           },
         ];
@@ -269,6 +333,42 @@ export type Database = {
           },
         ];
       };
+      platform_settings: {
+        Row: {
+          id: number;
+          joins_open: boolean;
+          maintenance: boolean;
+          maintenance_message: string;
+          max_teams_per_user: number;
+          signup_allowed_email: string | null;
+          signups_open: boolean;
+          team_creation_open: boolean;
+          updated_at: string;
+        };
+        Insert: {
+          id?: number;
+          joins_open?: boolean;
+          maintenance?: boolean;
+          maintenance_message?: string;
+          max_teams_per_user?: number;
+          signup_allowed_email?: string | null;
+          signups_open?: boolean;
+          team_creation_open?: boolean;
+          updated_at?: string;
+        };
+        Update: {
+          id?: number;
+          joins_open?: boolean;
+          maintenance?: boolean;
+          maintenance_message?: string;
+          max_teams_per_user?: number;
+          signup_allowed_email?: string | null;
+          signups_open?: boolean;
+          team_creation_open?: boolean;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       profiles: {
         Row: {
           active_team_id: string | null;
@@ -463,6 +563,111 @@ export type Database = {
           },
         ];
       };
+      support_messages: {
+        Row: {
+          body: string;
+          created_at: string;
+          from_admin: boolean;
+          id: string;
+          internal: boolean;
+          sender_id: string | null;
+          ticket_id: string;
+        };
+        Insert: {
+          body: string;
+          created_at?: string;
+          from_admin?: boolean;
+          id?: string;
+          internal?: boolean;
+          sender_id?: string | null;
+          ticket_id: string;
+        };
+        Update: {
+          body?: string;
+          created_at?: string;
+          from_admin?: boolean;
+          id?: string;
+          internal?: boolean;
+          sender_id?: string | null;
+          ticket_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "support_messages_sender_id_fkey";
+            columns: ["sender_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "support_messages_ticket_id_fkey";
+            columns: ["ticket_id"];
+            isOneToOne: false;
+            referencedRelation: "support_tickets";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      support_tickets: {
+        Row: {
+          category: string;
+          created_at: string;
+          first_reply_at: string | null;
+          id: string;
+          priority: string;
+          resolved_at: string | null;
+          status: string;
+          subject: string;
+          team_id: string | null;
+          updated_at: string;
+          user_id: string | null;
+          user_unread: boolean;
+        };
+        Insert: {
+          category?: string;
+          created_at?: string;
+          first_reply_at?: string | null;
+          id?: string;
+          priority?: string;
+          resolved_at?: string | null;
+          status?: string;
+          subject: string;
+          team_id?: string | null;
+          updated_at?: string;
+          user_id?: string | null;
+          user_unread?: boolean;
+        };
+        Update: {
+          category?: string;
+          created_at?: string;
+          first_reply_at?: string | null;
+          id?: string;
+          priority?: string;
+          resolved_at?: string | null;
+          status?: string;
+          subject?: string;
+          team_id?: string | null;
+          updated_at?: string;
+          user_id?: string | null;
+          user_unread?: boolean;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "support_tickets_team_id_fkey";
+            columns: ["team_id"];
+            isOneToOne: false;
+            referencedRelation: "teams";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "support_tickets_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       team_members: {
         Row: {
           joined_at: string;
@@ -536,8 +741,26 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      admin_daily_stats: {
+        Args: { _days: number };
+        Returns: {
+          day: string;
+          messages: number;
+          rolls: number;
+          signups: number;
+        }[];
+      };
+      admin_team_activity: {
+        Args: { _since: string };
+        Returns: {
+          messages: number;
+          rolls: number;
+          team_id: string;
+        }[];
+      };
       can_post_channel: { Args: { ch: string }; Returns: boolean };
       can_read_channel: { Args: { ch: string }; Returns: boolean };
+      close_ticket: { Args: { _ticket: string }; Returns: undefined };
       create_team: { Args: { _name: string }; Returns: string };
       current_team: { Args: never; Returns: string };
       enter_team: { Args: { _team: string }; Returns: undefined };
@@ -549,6 +772,16 @@ export type Database = {
           character_id: string;
           color: string;
           handle: string;
+        }[];
+      };
+      get_platform_status: {
+        Args: never;
+        Returns: {
+          joins_open: boolean;
+          maintenance: boolean;
+          maintenance_message: string;
+          signups_open: boolean;
+          team_creation_open: boolean;
         }[];
       };
       get_team_context: {
@@ -578,6 +811,7 @@ export type Database = {
       is_team_member: { Args: never; Returns: boolean };
       join_team: { Args: { _code: string }; Returns: string };
       leave_team: { Args: { _team: string }; Returns: undefined };
+      mark_ticket_read: { Args: { _ticket: string }; Returns: undefined };
       my_teams: {
         Args: never;
         Returns: {
@@ -589,11 +823,19 @@ export type Database = {
         }[];
       };
       new_join_code: { Args: never; Returns: string };
+      open_ticket: {
+        Args: { _body: string; _category: string; _subject: string };
+        Returns: string;
+      };
       owns_character: { Args: { _cid: string }; Returns: boolean };
       player_can_edit: { Args: { _cid: string }; Returns: boolean };
       regenerate_join_code: { Args: never; Returns: string };
       remove_team_member: { Args: { _user: string }; Returns: undefined };
       rename_team: { Args: { _name: string }; Returns: undefined };
+      reply_ticket: {
+        Args: { _body: string; _ticket: string };
+        Returns: undefined;
+      };
       set_table_music: { Args: { payload: Json }; Returns: Json };
       set_user_role: {
         Args: { _role: string; _user: string };

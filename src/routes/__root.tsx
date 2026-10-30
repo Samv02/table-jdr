@@ -25,6 +25,7 @@ import { UniverseProvider } from "@/components/UniverseProvider";
 import { THEME_BOOT } from "@/lib/theme";
 import { useIdentity } from "@/lib/active-character";
 import { needsTeam } from "@/lib/team";
+import { AnnouncementBanner, MaintenanceGate } from "@/components/PlatformNotices";
 
 function NotFoundComponent() {
   return (
@@ -159,12 +160,15 @@ function RootComponent() {
       <UniverseProvider>
         <TableEnvironment>
           <TableMusic>
-            {!pathname.startsWith("/admin") && <AppHeader />}
-            <Outlet />
-            <TeamScope pathname={pathname}>
-              <DicePanel fiche={fiche} />
-              <Comms />
-            </TeamScope>
+            <MaintenanceGate>
+              {!pathname.startsWith("/admin") && <AppHeader />}
+              {!pathname.startsWith("/admin") && <AnnouncementBanner />}
+              <Outlet />
+              <TeamScope pathname={pathname}>
+                <DicePanel fiche={fiche} />
+                <Comms />
+              </TeamScope>
+            </MaintenanceGate>
             <ConfirmHost />
           </TableMusic>
         </TableEnvironment>

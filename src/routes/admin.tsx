@@ -1,23 +1,29 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Activity,
   Gauge,
   KeyRound,
+  LifeBuoy,
   LogOut,
   RefreshCw,
   ShieldCheck,
+  SlidersHorizontal,
   Users,
   UsersRound,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { InlineError } from "@/components/InlineError";
 import { AdminAccounts } from "@/components/admin/AdminAccounts";
+import { AdminActivity } from "@/components/admin/AdminActivity";
+import { AdminControl } from "@/components/admin/AdminControl";
+import { AdminDashboard } from "@/components/admin/AdminDashboard";
+import { AdminSupport } from "@/components/admin/AdminSupport";
 import { AdminTeams } from "@/components/admin/AdminTeams";
 import { useIdentity } from "@/lib/active-character";
-import { adminOverview, type AdminEvent, type AdminOverview } from "@/lib/admin.functions";
-import { filterEvents, formatMoment, type AccountFilter, type EventFilter } from "@/lib/admin";
+import { adminOverview, type AdminOverview } from "@/lib/admin.functions";
+import type { AccountFilter, TeamFilter, TodoItem } from "@/lib/admin";
 import { openTeam } from "@/lib/team";
 
 export const Route = createFileRoute("/admin")({
@@ -28,9 +34,11 @@ export const Route = createFileRoute("/admin")({
 
 const TABS = [
   { key: "vue", label: "Vue globale", icon: Gauge },
+  { key: "support", label: "Support", icon: LifeBuoy },
   { key: "equipes", label: "Équipes", icon: UsersRound },
   { key: "comptes", label: "Comptes", icon: Users },
   { key: "activite", label: "Activité", icon: Activity },
+  { key: "pilotage", label: "Pilotage", icon: SlidersHorizontal },
 ] as const;
 type Tab = (typeof TABS)[number]["key"];
 const REFRESH_MS = 30000;
@@ -44,6 +52,7 @@ function AdminPage() {
   const [data, setData] = useState<AdminOverview | null>(null);
   const [tab, setTab] = useState<Tab>("vue");
   const [accountFilter, setAccountFilter] = useState<AccountFilter>("all");
+  const [teamFilter, setTeamFilter] = useState<TeamFilter>("all");
   const [err, setErr] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -83,9 +92,16 @@ function AdminPage() {
     }
   };
 
-  function show(next: Tab, filter: AccountFilter = "all") {
+  function show(next: Tab) {
     setTab(next);
-    setAccountFilter(filter);
+    setInfo(null);
+    setAccountFilter("all");
+    setTeamFilter("all");
+  }
+  function go(target: TodoItem["go"]) {
+    show(target.tab);
+    if (target.tab === "comptes" && target.filter) setAccountFilter(target.filter as AccountFilter);
+    if (target.tab === "equipes" && target.filter) setTeamFilter(target.filter as TeamFilter);
   }
 
   if (!id.ready) return <main className="bo-shell" />;
@@ -115,6 +131,9 @@ function AdminPage() {
             >
               <Icon size={18} aria-hidden="true" />
               {label}
+              {key === "support" && !!data?.stats.ticketsOpen && (
+                <i className="bo-count">{data.stats.ticketsOpen}</i>
+              )}
             </button>
           ))}
         </nav>
@@ -158,11 +177,15 @@ function AdminPage() {
         {!data ? (
           <p className="bo-muted">Chargement…</p>
         ) : tab === "vue" ? (
-          <Overview data={data} show={show} />
+          <AdminDashboard data={data} go={go} />
+        ) : tab === "support" ? (
+          <AdminSupport onChanged={() => void refresh()} />
         ) : tab === "equipes" ? (
           <AdminTeams
             teams={data.teams}
             accounts={data.accounts}
+            filter={teamFilter}
+            setFilter={setTeamFilter}
             busy={busy}
             run={run}
             onError={setErr}
@@ -177,145 +200,12 @@ function AdminPage() {
             busy={busy}
             run={run}
           />
+        ) : tab === "activite" ? (
+          <AdminActivity events={data.activity} teams={data.teams} busy={busy} run={run} />
         ) : (
-          <ActivityLog events={data.activity} teams={data.teams.map((t) => t.name)} />
+          <AdminControl key={JSON.stringify(data.settings)} data={data} busy={busy} run={run} />
         )}
       </main>
     </div>
-  );
-}
-
-function Overview({
-  data,
-  show,
-}: {
-  data: AdminOverview;
-  show: (tab: Tab, filter?: AccountFilter) => void;
-}) {
-  const s = data.stats;
-  const cards: { label: string; value: number; go: () => void; alert?: boolean }[] = [
-    { label: "Comptes", value: s.accounts, go: () => show("comptes") },
-    { label: "Nouveaux (7 jours)", value: s.newAccounts7d, go: () => show("comptes") },
-    { label: "Connectés (7 jours)", value: s.active7d, go: () => show("comptes") },
-    {
-      label: "Suspendus",
-      value: s.suspended,
-      go: () => show("comptes", "suspended"),
-      alert: s.suspended > 0,
-    },
-    {
-      label: "Sans équipe",
-      value: s.noTeam,
-      go: () => show("comptes", "noTeam"),
-      alert: s.noTeam > 0,
-    },
-    { label: "Équipes", value: s.teams, go: () => show("equipes") },
-    {
-      label: "Équipes vides",
-      value: s.emptyTeams,
-      go: () => show("equipes"),
-      alert: s.emptyTeams > 0,
-    },
-    { label: "Fiches", value: s.characters, go: () => show("equipes") },
-    { label: "Jets (7 jours)", value: s.rolls7d, go: () => show("activite") },
-    { label: "Messages (7 jours)", value: s.messages7d, go: () => show("activite") },
-  ];
-  return (
-    <>
-      <div className="bo-stats">
-        {cards.map((c) => (
-          <button
-            key={c.label}
-            type="button"
-            className={`bo-stat ${c.alert ? "alert" : ""}`}
-            onClick={c.go}
-          >
-            <b>{c.value}</b>
-            <small>{c.label}</small>
-          </button>
-        ))}
-      </div>
-      <h2 className="bo-section">Dernière activité</h2>
-      <EventList events={data.activity.slice(0, 8)} />
-    </>
-  );
-}
-
-const KINDS: { key: EventFilter; label: string }[] = [
-  { key: "all", label: "Tout" },
-  { key: "roll", label: "Jets" },
-  { key: "message", label: "Messages" },
-  { key: "admin", label: "Journal admin" },
-];
-
-function ActivityLog({ events, teams }: { events: AdminEvent[]; teams: string[] }) {
-  const [kind, setKind] = useState<EventFilter>("all");
-  const [team, setTeam] = useState("");
-  const [search, setSearch] = useState("");
-  const shown = useMemo(
-    () => filterEvents(events, kind, team, search),
-    [events, kind, team, search],
-  );
-  return (
-    <>
-      <div className="bo-filters">
-        {KINDS.map((k) => (
-          <button
-            key={k.key}
-            type="button"
-            className={`bo-chip ${kind === k.key ? "on" : ""}`}
-            aria-pressed={kind === k.key}
-            onClick={() => setKind(k.key)}
-          >
-            {k.label}
-          </button>
-        ))}
-      </div>
-      <div className="bo-row">
-        <input
-          className="bo-input"
-          placeholder="Chercher un nom, un message"
-          aria-label="Chercher dans l’activité"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-        <select
-          className="bo-input"
-          aria-label="Filtrer par équipe"
-          value={team}
-          onChange={(e) => setTeam(e.target.value)}
-        >
-          <option value="">Toutes les équipes</option>
-          {teams.map((t) => (
-            <option key={t} value={t}>
-              {t}
-            </option>
-          ))}
-        </select>
-      </div>
-      <EventList events={shown} />
-    </>
-  );
-}
-
-const KIND_LABEL = { roll: "Jet", message: "Message", admin: "Admin" } as const;
-
-function EventList({ events }: { events: AdminEvent[] }) {
-  if (!events.length) return <p className="bo-muted">Rien pour l’instant.</p>;
-  return (
-    <ul className="bo-list">
-      {events.map((e) => (
-        <li key={e.id} className="bo-card">
-          <p className="bo-muted">
-            {formatMoment(e.at)}
-            {e.team ? ` · ${e.team}` : ""} · {KIND_LABEL[e.kind]}
-            {e.secret ? (e.kind === "roll" ? " secret" : " privé") : ""}
-          </p>
-          <p className="bo-text">
-            <b>{e.who}</b> {e.text}
-          </p>
-        </li>
-      ))}
-    </ul>
   );
 }

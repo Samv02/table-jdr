@@ -3,7 +3,9 @@ import { useState } from "react";
 import {
   Ban,
   ChevronDown,
+  Download,
   KeyRound,
+  Save,
   Plus,
   ShieldCheck,
   Trash2,
@@ -12,6 +14,7 @@ import {
 } from "lucide-react";
 import { confirmAction } from "@/components/ConfirmDialog";
 import { deleteAccount } from "@/lib/accounts.functions";
+import { adminExportAccount, adminSetNote, adminSetPassword } from "@/lib/admin-platform.functions";
 import {
   adminCreateAccount,
   adminSendPasswordReset,
@@ -22,7 +25,13 @@ import {
   type AdminAccount,
   type AdminTeam,
 } from "@/lib/admin.functions";
-import { filterAccounts, formatDay, formatMoment, type AccountFilter } from "@/lib/admin";
+import {
+  downloadFile,
+  filterAccounts,
+  formatDay,
+  formatMoment,
+  type AccountFilter,
+} from "@/lib/admin";
 import type { AdminRun } from "@/routes/admin";
 
 const FILTERS: { key: AccountFilter; label: string }[] = [
@@ -30,6 +39,7 @@ const FILTERS: { key: AccountFilter; label: string }[] = [
   { key: "suspended", label: "Suspendus" },
   { key: "admin", label: "Admins" },
   { key: "noTeam", label: "Sans équipe" },
+  { key: "neverSignedIn", label: "Jamais connectés" },
 ];
 
 export function AdminAccounts({
@@ -192,6 +202,11 @@ function AccountDetail({
   const sendReset = useServerFn(adminSendPasswordReset);
   const setMember = useServerFn(adminSetMember);
   const remove = useServerFn(deleteAccount);
+  const setPass = useServerFn(adminSetPassword);
+  const saveNote = useServerFn(adminSetNote);
+  const exportData = useServerFn(adminExportAccount);
+  const [password, setPassword] = useState("");
+  const [note, setNote] = useState(a.note);
   const [username, setUsername] = useState(a.username ?? "");
   const [email, setEmail] = useState(a.email ?? "");
   const [teamId, setTeamId] = useState("");
@@ -263,6 +278,29 @@ function AccountDetail({
         </button>
       </form>
 
+      <h3>Note interne</h3>
+      <textarea
+        className="bo-input bo-area"
+        rows={2}
+        maxLength={2000}
+        placeholder="Visible par les admins uniquement"
+        aria-label="Note interne"
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+      />
+      <div className="bo-actions">
+        <button
+          type="button"
+          className="bo-btn"
+          disabled={busy || note === a.note}
+          onClick={() =>
+            void run(() => saveNote({ data: { userId: a.id, body: note } }), "Note enregistrée.")
+          }
+        >
+          <Save size={16} aria-hidden="true" /> Enregistrer la note
+        </button>
+      </div>
+
       <h3>Équipes</h3>
       {a.teams.length === 0 && <p className="bo-muted">Aucune équipe.</p>}
       <ul className="bo-rows">
@@ -333,8 +371,48 @@ function AccountDetail({
 
       {!self && (
         <>
+          <h3>Mot de passe</h3>
+          <form
+            className="bo-row"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void run(async () => {
+                await setPass({ data: { userId: a.id, password } });
+                setPassword("");
+              }, "Mot de passe provisoire défini.");
+            }}
+          >
+            <input
+              className="bo-input"
+              type="text"
+              autoComplete="off"
+              minLength={8}
+              required
+              placeholder="Mot de passe provisoire (8 caractères minimum)"
+              aria-label="Nouveau mot de passe provisoire"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+            <button type="submit" className="bo-btn" disabled={busy}>
+              Définir
+            </button>
+          </form>
+
           <h3>Actions</h3>
           <div className="bo-actions">
+            <button
+              type="button"
+              className="bo-btn"
+              disabled={busy}
+              onClick={() =>
+                void run(async () => {
+                  const json = await exportData({ data: { userId: a.id } });
+                  downloadFile(`compte-${a.username ?? a.id}.json`, json, "application/json");
+                })
+              }
+            >
+              <Download size={16} aria-hidden="true" /> Exporter ses données
+            </button>
             <button
               type="button"
               className="bo-btn"

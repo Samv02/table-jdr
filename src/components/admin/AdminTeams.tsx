@@ -1,8 +1,9 @@
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
-import { ChevronDown, LogIn, Plus, RefreshCw, Trash2, UserMinus } from "lucide-react";
+import { ChevronDown, Eraser, LogIn, Plus, RefreshCw, Trash2, UserMinus } from "lucide-react";
 import { confirmAction } from "@/components/ConfirmDialog";
 import { deleteTeam } from "@/lib/accounts.functions";
+import { adminClearTeamData } from "@/lib/admin-platform.functions";
 import {
   adminCreateTeam,
   adminDeleteCharacter,
@@ -13,21 +14,30 @@ import {
   type AdminAccount,
   type AdminTeam,
 } from "@/lib/admin.functions";
-import { formatDay, formatMoment } from "@/lib/admin";
+import { filterTeams, formatDay, formatMoment, plural, type TeamFilter } from "@/lib/admin";
 import { openTeam } from "@/lib/team";
 import type { AdminRun } from "@/routes/admin";
 
-const plural = (n: number, word: string) => `${n} ${word}${n > 1 ? "s" : ""}`;
+const FILTERS: { key: TeamFilter; label: string }[] = [
+  { key: "all", label: "Toutes" },
+  { key: "noGm", label: "Sans MJ" },
+  { key: "empty", label: "Vides" },
+  { key: "inactive", label: "Inactives 7 jours" },
+];
 
 export function AdminTeams({
   teams,
   accounts,
+  filter,
+  setFilter,
   busy,
   run,
   onError,
 }: {
   teams: AdminTeam[];
   accounts: AdminAccount[];
+  filter: TeamFilter;
+  setFilter: (f: TeamFilter) => void;
   busy: boolean;
   run: AdminRun;
   onError: (message: string) => void;
@@ -38,14 +48,7 @@ export function AdminTeams({
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
   const [gmId, setGmId] = useState("");
-  const q = search.trim().toLowerCase();
-  const shown = teams.filter(
-    (t) =>
-      !q ||
-      t.name.toLowerCase().includes(q) ||
-      t.join_code.toLowerCase().includes(q) ||
-      t.members.some((m) => m.username?.toLowerCase().includes(q)),
-  );
+  const shown = filterTeams(teams, search, filter);
 
   return (
     <>
@@ -101,6 +104,22 @@ export function AdminTeams({
           </button>
         </form>
       )}
+      <div className="bo-filters">
+        {FILTERS.map((f) => (
+          <button
+            key={f.key}
+            type="button"
+            className={`bo-chip ${filter === f.key ? "on" : ""}`}
+            aria-pressed={filter === f.key}
+            onClick={() => setFilter(f.key)}
+          >
+            {f.label}
+          </button>
+        ))}
+        <span className="bo-muted">
+          {shown.length} sur {teams.length}
+        </span>
+      </div>
       <ul className="bo-list">
         {shown.length === 0 && <li className="bo-muted">Aucune équipe.</li>}
         {shown.map((t) => (
@@ -158,6 +177,7 @@ function TeamDetail({
   const setOwner = useServerFn(adminSetCharacterOwner);
   const removeCharacter = useServerFn(adminDeleteCharacter);
   const removeTeam = useServerFn(deleteTeam);
+  const clearData = useServerFn(adminClearTeamData);
   const [name, setName] = useState(t.name);
   const [userId, setUserId] = useState("");
   const candidates = accounts.filter((a) => !t.members.some((m) => m.user_id === a.id));
@@ -176,6 +196,15 @@ function TeamDetail({
       message: "La fiche et son état seront supprimés. Action irréversible.",
     });
     if (ok) await run(() => removeCharacter({ data: { characterId: id } }));
+  }
+  async function askClear(kind: "rolls" | "messages") {
+    const label = kind === "rolls" ? "les jets" : "les messages";
+    const ok = await confirmAction({
+      title: `Vider ${label} de « ${t.name} » ?`,
+      message: `Tout l’historique sera supprimé pour tout le monde. Les fiches et les membres ne bougent pas. Action irréversible.`,
+      confirmLabel: `Vider ${label}`,
+    });
+    if (ok) await run(() => clearData({ data: { teamId: t.id, kind } }));
   }
   async function askDeleteTeam() {
     const ok = await confirmAction({
@@ -342,6 +371,22 @@ function TeamDetail({
           onClick={() => void askRegenerate()}
         >
           <RefreshCw size={16} aria-hidden="true" /> Changer le code
+        </button>
+        <button
+          type="button"
+          className="bo-btn"
+          disabled={busy}
+          onClick={() => void askClear("rolls")}
+        >
+          <Eraser size={16} aria-hidden="true" /> Vider les jets
+        </button>
+        <button
+          type="button"
+          className="bo-btn"
+          disabled={busy}
+          onClick={() => void askClear("messages")}
+        >
+          <Eraser size={16} aria-hidden="true" /> Vider les messages
         </button>
         <button
           type="button"

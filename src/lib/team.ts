@@ -29,6 +29,9 @@ export function authMessage(error: { code?: string | undefined; message: string 
     case "over_request_rate_limit":
       return "Trop d’essais. Réessaie dans quelques minutes.";
     default:
-      return error.message;
+      // Refus venu de la base quand l'admin a fermé les inscriptions
+      return error.message.includes("Database error")
+        ? "Les inscriptions sont fermées."
+        : error.message;
   }
 }

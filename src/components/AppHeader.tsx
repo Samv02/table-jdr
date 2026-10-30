@@ -17,6 +17,29 @@ export function AppHeader() {
   const [pulse, setPulse] = useState<string | null>(null);
   const { pinned } = usePinnedFeed(id.userId);
   const W = useWords();
+  const [supportUnread, setSupportUnread] = useState(false);
+  useEffect(() => {
+    if (!id.userId) return;
+    const check = async () => {
+      const { count } = await supabase
+        .from("support_tickets")
+        .select("id", { count: "exact", head: true })
+        .eq("user_unread", true);
+      setSupportUnread((count ?? 0) > 0);
+    };
+    void check();
+    const channel = supabase
+      .channel(`support-unread-${id.userId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "support_tickets" },
+        () => void check(),
+      )
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [id.userId]);
   useEffect(() => {
     if (pinned) setUnread(0);
   }, [pinned]);
@@ -135,6 +158,10 @@ export function AppHeader() {
           </Link>
           <Link to="/profil" activeProps={{ className: "active" }}>
             Profil
+          </Link>
+          <Link to="/support" activeProps={{ className: "active" }}>
+            Support
+            {supportUnread && <span className="nav-dot" aria-label="Nouvelle réponse" />}
           </Link>
           {id.isGm && (
             <Link to="/mj/personnages" activeProps={{ className: "active" }}>

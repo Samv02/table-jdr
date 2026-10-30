@@ -83,6 +83,13 @@ function AuthForm() {
   const [msg, setMsg] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [signupsOpen, setSignupsOpen] = useState(true);
+  useEffect(() => {
+    void supabase
+      .rpc("get_platform_status")
+      .maybeSingle()
+      .then(({ data }) => setSignupsOpen(data?.signups_open !== false));
+  }, []);
 
   function switchMode(next: Mode) {
     setMode(next);
@@ -176,9 +183,11 @@ function AuthForm() {
       <div className="auth-switch">
         {mode === "login" ? (
           <>
-            <button type="button" onClick={() => switchMode("signup")}>
-              Créer un compte
-            </button>
+            {signupsOpen && (
+              <button type="button" onClick={() => switchMode("signup")}>
+                Créer un compte
+              </button>
+            )}
             <button type="button" onClick={() => switchMode("reset")}>
               Mot de passe oublié
             </button>
