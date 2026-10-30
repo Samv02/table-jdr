@@ -85,7 +85,10 @@ Ouvre-le dès qu'une demande touche une partie existante, pour ne pas défaire u
 - **Base de dev** : projet Supabase en ligne gratuit « **JDR** » (`https://hdbykvymmjwvkhwaazet.supabase.co`, région Europe).
   - `supabase/installation.sql` puis `supabase/seed.sql` y ont été lancés à la main dans le SQL Editor.
   - Les clés (URL, publishable, secret) sont dans `.env`, ignoré par git.
-  - **Conséquence : toute modification du schéma** doit être donnée à Sam sous forme de SQL à coller dans le SQL Editor de ce projet, **en plus** de la nouvelle migration dans `supabase/migrations/`.
+  - Le dossier est relié au projet avec la CLI Supabase (`npx supabase login` puis `link`, faits le 30/10/2026 ; la migration d'installation est marquée appliquée).
+  - **Toute modification du schéma** : nouvelle migration dans `supabase/migrations/`, puis Claude l'applique lui-même avec `npx supabase db push --linked` (aucun mot de passe nécessaire). Plus besoin de faire coller le SQL à Sam.
+  - Sans Docker, `supabase db diff` ne marche pas.
+- **GitHub** : le PC est connecté (gestionnaire d'identifiants Windows), `git push` fonctionne.
 - **Comptes de test** (mot de passe `table1234`) :
   - `mj@table.local` : MJ, pseudo « MaitreDuJeu » ;
   - `joueur1@table.local` : personnage Alex ;
@@ -103,7 +106,7 @@ Ouvre-le dès qu'une demande touche une partie existante, pour ne pas défaire u
 - Avant de modifier : relire la zone concernée, et `docs/HISTORIQUE.md` si c'est une fonctionnalité existante.
 - Après chaque modification :
   - `npx tsc --noEmit`, `npm test` et `npm run lint` ;
-  - expliquer en 3 à 6 phrases ce qui a changé, **ce que Sam doit faire** (SQL à coller ? relancer `npm run dev` ?) et ce qui reste à tester.
+  - expliquer en 3 à 6 phrases ce qui a changé, **ce que Sam doit faire** (relancer `npm run dev` ? tester quoi ?) et ce qui reste à tester.
 - Pour l'interface : vérifier sur mobile (390 px de large) **et** sur ordinateur.
 - Les changements de base sont **idempotents** (`if not exists`, `drop policy if exists`…) et testés autant que possible.
 - Commits : en français, clairs, sur `main`. Pas de force push.
@@ -114,7 +117,7 @@ Ouvre-le dès qu'une demande touche une partie existante, pour ne pas défaire u
 ## 6. À faire / idées en attente
 
 **Technique**
-- [ ] Enregistrer `package-lock.json` sur GitHub (créé par `npm install` chez Sam).
+- [x] Enregistrer `package-lock.json` sur GitHub (fait le 30/10/2026).
 - [ ] Proposer de déplacer le projet hors de OneDrive.
 - [ ] Avant la mise en ligne :
   - un projet Supabase propre, sans comptes de test ;
