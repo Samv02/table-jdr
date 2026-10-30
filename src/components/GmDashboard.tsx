@@ -45,17 +45,18 @@ import { confirmAction } from "@/components/ConfirmDialog";
 import { useUniverse } from "@/lib/universe-context";
 import { gaugeMax, woundedFor } from "@/lib/universe";
 import { DashboardSettings } from "@/components/DashboardSettings";
-import { useDragSort } from "@/lib/use-drag-sort";
+import { DashboardLayoutDock } from "@/components/DashboardLayoutDock";
+import { useDragSort, useFlip } from "@/lib/use-drag-sort";
 import type { CSSProperties, PointerEvent } from "react";
 import { HpVisual } from "@/components/HpVisual";
 import {
-  DASHBOARD_COLUMNS,
-  DASHBOARD_SPANS,
   DEFAULT_PREFS,
   arrangeRows,
   dropCharacter,
   dropSection,
   manualOrder,
+  moveCharacter,
+  moveSection,
   toggleIn,
   readPrefs,
   type DashboardPrefs,
@@ -72,21 +73,84 @@ export function GmDashboard() {
   const [prefs, setPrefs] = useState<DashboardPrefs>(DEFAULT_PREFS);
   const [organizing, setOrganizing] = useState(false);
   const [layoutMode, setLayoutMode] = useState(false);
+  const [hoverLayout, setHoverLayout] = useState<Pick<DashboardPrefs, "columns" | "spans"> | null>(
+    null,
+  );
+  const [dragOrder, setDragOrder] = useState<string[] | null>(null);
+  const [dragSections, setDragSections] = useState<DashboardPrefs["sections"] | null>(null);
+  const [history, setHistory] = useState<DashboardPrefs[]>([]);
   const prefsRef = useRef(prefs);
   prefsRef.current = prefs;
   const rowsRef = useRef<string[]>([]);
-  const grabCharacter = useDragSort("character", (from, to) => {
-    const p = prefsRef.current;
-    changePrefs({
-      ...p,
-      sort: "manual",
-      order: dropCharacter(p.order, rowsRef.current, from, to),
+  const dragOrderRef = useRef(dragOrder);
+  dragOrderRef.current = dragOrder;
+  const dragSectionsRef = useRef(dragSections);
+  dragSectionsRef.current = dragSections;
+  /** Un changement de disposition, qu'on peut annuler */
+  function commit(next: DashboardPrefs) {
+    setHistory((old) => [...old.slice(-29), prefsRef.current]);
+    changePrefs(next);
+  }
+  function undo() {
+    setHistory((old) => {
+      const last = old.at(-1);
+      if (last) changePrefs(last);
+      return old.slice(0, -1);
     });
+  }
+  const grabCharacter = useDragSort({
+    attr: "character",
+    onOver: (from, to) =>
+      setDragOrder((order) => dropCharacter(order ?? rowsRef.current, rowsRef.current, from, to)),
+    onDrop: () => {
+      const order = dragOrderRef.current;
+      if (order) commit({ ...prefsRef.current, sort: "manual", order });
+      setDragOrder(null);
+    },
+    onCancel: () => setDragOrder(null),
   });
-  const grabSection = useDragSort("section", (from, to) => {
+  const grabSection = useDragSort({
+    attr: "section",
+    onOver: (from, to) =>
+      setDragSections((list) => dropSection(list ?? prefsRef.current.sections, from, to)),
+    onDrop: () => {
+      const sections = dragSectionsRef.current;
+      if (sections) commit({ ...prefsRef.current, sections });
+      setDragSections(null);
+    },
+    onCancel: () => setDragSections(null),
+  });
+  /** Tirer le bord d'une fiche : sa largeur se cale sur les colonnes */
+  function startResize(e: PointerEvent<HTMLElement>, id: string) {
+    e.preventDefault();
+    const column = e.currentTarget.closest("article");
+    const grid = rail.current;
+    const cols = prefsRef.current.columns;
+    if (!column || !grid || cols < 2) return;
+    const left = column.getBoundingClientRect().left;
+    const step = grid.getBoundingClientRect().width / cols;
+    setHistory((old) => [...old.slice(-29), prefsRef.current]);
+    document.body.classList.add("is-resizing");
+    const move = (ev: globalThis.PointerEvent) => {
+      const span = Math.min(cols, Math.max(1, Math.round((ev.clientX - left) / step)));
+      const p = prefsRef.current;
+      if (p.spans[id] !== span) changePrefs({ ...p, spans: { ...p.spans, [id]: span } });
+    };
+    const up = () => {
+      document.body.classList.remove("is-resizing");
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", up);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", up);
+  }
+  function resizeBy(id: string, delta: number) {
     const p = prefsRef.current;
-    changePrefs({ ...p, sections: dropSection(p.sections, from, to) });
-  });
+    const span = Math.min(p.columns, Math.max(1, (p.spans[id] ?? 1) + delta));
+    commit({ ...p, spans: { ...p.spans, [id]: span } });
+  }
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const rail = useRef<HTMLDivElement>(null);
@@ -212,10 +276,46 @@ export function GmDashboard() {
       void load();
     }
   }
-  const filtered = arrangeRows(rows, prefs, { isOnline: (id) => table.online.has(id), u });
+  // Ce qui s'affiche : le réglage enregistré, plus un aperçu ou un déplacement en cours
+  const view: DashboardPrefs = {
+    ...prefs,
+    ...hoverLayout,
+    ...(dragOrder ? { order: dragOrder, sort: "manual" as const } : {}),
+    ...(dragSections ? { sections: dragSections } : {}),
+  };
+  const filtered = arrangeRows(rows, view, { isOnline: (id) => table.online.has(id), u });
   const ordered = manualOrder(rows, prefs.order);
-  rowsRef.current = rows.map((r) => r.id);
-  const visible = new Set<string>(prefs.sections.filter((s) => s.visible).map((s) => s.key));
+  const displayedIds = filtered.map((r) => r.id);
+  if (!dragOrder)
+    rowsRef.current = [
+      ...displayedIds,
+      ...rows.map((r) => r.id).filter((id) => !displayedIds.includes(id)),
+    ];
+  const visible = new Set<string>(view.sections.filter((s) => s.visible).map((s) => s.key));
+  useFlip(
+    rail,
+    "[data-character]",
+    "character",
+    `${displayedIds.join()}|${view.columns}|${JSON.stringify(view.spans)}`,
+  );
+  useFlip(
+    rail,
+    "[data-character] > [data-section]",
+    "section",
+    view.sections.map((s) => s.key).join(),
+  );
+  useEffect(() => {
+    if (!layoutMode) return;
+    const key = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
+        e.preventDefault();
+        undo();
+      }
+    };
+    window.addEventListener("keydown", key);
+    return () => window.removeEventListener("keydown", key);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [layoutMode]);
   useEffect(() => {
     void supabase.rpc("get_dashboard_prefs").then(({ data }) => setPrefs(readPrefs(data)));
     return () => {
@@ -254,7 +354,7 @@ export function GmDashboard() {
   if (!identity.ready) return <main className="empty-state">Chargement…</main>;
   if (!identity.isGm) return <main className="empty-state">ACCÈS RÉSERVÉ AU MJ</main>;
   return (
-    <main className="dashboard-page">
+    <main className={`dashboard-page ${layoutMode ? "layouting" : ""}`}>
       <div className="dashboard-heading">
         <div>
           <small>{u.words.tableName.toUpperCase()} · TABLE MJ</small>
@@ -435,26 +535,6 @@ export function GmDashboard() {
           Blessés seulement
         </label>
       </div>
-      {layoutMode && (
-        <div className="dashboard-layout-bar">
-          <span>Colonnes</span>
-          <div className="dashboard-cols" role="radiogroup" aria-label="Nombre de colonnes">
-            {DASHBOARD_COLUMNS.map((c) => (
-              <button
-                type="button"
-                key={c}
-                role="radio"
-                aria-checked={prefs.columns === c}
-                className={prefs.columns === c ? "on" : ""}
-                onClick={() => changePrefs({ ...prefs, columns: c })}
-              >
-                {c === 0 ? "Auto" : c}
-              </button>
-            ))}
-          </div>
-          <small>Attrape une fiche ou une section par sa poignée pour la déplacer.</small>
-        </div>
-      )}
       {organizing && <DashboardSettings rows={ordered} prefs={prefs} onChange={changePrefs} />}
       {loading ? (
         <p className="empty-state">Chargement…</p>
@@ -464,8 +544,8 @@ export function GmDashboard() {
         </p>
       ) : (
         <div
-          className={`dashboard-rail ${prefs.columns ? "tiled" : ""} ${layoutMode ? "editing" : ""}`}
-          style={prefs.columns ? ({ "--cols": prefs.columns } as CSSProperties) : undefined}
+          className={`dashboard-rail ${view.columns ? "tiled" : ""} ${layoutMode ? "editing" : ""} ${view.density}`}
+          style={view.columns ? ({ "--cols": view.columns } as CSSProperties) : undefined}
           ref={rail}
           onScroll={() => {
             if (window.innerWidth >= 1100 || !rail.current) return;
@@ -483,18 +563,20 @@ export function GmDashboard() {
               key={r.id}
               row={r}
               visible={visible}
-              prefs={prefs}
+              prefs={view}
               tools={
                 layoutMode
                   ? {
                       grabSection,
                       hideSection: (key) =>
-                        changePrefs({
+                        commit({
                           ...prefs,
                           sections: prefs.sections.map((s) =>
                             s.key === key ? { ...s, visible: false } : s,
                           ),
                         }),
+                      nudgeSection: (key, delta) =>
+                        commit({ ...prefs, sections: moveSection(prefs.sections, key, delta) }),
                     }
                   : null
               }
@@ -502,10 +584,16 @@ export function GmDashboard() {
                 layoutMode
                   ? {
                       grab: grabCharacter,
-                      setSpan: (span) =>
-                        changePrefs({ ...prefs, spans: { ...prefs.spans, [r.id]: span } }),
+                      nudge: (delta) =>
+                        commit({
+                          ...prefs,
+                          sort: "manual",
+                          order: moveCharacter(rowsRef.current, rowsRef.current, r.id, delta),
+                        }),
+                      startResize,
+                      resizeBy: (delta) => resizeBy(r.id, delta),
                       hide: () =>
-                        changePrefs({
+                        commit({
                           ...prefs,
                           hiddenCharacters: toggleIn(prefs.hiddenCharacters, r.id),
                         }),
@@ -519,6 +607,19 @@ export function GmDashboard() {
           ))}
         </div>
       )}
+      {layoutMode && (
+        <DashboardLayoutDock
+          rows={rows}
+          ids={displayedIds}
+          prefs={prefs}
+          canUndo={history.length > 0}
+          onPreview={setHoverLayout}
+          onChange={commit}
+          onUndo={undo}
+          onReset={() => commit(DEFAULT_PREFS)}
+          onClose={() => setLayoutMode(false)}
+        />
+      )}
     </main>
   );
 }
@@ -531,7 +632,9 @@ type ColumnProps = {
   tools: SectionTools | null;
   window: {
     grab: (e: PointerEvent<HTMLElement>, id: string) => void;
-    setSpan: (span: number) => void;
+    nudge: (delta: number) => void;
+    startResize: (e: PointerEvent<HTMLElement>, id: string) => void;
+    resizeBy: (delta: number) => void;
     hide: () => void;
   } | null;
   hurt: boolean;
@@ -546,7 +649,15 @@ const sectionOrder = (prefs: DashboardPrefs, key: string) => ({
 type SectionTools = {
   grabSection: (e: PointerEvent<HTMLElement>, key: string) => void;
   hideSection: (key: string) => void;
+  nudgeSection: (key: string, delta: number) => void;
 };
+
+const arrowDelta = (key: string) =>
+  key === "ArrowLeft" || key === "ArrowUp"
+    ? -1
+    : key === "ArrowRight" || key === "ArrowDown"
+      ? 1
+      : 0;
 
 function SectionTitle({ name, tools }: { name: string; tools: SectionTools | null }) {
   return (
@@ -556,7 +667,14 @@ function SectionTitle({ name, tools }: { name: string; tools: SectionTools | nul
           type="button"
           className="grip"
           aria-label={`Déplacer la section ${name}`}
+          title="Glisse, ou utilise les flèches du clavier"
           onPointerDown={(e) => tools.grabSection(e, name)}
+          onKeyDown={(e) => {
+            const delta = arrowDelta(e.key);
+            if (!delta) return;
+            e.preventDefault();
+            tools.nudgeSection(name, delta);
+          }}
         >
           <GripVertical size={14} aria-hidden="true" />
         </button>
@@ -629,26 +747,18 @@ function DashboardColumn({
             type="button"
             className="grip"
             aria-label={`Déplacer ${r.handle || r.name}`}
+            title="Glisse, ou utilise les flèches du clavier"
             onPointerDown={(e) => frame.grab(e, r.id)}
+            onKeyDown={(e) => {
+              const delta = arrowDelta(e.key);
+              if (!delta) return;
+              e.preventDefault();
+              frame.nudge(delta);
+            }}
           >
             <GripVertical size={16} aria-hidden="true" />
             <span>{r.handle || r.name}</span>
           </button>
-          <span className="window-spans" role="radiogroup" aria-label="Largeur de la fiche">
-            {DASHBOARD_SPANS.map((n) => (
-              <button
-                type="button"
-                key={n}
-                role="radio"
-                aria-checked={(prefs.spans[r.id] ?? 1) === n}
-                aria-label={`Largeur ${n} pour ${r.handle || r.name}`}
-                className={(prefs.spans[r.id] ?? 1) === n ? "on" : ""}
-                onClick={() => frame.setSpan(n)}
-              >
-                {n}
-              </button>
-            ))}
-          </span>
           <button
             type="button"
             className="grip-close"
@@ -658,6 +768,25 @@ function DashboardColumn({
             <X size={14} aria-hidden="true" />
           </button>
         </div>
+      )}
+      {frame && prefs.columns > 1 && (
+        <button
+          type="button"
+          className="resize-handle"
+          role="slider"
+          aria-label={`Largeur de ${r.handle || r.name}`}
+          aria-valuemin={1}
+          aria-valuemax={prefs.columns}
+          aria-valuenow={Math.min(prefs.spans[r.id] ?? 1, prefs.columns)}
+          title="Tire pour élargir, ou utilise les flèches du clavier"
+          onPointerDown={(e) => frame.startResize(e, r.id)}
+          onKeyDown={(e) => {
+            const delta = arrowDelta(e.key);
+            if (!delta) return;
+            e.preventDefault();
+            frame.resizeBy(delta);
+          }}
+        />
       )}
       <header className="dashboard-column-head">
         <div className={`av neon-${member?.color ?? "cyan"} ${online ? "" : "off"}`}>

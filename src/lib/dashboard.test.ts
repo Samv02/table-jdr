@@ -1,6 +1,9 @@
 import {
   DEFAULT_PREFS,
+  LAYOUT_PRESETS,
+  applyLayout,
   arrangeRows,
+  isLayout,
   dropCharacter,
   dropSection,
   moveCharacter,
@@ -126,11 +129,22 @@ describe("dashboard layout", () => {
     expect(moved).toHaveLength(5);
   });
   it("refuses an unknown grid size", () => {
-    expect(readPrefs({ columns: 5, spans: { a: 9, b: 2 } })).toMatchObject({
+    expect(readPrefs({ columns: 5, spans: { a: 9, b: 2 }, density: "x" })).toMatchObject({
+      density: "comfort",
       columns: 0,
       spans: { b: 2 },
     });
     expect(readPrefs({ columns: 6 }).columns).toBe(6);
+  });
+  it("recognises the layout on screen", () => {
+    const focus = LAYOUT_PRESETS.find((p) => p.key === "focus");
+    if (!focus) throw new Error("preset");
+    const next = { ...DEFAULT_PREFS, ...applyLayout(DEFAULT_PREFS, focus, ["a", "b"]) };
+    expect(next.columns).toBe(3);
+    expect(next.spans).toEqual({ a: 2 });
+    expect(isLayout(next, focus, ["a", "b"])).toBe(true);
+    expect(isLayout(next, focus, ["b", "a"])).toBe(false);
+    expect(isLayout(DEFAULT_PREFS, focus, ["a", "b"])).toBe(false);
   });
   it("moves a section", () => {
     const moved = moveSection(DEFAULT_PREFS.sections, "Stats", -1).map((s) => s.key);

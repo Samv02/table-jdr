@@ -70,6 +70,7 @@ export type DashboardPrefs = {
   columns: number;
   /** Largeur de chaque fiche, en colonnes */
   spans: Record<string, number>;
+  density: "comfort" | "compact";
 };
 
 export const DEFAULT_PREFS: DashboardPrefs = {
@@ -83,10 +84,42 @@ export const DEFAULT_PREFS: DashboardPrefs = {
   hurtOnly: false,
   columns: 0,
   spans: {},
+  density: "comfort",
 };
 
 export const DASHBOARD_COLUMNS = [0, 1, 2, 3, 4, 6] as const;
-export const DASHBOARD_SPANS = [1, 2, 3] as const;
+
+/** Dispositions toutes prêtes. `lead` : largeur de la première fiche, mise en avant. */
+export const LAYOUT_PRESETS = [
+  { key: "row", label: "Rangée", columns: 0, lead: 1 },
+  { key: "duo", label: "Duo", columns: 2, lead: 1 },
+  { key: "trio", label: "Trio", columns: 3, lead: 1 },
+  { key: "quad", label: "Quatre", columns: 4, lead: 1 },
+  { key: "six", label: "Six", columns: 6, lead: 1 },
+  { key: "focus", label: "Focus", columns: 3, lead: 2 },
+  { key: "stage", label: "Scène", columns: 3, lead: 3 },
+] as const;
+export type LayoutPreset = (typeof LAYOUT_PRESETS)[number];
+
+export function applyLayout(prefs: DashboardPrefs, preset: LayoutPreset, ids: string[]) {
+  const first = ids[0];
+  const lead: number = preset.lead;
+  return {
+    columns: preset.columns as number,
+    spans: first && lead > 1 ? { [first]: lead } : {},
+  };
+}
+
+export function isLayout(prefs: DashboardPrefs, preset: LayoutPreset, ids: string[]) {
+  const wanted = applyLayout(prefs, preset, ids);
+  const current = Object.entries(prefs.spans).filter(([, span]) => span > 1);
+  const expected = Object.entries(wanted.spans);
+  return (
+    prefs.columns === wanted.columns &&
+    current.length === expected.length &&
+    expected.every(([id, span]) => prefs.spans[id] === span)
+  );
+}
 
 const strings = (v: unknown) =>
   Array.isArray(v) ? v.filter((x): x is string => typeof x === "string").slice(0, 200) : [];
@@ -112,11 +145,11 @@ export function readPrefs(raw: unknown): DashboardPrefs {
     hurtOnly: o["hurtOnly"] === true,
     columns: DASHBOARD_COLUMNS.find((c) => c === o["columns"]) ?? 0,
     spans: Object.fromEntries(
-      Object.entries((o["spans"] ?? {}) as Record<string, unknown>).flatMap(([id, span]) => {
-        const valid = DASHBOARD_SPANS.find((s) => s === span);
-        return valid ? [[id, valid]] : [];
-      }),
-    ),
+      Object.entries((o["spans"] ?? {}) as Record<string, unknown>).filter(
+        ([, span]) => Number.isInteger(span) && (span as number) >= 1 && (span as number) <= 6,
+      ),
+    ) as Record<string, number>,
+    density: o["density"] === "compact" ? "compact" : "comfort",
   };
 }
 
