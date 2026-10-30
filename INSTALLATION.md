@@ -1,30 +1,25 @@
-# Installer la table (nouveau projet Lovable)
+# Installer la table sur une nouvelle base Supabase
 
 Cette copie est **indépendante** de Night City. Elle a sa propre base de données, donc les personnages, jets et messages ne se mélangent pas.
 
 ## 1. Créer le projet
 
-1. Crée un **nouveau projet** Lovable.
-2. Mets-y le code de ce dossier. Le plus simple :
-   - connecte le nouveau projet à un dépôt GitHub vide (Lovable → GitHub) ;
-   - pousse ce dossier dans ce dépôt ;
-   - Lovable récupère le code automatiquement.
-3. Active la base : **Lovable Cloud** (ou connecte un projet Supabase neuf). Les clés du fichier `.env` sont alors remplies automatiquement.
+1. Crée un **nouveau projet** sur supabase.com.
+2. Recopie ses clés (Project Settings → API) dans `.env`, sur le modèle de `.env.example`.
+3. L'hébergeur de l'appli n'est pas encore choisi : cette étape sera ajoutée au moment de la mise en ligne.
 
 > ⚠️ Ne réutilise **pas** le projet Supabase de Night City.
 > `.env` et `supabase/config.toml` ont été vidés exprès.
 
 ## 2. Créer la base (une seule fois)
 
-Ouvre l'éditeur SQL de la base :
-- **Supabase** : SQL Editor ;
-- **Lovable Cloud** : Cloud → Database → SQL.
+Ouvre l'éditeur SQL de la base (**SQL Editor**).
 
 Colle tout le contenu de **`supabase/installation.sql`** et lance-le.
 
 Ce script crée tout : tables, règles d'accès, dés anti-triche, messagerie, bloc-notes, stockage des images et temps réel.
 - Il peut être relancé sans danger.
-- Si Lovable applique déjà la migration `drizzle/migrations/0000_installation.sql` (c'est le même script), le relancer à la main ne casse rien.
+- Ensuite, pour que la CLI Supabase sache que la base est à jour : `npx supabase link --project-ref <ref>` puis `npx supabase migration repair --linked --status applied 20261030000000`.
 
 ## 3. Créer les comptes
 

@@ -66,7 +66,7 @@ Dans la formule de la base, `STAT` est la valeur de la caractéristique de la co
 ## Démarrer
 
 - **Sur ton PC (local)** : voir **[DEMARRAGE.md](DEMARRAGE.md)**. Il faut Node.js, Docker Desktop et VS Code ; Claude Code fonctionne directement dedans.
-- **Plus tard, en ligne** (Lovable ou Supabase hébergé) : voir **[INSTALLATION.md](INSTALLATION.md)**.
+- **Plus tard, en ligne** (Supabase hébergé) : voir **[INSTALLATION.md](INSTALLATION.md)**.
 
 ## Technique
 

@@ -350,7 +350,7 @@ Sommaire :
   - stockage ;
   - temps réel.
 - Testé sur un faux Supabase : lancé deux fois sans erreur, plus une vingtaine de vérifications d'accès (anonyme, joueur verrouillé, autre joueur, MJ).
-- Les mêmes contenus existent dans `supabase/migrations/20261030000000_installation.sql` (CLI Supabase) et dans `drizzle/migrations/0000_installation.sql` (sans BEGIN/COMMIT, pour Lovable).
+- Le même contenu existe dans `supabase/migrations/20261030000000_installation.sql` (CLI Supabase). L'ancienne copie `drizzle/` pour Lovable a été supprimée le 30/10/2026.
 - `supabase/seed.sql` : 3 comptes (`@table.local`, mot de passe `table1234`), le MJ, et 2 personnages, Alex et Sam. Relançable sans erreur.
 
 ### 4.9 Passage en local
