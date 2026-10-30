@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Dé à 20 faces, neutre (aucun univers en particulier) -->
+  <rect width="64" height="64" rx="14" fill="#111621"/>
+  <g fill="none" stroke="#5fb3ff" stroke-width="3" stroke-linejoin="round">
+    <path d="M32 7 54 19.5v25L32 57 10 44.5v-25Z"/>
+    <path d="M32 7 21 27h22Z M21 27 10 44.5 32 57 54 44.5 43 27 M21 27 32 57 43 27 M10 19.5 21 27 M54 19.5 43 27" opacity=".55"/>
+  </g>
+  <text x="32" y="44" text-anchor="middle" font-family="Arial,sans-serif" font-weight="700" font-size="13" fill="#ffc857">20</text>
+</svg>

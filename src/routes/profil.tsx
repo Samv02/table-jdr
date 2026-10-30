@@ -1,0 +1,250 @@
+import { useWords } from "@/lib/universe-context";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { AVATAR_MAX_MB, NEON_COLORS, validateAvatar, validateUsername } from "@/lib/profile";
+
+import { Button } from "@/components/ui/button";
+import { Save, Upload, UserRound, ArrowUpRight, Check, Users } from "lucide-react";
+
+export const Route = createFileRoute("/profil")({
+  ssr: false,
+  head: () => ({
+    meta: [
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+      { title: "Mon profil" },
+      { name: "description", content: "Pseudo, avatar, couleur et personnages de ton compte." },
+      { property: "og:title", content: "Mon profil" },
+      {
+        property: "og:description",
+        content: "Pseudo, avatar, couleur et personnages de ton compte.",
+      },
+    ],
+  }),
+  component: ProfilePage,
+});
+
+type Me = {
+  id: string;
+  username: string | null;
+  role: string;
+  color: string;
+  avatar_url: string | null;
+};
+
+function ProfilePage() {
+  const W = useWords();
+  const [me, setMe] = useState<Me | null | "none">(null);
+  const [avatar, setAvatar] = useState<string | null>(null);
+  const [chars, setChars] = useState<{ id: string; name: string; handle: string | null }[]>([]);
+  const [username, setUsername] = useState("");
+
+  const load = useCallback(async () => {
+    const { data: u } = await supabase.auth.getUser();
+    if (!u.user) return setMe("none");
+    const { data: p } = await supabase
+      .from("profiles")
+      .select("id,username,role,color,avatar_url")
+      .eq("id", u.user.id)
+      .single();
+    if (!p) return setMe("none");
+    setMe(p);
+    setUsername(p.username ?? "");
+    if (p.avatar_url) {
+      const { data: s } = await supabase.storage
+        .from("avatars")
+        .createSignedUrl(p.avatar_url, 3600);
+      setAvatar(s?.signedUrl ?? null);
+    } else setAvatar(null);
+    const { data: c } = await supabase
+      .from("characters")
+      .select("id,name,handle")
+      .eq("owner_id", u.user.id)
+      .order("name");
+    setChars(c ?? []);
+  }, []);
+  useEffect(() => void load(), [load]);
+
+  if (me === null) return <main className="min-h-screen bg-background" />;
+  if (me === "none")
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-background">
+        <Link to="/" className="text-accent underline">
+          Connecte-toi d'abord
+        </Link>
+      </main>
+    );
+
+  const changed = () => window.dispatchEvent(new Event("profile:changed"));
+
+  async function saveUsername() {
+    if (me === null || me === "none") return;
+    const err = validateUsername(username);
+    if (err) return void toast.error(err);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ username: username.trim() })
+      .eq("id", me.id);
+    if (error)
+      return void toast.error(error.code === "23505" ? "Ce pseudo est déjà pris." : error.message);
+    toast.success("Pseudo mis à jour");
+    changed();
+    load();
+  }
+
+  async function uploadAvatar(f: File) {
+    if (me === null || me === "none") return;
+    const err = validateAvatar(f);
+    if (err) return void toast.error(err);
+    const path = `${me.id}/avatar-${Date.now()}.${f.name.split(".").pop() || "png"}`;
+    const { error } = await supabase.storage
+      .from("avatars")
+      .upload(path, f, { contentType: f.type });
+    if (error) return void toast.error(error.message);
+    const { error: e2 } = await supabase
+      .from("profiles")
+      .update({ avatar_url: path })
+      .eq("id", me.id);
+    if (e2) return void toast.error(e2.message);
+    if (me.avatar_url) supabase.storage.from("avatars").remove([me.avatar_url]);
+    toast.success("Avatar mis à jour");
+    changed();
+    load();
+  }
+
+  async function setColor(c: string) {
+    if (me === null || me === "none") return;
+    const { error } = await supabase.from("profiles").update({ color: c }).eq("id", me.id);
+    if (error) return void toast.error(error.message);
+    changed();
+    load();
+  }
+
+  return (
+    <main className="profile-page">
+      <div className="profile-content">
+        <header className="profile-heading">
+          <div>
+            <p className="profile-eyebrow">{W.tableName.toUpperCase()} / COMPTE</p>
+            <h1>MON PROFIL</h1>
+          </div>
+          <span className="profile-role">{me.role === "gm" ? "MJ" : "JOUEUR"}</span>
+        </header>
+
+        <div className="profile-layout">
+          <div className="profile-identity">
+            <section className="profile-section">
+              <div className="ph">
+                <h2>IDENTITÉ</h2>
+              </div>
+              <div className="profile-avatar-row">
+                <div className={`profile-avatar neon-${me.color}`}>
+                  {avatar ? <img src={avatar} alt="Avatar" /> : <UserRound size={32} />}
+                </div>
+                <div className="profile-upload">
+                  <Button variant="prototype" asChild className="btn profile-action">
+                    <label htmlFor="profile-avatar">
+                      <Upload size={16} />
+                      Changer l’avatar
+                    </label>
+                  </Button>
+                  <input
+                    id="profile-avatar"
+                    type="file"
+                    accept="image/*"
+                    className="profile-file"
+                    onChange={(e) => e.target.files?.[0] && uploadAvatar(e.target.files[0])}
+                  />
+                  <p className="note">Image · {AVATAR_MAX_MB} Mo maximum</p>
+                </div>
+              </div>
+              <label className="profile-label" htmlFor="profile-username">
+                PSEUDO
+              </label>
+              <div className="profile-input-row">
+                <input
+                  id="profile-username"
+                  className="field"
+                  value={username}
+                  maxLength={20}
+                  onChange={(e) => setUsername(e.target.value)}
+                />
+                <Button
+                  variant="prototype"
+                  className="btn y profile-save"
+                  onClick={saveUsername}
+                  aria-label="Enregistrer le pseudo"
+                  title="Enregistrer le pseudo"
+                >
+                  <Save size={18} />
+                </Button>
+              </div>
+              <p className="note">3 à 20 caractères · unique</p>
+            </section>
+
+            <section className="profile-section">
+              <div className="ph">
+                <h2>COULEUR</h2>
+              </div>
+              <div className="profile-swatches">
+                {NEON_COLORS.map((c) => (
+                  <Button
+                    variant="prototype"
+                    key={c.id}
+                    onClick={() => setColor(c.id)}
+                    className={`profile-swatch neon-${c.id}`}
+                    aria-label={c.label}
+                    title={c.label}
+                    aria-pressed={me.color === c.id}
+                  >
+                    {me.color === c.id && <Check size={18} />}
+                  </Button>
+                ))}
+              </div>
+              <p className={`profile-preview neon-${me.color}`}>
+                <span className="profile-status-dot" />
+                {me.username}
+              </p>
+            </section>
+          </div>
+          <div className="profile-details">
+            <section className="profile-section">
+              <div className="ph">
+                <h2>MES PERSONNAGES</h2>
+                <span className="tag">{chars.length}</span>
+              </div>
+              {chars.length === 0 ? (
+                <div className="profile-empty">
+                  <Users size={24} />
+                  <p>Aucun personnage pour l’instant.</p>
+                </div>
+              ) : (
+                <ul className="profile-characters">
+                  {chars.map((c) => (
+                    <li key={c.id}>
+                      <Link
+                        to="/fiche"
+                        onClick={() => {
+                          localStorage.setItem("activeCharacterId", c.id);
+                          window.dispatchEvent(new Event("active-character:changed"));
+                        }}
+                      >
+                        <span>
+                          <b>{c.handle || c.name}</b>
+                          {c.handle && <small>{c.name}</small>}
+                        </span>
+                        <ArrowUpRight size={18} />
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          </div>
+        </div>
+      </div>
+    </main>
+  );
+}
