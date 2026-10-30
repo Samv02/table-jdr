@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import {
   AlertTriangle,
   CircleAlert,
@@ -16,6 +16,7 @@ import {
   GripVertical,
   LayoutGrid,
   X,
+  UserPlus,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { InlineError } from "@/components/InlineError";
@@ -392,6 +393,14 @@ export function GmDashboard() {
         <span className="tag">
           {rows.filter((r) => table.online.has(r.id)).length}/{rows.length} EN LIGNE
         </span>
+        <Link
+          to="/mj/personnages"
+          search={{ tab: "personnages" }}
+          className="dashboard-new"
+          aria-label="Nouveau personnage"
+        >
+          <UserPlus size={15} aria-hidden="true" /> Nouveau personnage
+        </Link>
       </div>
       <InlineError message={err} onClear={() => setErr(null)} />
       <div className="dashboard-summary" aria-label="Personnages du groupe">

@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { rowsToSheet, sheetToRows, type InventoryItem } from "@/lib/character-import";
@@ -13,7 +13,7 @@ import { useTable } from "@/lib/table-context";
 import { useIdentity } from "@/lib/active-character";
 import { useServerFn } from "@tanstack/react-start";
 import { acquireItem } from "@/lib/catalog.functions";
-import { UserMinus } from "lucide-react";
+import { Download, Trash2, UserMinus } from "lucide-react";
 import { confirmAction } from "@/components/ConfirmDialog";
 import { UniverseEditor } from "@/components/UniverseEditor";
 import { TeamSettings } from "@/components/TeamSettings";
@@ -22,6 +22,8 @@ import { hpMaxFor } from "@/lib/universe";
 
 export const Route = createFileRoute("/mj/personnages")({
   ssr: false,
+  validateSearch: (search: Record<string, unknown>) =>
+    typeof search["tab"] === "string" ? { tab: search["tab"] } : {},
   head: () => ({
     meta: [
       { property: "og:type", content: "website" },
@@ -49,7 +51,11 @@ function GmCharacters() {
   const [status, setStatus] = useState<"loading" | "denied" | "ok">("loading");
   const [rows, setRows] = useState<Row[]>([]);
   const [players, setPlayers] = useState<Profile[]>([]);
-  const [tab, setTab] = useState("table");
+  const search = Route.useSearch();
+  const navigate = useNavigate();
+  const [tab, setTab] = useState(search.tab ?? "table");
+  const [newOwner, setNewOwner] = useState("");
+  const [newInfo, setNewInfo] = useState<Record<string, string>>({});
   const [showImport, setShowImport] = useState(false);
   const [text, setText] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
@@ -114,7 +120,7 @@ function GmCharacters() {
   }
 
   /** Fiche vierge aux couleurs de l'univers : toutes ses caractéristiques à la même valeur de départ */
-  async function createCharacter() {
+  async function createCharacter(open: boolean) {
     const name = newName.trim();
     if (!name) return;
     setMsg(null);
@@ -126,13 +132,14 @@ function GmCharacters() {
     const sheet: Record<string, unknown> = {
       name,
       handle: name,
+      ...newInfo,
       stats,
       skills: tpl.skills,
       weapons: [],
     };
     const { data, error } = await supabase
       .from("characters")
-      .insert({ name, handle: name, sheet: sheet as Json })
+      .insert({ name, handle: name, owner_id: newOwner || null, sheet: sheet as Json })
       .select("id")
       .single();
     if (error) return setMsg(error.message);
@@ -154,9 +161,31 @@ function GmCharacters() {
       return setMsg(e instanceof Error ? e.message : "Objets de départ non ajoutés.");
     }
     setNewName("");
-    setMsg(`${name} créé. Ouvre sa fiche et passe en Mode édition pour la remplir.`);
+    setNewOwner("");
+    setNewInfo({});
+    setMsg(`${name} créé.`);
     window.dispatchEvent(new Event("table:refresh"));
+    if (open) return openSheet(data.id);
     load();
+  }
+
+  function openSheet(id: string) {
+    identity.setActive(id);
+    void navigate({ to: "/fiche" });
+  }
+
+  async function removeCharacter(r: Row) {
+    const ok = await confirmAction({
+      title: `Supprimer « ${r.handle || r.name} » ?`,
+      message: "La fiche et son état seront supprimés. Action irréversible.",
+    });
+    if (!ok) return;
+    const state = await supabase.from("character_state").delete().eq("character_id", r.id);
+    if (state.error) return setCharsErr(state.error.message);
+    const { error } = await supabase.from("characters").delete().eq("id", r.id);
+    if (error) return setCharsErr(error.message);
+    window.dispatchEvent(new Event("table:refresh"));
+    await load();
   }
 
   async function setOwner(id: string, owner: string) {
@@ -217,24 +246,35 @@ function GmCharacters() {
   if (status !== "ok") return <main className="min-h-screen bg-background" />;
 
   const btn = "btn y";
+  const tplSummary = [
+    Object.keys(u.template.stats).length
+      ? "caractéristiques réglées"
+      : "caractéristiques automatiques",
+    u.template.skills.length ? `${u.template.skills.length} compétences` : "",
+    u.template.items.length ? `${u.template.items.length} objets` : "",
+  ]
+    .filter(Boolean)
+    .join(", ");
   return (
     <main className="">
       <div className="wrap">
         <div className="gm-tabs">
-          {["table", "scenes", "musique", "univers"].map((t) => (
+          {["table", "personnages", "scenes", "musique", "univers"].map((t) => (
             <Button
               variant="prototype"
               key={t}
               className={tab === t ? "on" : ""}
               onClick={() => setTab(t)}
             >
-              {t === "scenes"
-                ? "Scènes"
-                : t === "musique"
-                  ? "Musique"
-                  : t === "univers"
-                    ? "Univers"
-                    : "Table"}
+              {t === "personnages"
+                ? "Personnages"
+                : t === "scenes"
+                  ? "Scènes"
+                  : t === "musique"
+                    ? "Musique"
+                    : t === "univers"
+                      ? "Univers"
+                      : "Table"}
             </Button>
           ))}
         </div>
@@ -244,7 +284,7 @@ function GmCharacters() {
           <SceneManager />
         ) : tab === "musique" ? (
           <MusicManager />
-        ) : (
+        ) : tab === "table" ? (
           <>
             <div className="gm-grid">
               <GmTable />
@@ -282,34 +322,17 @@ function GmCharacters() {
                 </Button>
               </section>
             </div>
+          </>
+        ) : (
+          <>
             <div className="ph">
               <div>
-                <h1 className="">MJ – PERSONNAGES</h1>
+                <h1 className="">PERSONNAGES</h1>
               </div>
-              <Button variant="prototype" className={btn} onClick={() => setShowImport((v) => !v)}>
-                Importer un JSON
+              <Button variant="prototype" className="btn" onClick={() => setShowImport((v) => !v)}>
+                Importer un fichier
               </Button>
             </div>
-            <form
-              className="add new-character"
-              onSubmit={(e) => {
-                e.preventDefault();
-                void createCharacter();
-              }}
-            >
-              <input
-                className="field"
-                placeholder="Nom du nouveau personnage"
-                aria-label="Nom du nouveau personnage"
-                maxLength={60}
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-              />
-              <Button variant="prototype" className={btn} disabled={!newName.trim()}>
-                Créer une fiche vierge
-              </Button>
-            </form>
-
             {showImport && (
               <div className="panel cut">
                 <input
@@ -338,7 +361,152 @@ function GmCharacters() {
                 </Button>
               </div>
             )}
-            {msg && <p className="note">{msg}</p>}
+            <div className="chars-layout">
+              <form
+                className="panel cut char-form"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void createCharacter(true);
+                }}
+              >
+                <div className="ph">
+                  <h2>Nouveau personnage</h2>
+                </div>
+                <label>
+                  Nom
+                  <input
+                    className="field"
+                    placeholder="Nom du personnage"
+                    aria-label="Nom du nouveau personnage"
+                    maxLength={60}
+                    required
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                  />
+                </label>
+                <label>
+                  Joueur
+                  <select
+                    className="field"
+                    aria-label="Joueur du nouveau personnage"
+                    value={newOwner}
+                    onChange={(e) => setNewOwner(e.target.value)}
+                  >
+                    <option value="">Personne pour l’instant</option>
+                    {players.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.username ?? p.id.slice(0, 8)}
+                        {p.role === "gm" ? " (MJ)" : ""}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {u.rules.infoFields.map((field) => (
+                  <label key={field.key}>
+                    {field.label}
+                    <input
+                      className="field"
+                      aria-label={`${field.label} du nouveau personnage`}
+                      maxLength={60}
+                      value={newInfo[field.key] ?? ""}
+                      onChange={(e) => setNewInfo({ ...newInfo, [field.key]: e.target.value })}
+                    />
+                  </label>
+                ))}
+                <p className="note">
+                  Départ : {tplSummary}. Tout se règle dans Univers → Fiche de départ.
+                </p>
+                <div className="char-actions">
+                  <Button
+                    variant="prototype"
+                    type="submit"
+                    className="btn y"
+                    disabled={!newName.trim()}
+                  >
+                    Créer et ouvrir la fiche
+                  </Button>
+                  <Button
+                    variant="prototype"
+                    type="button"
+                    className="btn"
+                    disabled={!newName.trim()}
+                    onClick={() => void createCharacter(false)}
+                  >
+                    Créer
+                  </Button>
+                </div>
+                {msg && <p className="note">{msg}</p>}
+              </form>
+
+              <section className="panel cut">
+                <div className="ph">
+                  <h2>Fiches de l’équipe</h2>
+                  <span className="tag">{rows.length}</span>
+                </div>
+                <InlineError message={charsErr} onClear={() => setCharsErr(null)} />
+                <ul className="char-list">
+                  {rows.length === 0 && (
+                    <li className="note">Aucun personnage : crée le premier à côté.</li>
+                  )}
+                  {rows.map((r) => (
+                    <li key={r.id} className={r.owner_id ? "" : "unassigned"}>
+                      <span className="char-name">
+                        <b>{r.handle || r.name}</b>
+                        <small>
+                          {u.words.hp} {r.character_state?.hp_current ?? "?"}
+                          {u.modules.money
+                            ? ` · ${r.character_state?.eddies ?? "?"} ${u.words.moneySymbol}`
+                            : ""}
+                          {r.owner_id ? "" : " · à attribuer"}
+                        </small>
+                      </span>
+                      <select
+                        value={r.owner_id ?? ""}
+                        aria-label={`Joueur de ${r.handle || r.name}`}
+                        onChange={(e) => setOwner(r.id, e.target.value)}
+                        className="field"
+                      >
+                        <option value="">Aucun joueur</option>
+                        {players.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.username ?? p.id.slice(0, 8)}
+                            {p.role === "gm" ? " (MJ)" : ""}
+                          </option>
+                        ))}
+                      </select>
+                      <span className="char-actions">
+                        <Button
+                          variant="prototype"
+                          className="btn y"
+                          aria-label={`Ouvrir la fiche de ${r.handle || r.name}`}
+                          onClick={() => openSheet(r.id)}
+                        >
+                          Ouvrir
+                        </Button>
+                        <Button
+                          variant="prototype"
+                          className="icon-btn cut-s"
+                          aria-label={`Exporter ${r.handle || r.name}`}
+                          title="Exporter en fichier"
+                          onClick={() => exportJson(r)}
+                        >
+                          <Download />
+                        </Button>
+                        <Button
+                          variant="prototype"
+                          className="icon-btn cut-s"
+                          aria-label={`Supprimer ${r.handle || r.name}`}
+                          title="Supprimer"
+                          onClick={() => void removeCharacter(r)}
+                        >
+                          <Trash2 />
+                        </Button>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            </div>
 
             <h2 className="ph">JOUEURS</h2>
             <InlineError message={playersErr} onClear={() => setPlayersErr(null)} />
@@ -383,41 +551,6 @@ function GmCharacters() {
                     onClick={() => deletePlayer(p)}
                   >
                     <UserMinus size={16} />
-                  </Button>
-                </li>
-              ))}
-            </ul>
-
-            <h2 className="ph">PERSONNAGES</h2>
-            <InlineError message={charsErr} onClear={() => setCharsErr(null)} />
-            <ul className="pcards">
-              {rows.length === 0 && <li className="note">Aucun personnage.</li>}
-              {rows.map((r) => (
-                <li key={r.id} className="pcard cut-s gm-record">
-                  <div className="record-name">
-                    <p className="">{r.name}</p>
-                    <p className="note">
-                      {r.handle ?? "—"} · {u.words.hp} {r.character_state?.hp_current ?? "?"}
-                      {u.modules.money
-                        ? ` · ${u.words.moneySymbol} ${r.character_state?.eddies ?? "?"}`
-                        : ""}
-                    </p>
-                  </div>
-                  <select
-                    value={r.owner_id ?? ""}
-                    onChange={(e) => setOwner(r.id, e.target.value)}
-                    className="field"
-                  >
-                    <option value="">— Aucun joueur —</option>
-                    {players.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.username ?? p.id.slice(0, 8)}
-                        {p.role === "gm" ? " (MJ)" : ""}
-                      </option>
-                    ))}
-                  </select>
-                  <Button variant="prototype" onClick={() => exportJson(r)} className="btn">
-                    Exporter JSON
                   </Button>
                 </li>
               ))}
