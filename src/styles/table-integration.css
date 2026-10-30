@@ -7482,3 +7482,119 @@ code.bo-card-side {
     0 calc(100% - 10px)
   );
 }
+
+/* ===== Assistant de formules ===== */
+.formula-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+}
+.formula-field.bad {
+  border-color: var(--red);
+}
+.ff-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.ff-label {
+  color: var(--mute);
+  font-size: 13px;
+}
+.ff-summary {
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.ff-hint {
+  color: var(--mute);
+}
+.ff-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+.ff-editor > .field {
+  width: 100%;
+}
+.ff-sentence {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  color: var(--text);
+  font-size: 14px;
+}
+.ff-num.field {
+  width: 72px;
+  flex: none;
+  text-align: center;
+}
+.ff-pick.field {
+  flex: 0 1 auto;
+  width: auto;
+  max-width: 100%;
+  min-width: 0;
+}
+.ff-step {
+  display: inline-flex;
+  align-items: center;
+}
+.ff-step button,
+.ff-add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  color: var(--mute);
+}
+.ff-add {
+  border: 1px solid var(--line);
+  color: var(--cyan);
+}
+.ff-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.ff-chips button {
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  color: var(--text);
+  font-size: 13px;
+}
+.ff-chips button:hover {
+  border-color: var(--cyan);
+  color: var(--cyan);
+}
+.ff-chips.ops button {
+  color: var(--mute);
+}
+.ff-example {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  color: var(--mute);
+  font-size: 13px;
+}
+.ff-example .field {
+  width: 72px;
+  text-align: center;
+}
+.ff-example b {
+  color: var(--cyan);
+  font-size: 16px;
+}
+.ff-row {
+  grid-column: 1 / -1;
+}

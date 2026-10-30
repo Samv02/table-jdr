@@ -14,11 +14,13 @@ import { Button } from "@/components/ui/button";
 import { confirmAction } from "@/components/ConfirmDialog";
 import { useUniverse } from "@/lib/universe-context";
 import { HpVisual } from "@/components/HpVisual";
+import { FormulaField } from "@/components/FormulaField";
+import type { FormulaVar } from "@/lib/formula-builder";
+import { varKey } from "@/lib/formula";
 import { hpVisualsFor } from "@/lib/hp-visual";
 import { Ban, CloudFog, CloudRain, Flame, Sparkles, Wind } from "lucide-react";
 import { CatalogManager } from "@/components/CatalogManager";
 import { TemplateEditor } from "@/components/TemplateEditor";
-import { varKey } from "@/lib/formula";
 import {
   FONTS,
   PRESETS,
@@ -64,6 +66,19 @@ export function UniverseEditor() {
   const file = useRef<HTMLInputElement>(null);
   const dirty = JSON.stringify(draft) !== JSON.stringify(saved);
   const errors = useMemo(() => universeErrors(draft), [draft]);
+  const formulaVars: FormulaVar[] = [
+    ...draft.rules.stats.map((st) => ({ code: st.key, label: st.label })),
+    ...draft.rules.infoFields.map((i) => ({ code: varKey(i.key), label: i.label })),
+  ];
+  const skillVars: FormulaVar[] = [
+    { code: "STAT", label: "Carac de la compétence" },
+    { code: "NIV", label: "Niveau de la compétence" },
+    ...formulaVars,
+  ];
+  const woundVars: FormulaVar[] = [
+    { code: "MAX", label: `${draft.words.hp} maximum` },
+    ...formulaVars,
+  ];
   const hasErrors = Object.keys(errors).length > 0;
 
   // Si un autre MJ enregistre pendant qu'on ne modifie rien, on suit
@@ -454,9 +469,9 @@ export function UniverseEditor() {
             ]}
             onChange={(v) => rule("rollMode", v)}
           />
-          <Formula
+          <FormulaField
             label="Base d'une compétence"
-            hint="STAT = valeur de la carac, NIV = niveau de la compétence"
+            vars={skillVars}
             value={draft.rules.skillBase}
             error={errors["skillBase"]}
             onChange={(v) => rule("skillBase", v)}
@@ -492,16 +507,18 @@ export function UniverseEditor() {
         }
       >
         <div className="uni-grid three">
-          <Formula
+          <FormulaField
             label={`${draft.words.hp} maximum`}
-            hint="Vide = le MJ saisit les PV max de chaque fiche"
+            vars={formulaVars}
+            emptyLabel="Saisi à la main sur chaque fiche"
             value={draft.rules.hpMax}
             error={errors["hpMax"]}
             onChange={(v) => rule("hpMax", v)}
           />
-          <Formula
+          <FormulaField
             label={`Seuil « ${draft.words.wounded} »`}
-            hint="MAX = PV max. Vide = pas de seuil"
+            vars={woundVars}
+            emptyLabel="Pas de seuil"
             value={draft.rules.woundedAt}
             error={errors["woundedAt"]}
             onChange={(v) => rule("woundedAt", v)}
@@ -525,16 +542,16 @@ export function UniverseEditor() {
                     rule("deathSave", { ...draft.rules.deathSave!, label: e.target.value })
                   }
                 />
-                <input
-                  className={`field mono ${errors["deathSave"] ? "bad" : ""}`}
-                  aria-label="Formule du jet"
-                  title={errors["deathSave"]}
-                  value={draft.rules.deathSave.formula}
-                  onChange={(e) =>
-                    rule("deathSave", { ...draft.rules.deathSave!, formula: e.target.value })
-                  }
-                />
               </span>
+            )}
+            {draft.rules.deathSave && (
+              <FormulaField
+                label="Calcul du jet"
+                vars={formulaVars}
+                value={draft.rules.deathSave.formula}
+                error={errors["deathSave"]}
+                onChange={(formula) => rule("deathSave", { ...draft.rules.deathSave!, formula })}
+              />
             )}
           </div>
         </div>
@@ -542,7 +559,7 @@ export function UniverseEditor() {
         <ListEditor<GaugeDef>
           items={draft.rules.gauges}
           max={8}
-          columns={["Nom", "Maximum (formule, vide = saisi)", "Couleur"]}
+          columns={["Nom", "Couleur"]}
           onChange={(gauges) => rule("gauges", gauges)}
           make={(list) => ({
             key: `${freeKey("gauge", list)}Current`,
@@ -559,14 +576,6 @@ export function UniverseEditor() {
                 maxLength={24}
                 onChange={(e) => patch({ label: e.target.value })}
               />
-              <input
-                className={`field mono ${errors[`gauge${i}`] ? "bad" : ""}`}
-                aria-label="Maximum"
-                title={errors[`gauge${i}`]}
-                placeholder="saisi par le MJ"
-                value={g.max}
-                onChange={(e) => patch({ max: e.target.value })}
-              />
               <select
                 className="field"
                 aria-label="Couleur"
@@ -579,6 +588,16 @@ export function UniverseEditor() {
                   </option>
                 ))}
               </select>
+              <div className="ff-row">
+                <FormulaField
+                  label={`Maximum de ${g.label}`}
+                  vars={formulaVars}
+                  emptyLabel="Saisi à la main sur chaque fiche"
+                  value={g.max}
+                  error={errors[`gauge${i}`]}
+                  onChange={(max) => patch({ max })}
+                />
+              </div>
             </>
           )}
         />
@@ -624,8 +643,8 @@ export function UniverseEditor() {
               )}
             />
             <p className="note">
-              Un champ chiffré (ex. Niveau) peut servir dans les formules : écris son code, ex.
-              LEVEL.
+              Ces champs sont proposés automatiquement dans les calculs : s’ils contiennent un
+              nombre, ils s’utilisent comme une caractéristique.
             </p>
           </div>
         </div>
@@ -657,20 +676,20 @@ export function UniverseEditor() {
               onChange={(v) => rule("unarmed", v ? { count: "1", sides: 6 } : null)}
             />
             {draft.rules.unarmed && (
+              <FormulaField
+                label="Nombre de dés"
+                vars={formulaVars}
+                value={draft.rules.unarmed.count}
+                error={errors["unarmed"]}
+                onChange={(count) => rule("unarmed", { ...draft.rules.unarmed!, count })}
+              />
+            )}
+            {draft.rules.unarmed && (
               <span className="uni-inline">
-                <input
-                  className={`field mono ${errors["unarmed"] ? "bad" : ""}`}
-                  aria-label="Nombre de dés (formule)"
-                  title={errors["unarmed"] ?? "Nombre de dés, ex. 1 + (CORPS>=5)"}
-                  value={draft.rules.unarmed.count}
-                  onChange={(e) =>
-                    rule("unarmed", { ...draft.rules.unarmed!, count: e.target.value })
-                  }
-                />
-                <b>d</b>
+                <b>Dé à</b>
                 <select
                   className="field"
-                  aria-label="Faces"
+                  aria-label="Faces du dé"
                   value={draft.rules.unarmed.sides}
                   onChange={(e) =>
                     rule("unarmed", { ...draft.rules.unarmed!, sides: Number(e.target.value) })
@@ -1044,33 +1063,6 @@ function Toggle({
       <i aria-hidden />
       <span>{label}</span>
     </button>
-  );
-}
-function Formula({
-  label,
-  hint,
-  value,
-  error,
-  onChange,
-}: {
-  label: string;
-  hint?: string;
-  value: string;
-  error?: string | undefined;
-  onChange: (v: string) => void;
-}) {
-  return (
-    <label className="uni-field">
-      <span>{label}</span>
-      <input
-        className={`field mono ${error ? "bad" : ""}`}
-        value={value}
-        maxLength={200}
-        spellCheck={false}
-        onChange={(e) => onChange(e.target.value)}
-      />
-      {error ? <small className="uni-err">{error}</small> : hint ? <small>{hint}</small> : null}
-    </label>
   );
 }
 function CritSelect({
