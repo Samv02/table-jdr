@@ -39,7 +39,7 @@ async function purgeTeam(teamId: string) {
 
 export const deleteAccount = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(z.object({ userId: z.string().uuid() }))
+  .validator(z.object({ userId: z.string().uuid() }))
   .handler(async ({ data, context }) => {
     const { data: isAdmin, error: roleError } = await context.supabase.rpc("is_platform_admin");
     if (roleError || isAdmin !== true) throw new Error("Suppression réservée à l’admin.");
@@ -71,7 +71,7 @@ export const deleteMyAccount = createServerFn({ method: "POST" })
 
 export const deleteTeam = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(z.object({ teamId: z.string().uuid() }))
+  .validator(z.object({ teamId: z.string().uuid() }))
   .handler(async ({ data, context }) => {
     const [{ data: isAdmin }, { data: me }] = await Promise.all([
       context.supabase.rpc("is_platform_admin"),

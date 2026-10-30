@@ -163,7 +163,7 @@ export const adminOverview = createServerFn({ method: "GET" })
 
 export const adminSetSuspended = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(z.object({ userId: z.string().uuid(), suspended: z.boolean() }))
+  .validator(z.object({ userId: z.string().uuid(), suspended: z.boolean() }))
   .handler(async ({ data, context }) => {
     const admin = await requireAdmin(context.supabase);
     if (data.userId === context.userId) throw new Error("Tu ne peux pas te suspendre toi-même.");
@@ -182,7 +182,7 @@ export const adminSetSuspended = createServerFn({ method: "POST" })
 
 export const adminSendPasswordReset = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(z.object({ userId: z.string().uuid(), redirectTo: z.string().url() }))
+  .validator(z.object({ userId: z.string().uuid(), redirectTo: z.string().url() }))
   .handler(async ({ data, context }) => {
     const admin = await requireAdmin(context.supabase);
     const { data: target } = await admin.auth.admin.getUserById(data.userId);
