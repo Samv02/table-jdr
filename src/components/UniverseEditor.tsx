@@ -328,7 +328,7 @@ export function UniverseEditor() {
               className={`visual-choice ${draft.theme.corners === c.key ? "on" : ""}`}
               onClick={() => theme("corners", c.key)}
             >
-              <span className={`corner-sample ${c.key}`} />
+              <span className={`corner-sample corner-${c.key}`} />
               <b>{c.label}</b>
             </button>
           ))}

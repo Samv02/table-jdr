@@ -7399,10 +7399,10 @@ code.bo-card-side {
   background: color-mix(in srgb, var(--cyan) 35%, transparent);
   border: 1px solid var(--cyan);
 }
-.corner-sample.round {
+.corner-sample.corner-round {
   border-radius: 9px;
 }
-.corner-sample.cut {
+.corner-sample.corner-cut {
   clip-path: polygon(
     0 0,
     calc(100% - 10px) 0,
