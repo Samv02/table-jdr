@@ -1,21 +1,23 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useCallback, useEffect, useState } from "react";
-import { Ban, KeyRound, LogIn, RefreshCw, Trash2, Undo2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { InlineError } from "@/components/InlineError";
-import { confirmAction } from "@/components/ConfirmDialog";
-import { useIdentity } from "@/lib/active-character";
-import { deleteAccount, deleteTeam } from "@/lib/accounts.functions";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  adminOverview,
-  adminSendPasswordReset,
-  adminSetSuspended,
-  type AdminAccount,
-  type AdminOverview,
-  type AdminTeam,
-} from "@/lib/admin.functions";
-import { filterAccounts, formatDay, formatMoment } from "@/lib/admin";
+  Activity,
+  Gauge,
+  KeyRound,
+  LogOut,
+  RefreshCw,
+  ShieldCheck,
+  Users,
+  UsersRound,
+} from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { InlineError } from "@/components/InlineError";
+import { AdminAccounts } from "@/components/admin/AdminAccounts";
+import { AdminTeams } from "@/components/admin/AdminTeams";
+import { useIdentity } from "@/lib/active-character";
+import { adminOverview, type AdminEvent, type AdminOverview } from "@/lib/admin.functions";
+import { filterEvents, formatMoment, type AccountFilter, type EventFilter } from "@/lib/admin";
 import { openTeam } from "@/lib/team";
 
 export const Route = createFileRoute("/admin")({
@@ -25,24 +27,23 @@ export const Route = createFileRoute("/admin")({
 });
 
 const TABS = [
-  ["vue", "Vue globale"],
-  ["equipes", "Équipes"],
-  ["comptes", "Comptes"],
-  ["activite", "Activité"],
+  { key: "vue", label: "Vue globale", icon: Gauge },
+  { key: "equipes", label: "Équipes", icon: UsersRound },
+  { key: "comptes", label: "Comptes", icon: Users },
+  { key: "activite", label: "Activité", icon: Activity },
 ] as const;
-type Tab = (typeof TABS)[number][0];
+type Tab = (typeof TABS)[number]["key"];
 const REFRESH_MS = 30000;
+
+export type AdminRun = (action: () => Promise<unknown>, done?: string) => Promise<void>;
 
 function AdminPage() {
   const id = useIdentity();
+  const navigate = useNavigate();
   const load = useServerFn(adminOverview);
-  const suspend = useServerFn(adminSetSuspended);
-  const sendReset = useServerFn(adminSendPasswordReset);
-  const removeAccount = useServerFn(deleteAccount);
-  const removeTeam = useServerFn(deleteTeam);
   const [data, setData] = useState<AdminOverview | null>(null);
   const [tab, setTab] = useState<Tab>("vue");
-  const [search, setSearch] = useState("");
+  const [accountFilter, setAccountFilter] = useState<AccountFilter>("all");
   const [err, setErr] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -57,14 +58,20 @@ function AdminPage() {
 
   useEffect(() => {
     if (!id.isAdmin) return;
+    // Revenir ici depuis une équipe termine la visite : le back office vit hors de toute équipe
+    if (id.isVisitor) {
+      void openTeam(null, "/admin");
+      return;
+    }
     void refresh();
     const timer = setInterval(() => void refresh(), REFRESH_MS);
     return () => clearInterval(timer);
-  }, [id.isAdmin, refresh]);
+  }, [id.isAdmin, id.isVisitor, refresh]);
 
-  async function run(action: () => Promise<unknown>, done?: string) {
+  const run: AdminRun = async (action, done) => {
     if (busy) return;
     setBusy(true);
+    setInfo(null);
     try {
       await action();
       if (done) setInfo(done);
@@ -74,251 +81,239 @@ function AdminPage() {
     } finally {
       setBusy(false);
     }
+  };
+
+  function show(next: Tab, filter: AccountFilter = "all") {
+    setTab(next);
+    setAccountFilter(filter);
   }
 
-  async function askDeleteTeam(t: AdminTeam) {
-    const ok = await confirmAction({
-      title: `Supprimer l’équipe « ${t.name} » ?`,
-      message: `Ses ${t.characters} fiches, ses scènes, ses jets et ses messages seront supprimés. Les comptes des membres sont conservés. Action irréversible.`,
-      confirmLabel: "Supprimer l’équipe",
-    });
-    if (ok) await run(() => removeTeam({ data: { teamId: t.id } }));
-  }
-  async function askDeleteAccount(a: AdminAccount) {
-    const ok = await confirmAction({
-      title: `Supprimer le compte « ${a.username ?? a.email} » ?`,
-      message:
-        "Son accès, son profil, ses avatars et ses jets seront supprimés. Ses fiches restent dans leur équipe, sans joueur. Action irréversible.",
-      confirmLabel: "Supprimer le compte",
-    });
-    if (ok) await run(() => removeAccount({ data: { userId: a.id } }));
-  }
-  async function askSuspend(a: AdminAccount) {
-    if (a.suspended) return run(() => suspend({ data: { userId: a.id, suspended: false } }));
-    const ok = await confirmAction({
-      title: `Suspendre « ${a.username ?? a.email} » ?`,
-      message: "Il n’aura plus accès à aucune équipe jusqu’à sa réactivation. Rien n’est supprimé.",
-      confirmLabel: "Suspendre",
-    });
-    if (ok) await run(() => suspend({ data: { userId: a.id, suspended: true } }));
-  }
-
-  if (!id.ready) return <main className="min-h-screen bg-background" />;
+  if (!id.ready) return <main className="bo-shell" />;
   if (!id.isAdmin)
     return (
-      <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background">
-        <p className="font-display text-destructive">ACCÈS RÉSERVÉ À L’ADMIN</p>
-        <Link to="/" className="text-accent underline">
-          Retour
-        </Link>
+      <main className="bo-denied">
+        <p>ACCÈS RÉSERVÉ À L’ADMIN</p>
+        <Link to="/">Retour</Link>
       </main>
     );
 
-  const accounts = data ? filterAccounts(data.accounts, search) : [];
   return (
-    <main className="admin-page">
-      <div className="wrap">
-        <div className="ph">
-          <h1>BACK OFFICE</h1>
-          <Button
-            variant="prototype"
-            className="icon-btn cut-s"
-            title="Actualiser"
+    <div className="bo-shell">
+      <aside className="bo-side">
+        <div className="bo-brand">
+          <ShieldCheck size={20} aria-hidden="true" />
+          <b>Back office</b>
+        </div>
+        <nav aria-label="Back office">
+          {TABS.map(({ key, label, icon: Icon }) => (
+            <button
+              key={key}
+              type="button"
+              className={tab === key ? "on" : ""}
+              aria-current={tab === key ? "page" : undefined}
+              onClick={() => show(key)}
+            >
+              <Icon size={18} aria-hidden="true" />
+              {label}
+            </button>
+          ))}
+        </nav>
+        <div className="bo-side-foot">
+          <Link to="/mot-de-passe" title="Changer mon mot de passe">
+            <KeyRound size={18} aria-hidden="true" />
+            <span>Mot de passe</span>
+          </Link>
+          <button
+            type="button"
+            onClick={async () => {
+              await supabase.auth.signOut();
+              await navigate({ to: "/", replace: true });
+            }}
+          >
+            <LogOut size={18} aria-hidden="true" />
+            <span>Déconnexion</span>
+          </button>
+        </div>
+      </aside>
+      <main className="bo-main">
+        <header className="bo-top">
+          <h1>{TABS.find((t) => t.key === tab)?.label}</h1>
+          <button
+            type="button"
+            className="bo-btn"
             aria-label="Actualiser"
+            title="Actualiser"
+            disabled={busy}
             onClick={() => void refresh()}
           >
-            <RefreshCw />
-          </Button>
-        </div>
-        <div className="gm-tabs">
-          {TABS.map(([key, label]) => (
-            <Button
-              variant="prototype"
-              key={key}
-              className={tab === key ? "on" : ""}
-              onClick={() => setTab(key)}
-            >
-              {label}
-            </Button>
-          ))}
-        </div>
+            <RefreshCw size={16} aria-hidden="true" />
+          </button>
+        </header>
         <InlineError message={err} onClear={() => setErr(null)} />
-        {info && <p className="note">{info}</p>}
-        {!data ? (
-          <p className="note">Chargement…</p>
-        ) : tab === "vue" ? (
-          <>
-            <div className="admin-stats">
-              <Stat label="Comptes" value={data.stats.accounts} />
-              <Stat label="Suspendus" value={data.stats.suspended} />
-              <Stat label="Équipes" value={data.stats.teams} />
-              <Stat label="Fiches" value={data.stats.characters} />
-              <Stat label="Jets (7 jours)" value={data.stats.rolls7d} />
-              <Stat label="Messages (7 jours)" value={data.stats.messages7d} />
-            </div>
-            <h2 className="ph">DERNIÈRE ACTIVITÉ</h2>
-            <EventList events={data.activity.slice(0, 8)} />
-          </>
-        ) : tab === "equipes" ? (
-          <ul className="pcards">
-            {data.teams.length === 0 && <li className="note">Aucune équipe.</li>}
-            {data.teams.map((t) => (
-              <li key={t.id} className="pcard cut-s admin-card">
-                <div className="record-name">
-                  <p>{t.name}</p>
-                  <p className="note">
-                    Code {t.join_code} · créée le {formatDay(t.created_at)}
-                    {t.owner ? ` par ${t.owner}` : ""}
-                  </p>
-                  <p className="note">
-                    {t.members.length} membres · {t.characters} fiches ·{" "}
-                    {t.last_activity ? `actif ${formatMoment(t.last_activity)}` : "aucune activité"}
-                  </p>
-                  <p className="note">
-                    {t.members
-                      .map((m) => `${m.username ?? "?"}${m.role === "gm" ? " (MJ)" : ""}`)
-                      .join(", ") || "Aucun membre"}
-                  </p>
-                </div>
-                <div className="admin-actions">
-                  <Button
-                    variant="prototype"
-                    className="btn y"
-                    disabled={busy}
-                    onClick={() =>
-                      void run(async () => {
-                        const error = await openTeam(t.id, "/mj/tableau");
-                        if (error) throw new Error(error);
-                      })
-                    }
-                  >
-                    <LogIn size={16} /> Entrer
-                  </Button>
-                  <Button
-                    variant="prototype"
-                    className="btn red"
-                    aria-label={`Supprimer l’équipe ${t.name}`}
-                    title="Supprimer l’équipe"
-                    disabled={busy}
-                    onClick={() => void askDeleteTeam(t)}
-                  >
-                    <Trash2 size={16} />
-                  </Button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        ) : tab === "comptes" ? (
-          <>
-            <input
-              className="field admin-search"
-              placeholder="Chercher un pseudo, un e-mail, une équipe"
-              aria-label="Chercher un compte"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-            <ul className="pcards">
-              {accounts.length === 0 && <li className="note">Aucun compte.</li>}
-              {accounts.map((a) => (
-                <li key={a.id} className={`pcard cut-s admin-card ${a.suspended ? "off" : ""}`}>
-                  <div className="record-name">
-                    <p>
-                      {a.username ?? "Sans pseudo"}
-                      {a.admin && <span className="tag">ADMIN</span>}
-                      {a.suspended && <span className="tag">SUSPENDU</span>}
-                    </p>
-                    <p className="note">{a.email}</p>
-                    <p className="note">
-                      Inscrit le {formatDay(a.created_at)} · dernière connexion{" "}
-                      {a.last_sign_in_at ? formatMoment(a.last_sign_in_at) : "jamais"}
-                    </p>
-                    <p className="note">
-                      {a.teams
-                        .map((t) => `${t.name}${t.role === "gm" ? " (MJ)" : ""}`)
-                        .join(", ") || "Aucune équipe"}
-                    </p>
-                  </div>
-                  {a.id !== id.userId && (
-                    <div className="admin-actions">
-                      <Button
-                        variant="prototype"
-                        className="btn"
-                        title="Envoyer un e-mail de nouveau mot de passe"
-                        aria-label={`Envoyer un nouveau mot de passe à ${a.username ?? a.email}`}
-                        disabled={busy}
-                        onClick={() =>
-                          void run(
-                            () =>
-                              sendReset({
-                                data: {
-                                  userId: a.id,
-                                  redirectTo: `${window.location.origin}/mot-de-passe`,
-                                },
-                              }),
-                            `E-mail envoyé à ${a.email}.`,
-                          )
-                        }
-                      >
-                        <KeyRound size={16} />
-                      </Button>
-                      <Button
-                        variant="prototype"
-                        className="btn"
-                        title={a.suspended ? "Réactiver" : "Suspendre"}
-                        aria-label={`${a.suspended ? "Réactiver" : "Suspendre"} ${a.username ?? a.email}`}
-                        disabled={busy}
-                        onClick={() => void askSuspend(a)}
-                      >
-                        {a.suspended ? <Undo2 size={16} /> : <Ban size={16} />}
-                      </Button>
-                      <Button
-                        variant="prototype"
-                        className="btn red"
-                        title="Supprimer le compte"
-                        aria-label={`Supprimer le compte ${a.username ?? a.email}`}
-                        disabled={busy}
-                        onClick={() => void askDeleteAccount(a)}
-                      >
-                        <Trash2 size={16} />
-                      </Button>
-                    </div>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </>
-        ) : (
-          <EventList events={data.activity} />
+        {info && (
+          <p className="bo-info" role="status">
+            {info}
+          </p>
         )}
-      </div>
-    </main>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="panel cut admin-stat">
-      <b>{value}</b>
-      <small>{label}</small>
+        {!data ? (
+          <p className="bo-muted">Chargement…</p>
+        ) : tab === "vue" ? (
+          <Overview data={data} show={show} />
+        ) : tab === "equipes" ? (
+          <AdminTeams
+            teams={data.teams}
+            accounts={data.accounts}
+            busy={busy}
+            run={run}
+            onError={setErr}
+          />
+        ) : tab === "comptes" ? (
+          <AdminAccounts
+            accounts={data.accounts}
+            teams={data.teams}
+            selfId={id.userId}
+            filter={accountFilter}
+            setFilter={setAccountFilter}
+            busy={busy}
+            run={run}
+          />
+        ) : (
+          <ActivityLog events={data.activity} teams={data.teams.map((t) => t.name)} />
+        )}
+      </main>
     </div>
   );
 }
 
-function EventList({ events }: { events: AdminOverview["activity"] }) {
-  if (!events.length) return <p className="note">Rien pour l’instant.</p>;
+function Overview({
+  data,
+  show,
+}: {
+  data: AdminOverview;
+  show: (tab: Tab, filter?: AccountFilter) => void;
+}) {
+  const s = data.stats;
+  const cards: { label: string; value: number; go: () => void; alert?: boolean }[] = [
+    { label: "Comptes", value: s.accounts, go: () => show("comptes") },
+    { label: "Nouveaux (7 jours)", value: s.newAccounts7d, go: () => show("comptes") },
+    { label: "Connectés (7 jours)", value: s.active7d, go: () => show("comptes") },
+    {
+      label: "Suspendus",
+      value: s.suspended,
+      go: () => show("comptes", "suspended"),
+      alert: s.suspended > 0,
+    },
+    {
+      label: "Sans équipe",
+      value: s.noTeam,
+      go: () => show("comptes", "noTeam"),
+      alert: s.noTeam > 0,
+    },
+    { label: "Équipes", value: s.teams, go: () => show("equipes") },
+    {
+      label: "Équipes vides",
+      value: s.emptyTeams,
+      go: () => show("equipes"),
+      alert: s.emptyTeams > 0,
+    },
+    { label: "Fiches", value: s.characters, go: () => show("equipes") },
+    { label: "Jets (7 jours)", value: s.rolls7d, go: () => show("activite") },
+    { label: "Messages (7 jours)", value: s.messages7d, go: () => show("activite") },
+  ];
   return (
-    <ul className="pcards">
+    <>
+      <div className="bo-stats">
+        {cards.map((c) => (
+          <button
+            key={c.label}
+            type="button"
+            className={`bo-stat ${c.alert ? "alert" : ""}`}
+            onClick={c.go}
+          >
+            <b>{c.value}</b>
+            <small>{c.label}</small>
+          </button>
+        ))}
+      </div>
+      <h2 className="bo-section">Dernière activité</h2>
+      <EventList events={data.activity.slice(0, 8)} />
+    </>
+  );
+}
+
+const KINDS: { key: EventFilter; label: string }[] = [
+  { key: "all", label: "Tout" },
+  { key: "roll", label: "Jets" },
+  { key: "message", label: "Messages" },
+  { key: "admin", label: "Journal admin" },
+];
+
+function ActivityLog({ events, teams }: { events: AdminEvent[]; teams: string[] }) {
+  const [kind, setKind] = useState<EventFilter>("all");
+  const [team, setTeam] = useState("");
+  const [search, setSearch] = useState("");
+  const shown = useMemo(
+    () => filterEvents(events, kind, team, search),
+    [events, kind, team, search],
+  );
+  return (
+    <>
+      <div className="bo-filters">
+        {KINDS.map((k) => (
+          <button
+            key={k.key}
+            type="button"
+            className={`bo-chip ${kind === k.key ? "on" : ""}`}
+            aria-pressed={kind === k.key}
+            onClick={() => setKind(k.key)}
+          >
+            {k.label}
+          </button>
+        ))}
+      </div>
+      <div className="bo-row">
+        <input
+          className="bo-input"
+          placeholder="Chercher un nom, un message"
+          aria-label="Chercher dans l’activité"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <select
+          className="bo-input"
+          aria-label="Filtrer par équipe"
+          value={team}
+          onChange={(e) => setTeam(e.target.value)}
+        >
+          <option value="">Toutes les équipes</option>
+          {teams.map((t) => (
+            <option key={t} value={t}>
+              {t}
+            </option>
+          ))}
+        </select>
+      </div>
+      <EventList events={shown} />
+    </>
+  );
+}
+
+const KIND_LABEL = { roll: "Jet", message: "Message", admin: "Admin" } as const;
+
+function EventList({ events }: { events: AdminEvent[] }) {
+  if (!events.length) return <p className="bo-muted">Rien pour l’instant.</p>;
+  return (
+    <ul className="bo-list">
       {events.map((e) => (
-        <li key={e.id} className="pcard cut-s admin-card">
-          <div className="record-name">
-            <p className="note">
-              {formatMoment(e.at)} · {e.team} · {e.kind === "roll" ? "Jet" : "Message"}
-              {e.secret ? (e.kind === "roll" ? " secret" : " privé") : ""}
-            </p>
-            <p>
-              <b>{e.who}</b> {e.text}
-            </p>
-          </div>
+        <li key={e.id} className="bo-card">
+          <p className="bo-muted">
+            {formatMoment(e.at)}
+            {e.team ? ` · ${e.team}` : ""} · {KIND_LABEL[e.kind]}
+            {e.secret ? (e.kind === "roll" ? " secret" : " privé") : ""}
+          </p>
+          <p className="bo-text">
+            <b>{e.who}</b> {e.text}
+          </p>
         </li>
       ))}
     </ul>

@@ -131,15 +131,21 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
-/** Dés et messagerie n'existent que dans une équipe ; sans équipe, les pages de jeu renvoient vers le choix. */
+/**
+ * Dés et messagerie n'existent que dans une équipe ; sans équipe, les pages de jeu renvoient
+ * vers le choix d'équipe. L'admin ne joue pas : son espace à lui est le back office.
+ */
 function TeamScope({ pathname, children }: { pathname: string; children: ReactNode }) {
   const id = useIdentity();
   const navigate = useNavigate();
+  const inGame = needsTeam(pathname) || pathname === "/equipes" || pathname === "/profil";
+  const adminHome = id.ready && id.isAdmin && !id.teamId && inGame;
   const lost = id.ready && !!id.userId && !id.teamId && needsTeam(pathname);
   useEffect(() => {
-    if (lost) void navigate({ to: "/equipes", replace: true });
-  }, [lost, navigate]);
-  return id.teamId ? children : null;
+    if (adminHome) void navigate({ to: "/admin", replace: true });
+    else if (lost) void navigate({ to: "/equipes", replace: true });
+  }, [adminHome, lost, navigate]);
+  return id.teamId && !pathname.startsWith("/admin") ? children : null;
 }
 
 function RootComponent() {
@@ -153,7 +159,7 @@ function RootComponent() {
       <UniverseProvider>
         <TableEnvironment>
           <TableMusic>
-            <AppHeader />
+            {!pathname.startsWith("/admin") && <AppHeader />}
             <Outlet />
             <TeamScope pathname={pathname}>
               <DicePanel fiche={fiche} />

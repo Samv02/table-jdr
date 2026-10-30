@@ -21,7 +21,7 @@ async function purgeAccount(userId: string) {
   const { error } = await supabaseAdmin.auth.admin.deleteUser(userId);
   if (error) throw new Error("Suppression impossible. Le compte n’a pas été supprimé.");
   // Existing FKs cascade profile/roll/membership removal and SET NULL character owners.
-  return { deletedUserId: userId };
+  return target.user.email ?? userId;
 }
 
 /** Removes a team, its data (FK cascades) and its scene images. */
@@ -45,7 +45,10 @@ export const deleteAccount = createServerFn({ method: "POST" })
     if (roleError || isAdmin !== true) throw new Error("Suppression réservée à l’admin.");
     if (data.userId === context.userId)
       throw new Error("Tu ne peux pas supprimer ton propre compte.");
-    return purgeAccount(data.userId);
+    const label = await purgeAccount(data.userId);
+    const { logAdmin } = await import("./admin-log.server");
+    await logAdmin(context.userId, "Compte supprimé", label);
+    return { deletedUserId: data.userId };
   });
 
 /** Droit de chaque joueur : son compte part, et les équipes où il était seul avec lui. */
@@ -66,14 +69,15 @@ export const deleteMyAccount = createServerFn({ method: "POST" })
         .eq("team_id", team_id);
       if (count === 1) await purgeTeam(team_id);
     }
-    return purgeAccount(context.userId);
+    await purgeAccount(context.userId);
+    return { deletedUserId: context.userId };
   });
 
 export const deleteTeam = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator(z.object({ teamId: z.string().uuid() }))
   .handler(async ({ data, context }) => {
-    const [{ data: isAdmin }, { data: me }] = await Promise.all([
+    const [{ data: isAdmin }, { data: me }, { data: team }] = await Promise.all([
       context.supabase.rpc("is_platform_admin"),
       context.supabase
         .from("team_members")
@@ -81,8 +85,13 @@ export const deleteTeam = createServerFn({ method: "POST" })
         .eq("team_id", data.teamId)
         .eq("user_id", context.userId)
         .maybeSingle(),
+      context.supabase.from("teams").select("name").eq("id", data.teamId).maybeSingle(),
     ]);
     if (isAdmin !== true && me?.role !== "gm") throw new Error("Suppression réservée au MJ.");
     await purgeTeam(data.teamId);
+    if (isAdmin === true) {
+      const { logAdmin } = await import("./admin-log.server");
+      await logAdmin(context.userId, "Équipe supprimée", team?.name ?? data.teamId);
+    }
     return { deletedTeamId: data.teamId };
   });

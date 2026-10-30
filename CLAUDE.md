@@ -23,6 +23,7 @@ Comptes de test (mot de passe `table1234`) : `mj@table.local` (MJ), `joueur1@tab
 - Supabase : Postgres + RLS, Realtime, Storage (buckets privés `avatars`, `scenes`, liens signés).
 - **Équipes** : chaque compte a une équipe active (`profiles.active_team_id`, changée seulement par `enter_team`, `create_team`, `join_team`). `current_team()` la lit et toutes les règles RLS filtrent dessus. Le rôle MJ / joueur est dans `team_members`. L'admin (`platform_admins`) agit comme MJ dans l'équipe où il entre.
 - Fonctions serveur (`createServerFn` + `requireSupabaseAuth`) pour ce qui doit être sûr : jets de dés (`src/lib/dice.functions.ts`), suppression de compte et d'équipe (`src/lib/accounts.functions.ts`), back office (`src/lib/admin.functions.ts`).
+- **Back office** (`/admin`, `src/components/admin/`) : espace séparé, sans aucun élément de jeu. Toutes ses actions passent par `src/lib/admin.functions.ts` (vérifie `is_platform_admin`, utilise la clé de service) et sont tracées dans `admin_log`. Un admin sans équipe ouverte est renvoyé vers `/admin`.
 - Styles : `src/styles/table-base.css` + `src/styles/table-integration.css`, uniquement avec les variables du thème.
 
 ## Règles du projet (à respecter)

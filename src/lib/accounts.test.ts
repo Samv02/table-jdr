@@ -24,6 +24,7 @@ vi.mock("@/integrations/supabase/client.server", () => ({
     storage: { from: () => ({ list: mocks.list, remove: mocks.remove }) },
   },
 }));
+vi.mock("./admin-log.server", () => ({ logAdmin: vi.fn() }));
 import { deleteAccount } from "./accounts.functions";
 
 const execute = deleteAccount as unknown as (args: {

@@ -34,7 +34,8 @@ export function AppHeader() {
       window.removeEventListener("roll:received", rolled);
     };
   }, [id.userId, pinned]);
-  if (!id.ready || !id.userId) return null;
+  // L'admin hors équipe n'est pas à une table : aucun élément de jeu pour lui
+  if (!id.ready || !id.userId || (id.isAdmin && !id.teamId)) return null;
   return (
     <>
       <header className="hud">
@@ -140,11 +141,6 @@ export function AppHeader() {
               MJ
             </Link>
           )}
-          {id.isAdmin && (
-            <Link to="/admin" activeProps={{ className: "active" }}>
-              Admin
-            </Link>
-          )}
         </nav>
         <div className="nav-actions">
           {id.isVisitor && (
@@ -153,7 +149,7 @@ export function AppHeader() {
               className="btn y visit-exit"
               onClick={() => void openTeam(null, "/admin")}
             >
-              Quitter la visite
+              Retour au back office
             </Button>
           )}
           <Button

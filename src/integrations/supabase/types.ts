@@ -8,6 +8,38 @@ export type Database = {
   };
   public: {
     Tables: {
+      admin_log: {
+        Row: {
+          action: string;
+          admin_id: string | null;
+          created_at: string;
+          id: string;
+          target: string;
+        };
+        Insert: {
+          action: string;
+          admin_id?: string | null;
+          created_at?: string;
+          id?: string;
+          target?: string;
+        };
+        Update: {
+          action?: string;
+          admin_id?: string | null;
+          created_at?: string;
+          id?: string;
+          target?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "admin_log_admin_id_fkey";
+            columns: ["admin_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       character_notes: {
         Row: {
           body: string;

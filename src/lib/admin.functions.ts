@@ -3,8 +3,10 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
+import { validateUsername } from "./profile";
 
 const WEEK_MS = 7 * 24 * 3600 * 1000;
+const ACTIVITY_LIMIT = 100;
 /** Durée de bannissement côté Auth : l'équivalent de « jusqu'à réactivation ». */
 const BAN_FOREVER = "876000h";
 
@@ -18,34 +20,40 @@ export type AdminAccount = {
   admin: boolean;
   teams: { id: string; name: string; role: string }[];
 };
+export type AdminCharacter = { id: string; name: string; owner_id: string | null };
 export type AdminTeam = {
   id: string;
   name: string;
   join_code: string;
   created_at: string;
   owner: string | null;
-  members: { username: string | null; role: string }[];
-  characters: number;
+  members: { user_id: string; username: string | null; role: string }[];
+  characters: AdminCharacter[];
   last_activity: string | null;
 };
 export type AdminEvent = {
   id: string;
-  kind: "roll" | "message";
+  kind: "roll" | "message" | "admin";
   at: string;
   team: string;
   who: string;
   text: string;
   secret: boolean;
 };
+export type AdminStats = {
+  accounts: number;
+  newAccounts7d: number;
+  active7d: number;
+  suspended: number;
+  noTeam: number;
+  teams: number;
+  emptyTeams: number;
+  characters: number;
+  rolls7d: number;
+  messages7d: number;
+};
 export type AdminOverview = {
-  stats: {
-    accounts: number;
-    suspended: number;
-    teams: number;
-    characters: number;
-    rolls7d: number;
-    messages7d: number;
-  };
+  stats: AdminStats;
   accounts: AdminAccount[];
   teams: AdminTeam[];
   activity: AdminEvent[];
@@ -54,33 +62,44 @@ export type AdminOverview = {
 async function requireAdmin(supabase: SupabaseClient<Database>) {
   const { data, error } = await supabase.rpc("is_platform_admin");
   if (error || data !== true) throw new Error("Accès réservé à l’admin.");
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  return supabaseAdmin;
+  const [{ supabaseAdmin }, { logAdmin }] = await Promise.all([
+    import("@/integrations/supabase/client.server"),
+    import("./admin-log.server"),
+  ]);
+  return { admin: supabaseAdmin, logAdmin };
 }
+
+const teamId = z.string().uuid();
+const userId = z.string().uuid();
 
 export const adminOverview = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<AdminOverview> => {
-    const admin = await requireAdmin(context.supabase);
+    const { admin } = await requireAdmin(context.supabase);
     const since = new Date(Date.now() - WEEK_MS).toISOString();
-    const [users, profiles, admins, teams, members, characters, rolls, messages] =
+    const [users, profiles, admins, teams, members, characters, rolls, messages, log] =
       await Promise.all([
         admin.auth.admin.listUsers({ perPage: 1000 }),
         admin.from("profiles").select("id,username,suspended_at"),
         admin.from("platform_admins").select("user_id"),
         admin.from("teams").select("id,name,join_code,owner_id,created_at").order("created_at"),
         admin.from("team_members").select("team_id,user_id,role"),
-        admin.from("characters").select("id,team_id"),
+        admin.from("characters").select("id,name,team_id,owner_id").order("name"),
         admin
           .from("rolls")
           .select("id,team_id,display_name,label,dice_count,dice_sides,total,is_secret,created_at")
           .order("created_at", { ascending: false })
-          .limit(40),
+          .limit(ACTIVITY_LIMIT),
         admin
           .from("messages")
           .select("id,team_id,sender_name,channel,body,created_at")
           .order("created_at", { ascending: false })
-          .limit(40),
+          .limit(ACTIVITY_LIMIT),
+        admin
+          .from("admin_log")
+          .select("id,admin_id,action,target,created_at")
+          .order("created_at", { ascending: false })
+          .limit(ACTIVITY_LIMIT),
       ]);
     const [rolls7d, messages7d] = await Promise.all([
       admin.from("rolls").select("id", { count: "exact", head: true }).gte("created_at", since),
@@ -92,6 +111,7 @@ export const adminOverview = createServerFn({ method: "GET" })
     const teamName = new Map(teamList.map((t) => [t.id, t.name]));
     const adminIds = new Set((admins.data ?? []).map((a) => a.user_id));
     const memberRows = members.data ?? [];
+    const characterRows = characters.data ?? [];
     const lastActivity = new Map<string, string>();
     for (const e of [...(rolls.data ?? []), ...(messages.data ?? [])]) {
       if (e.created_at > (lastActivity.get(e.team_id) ?? "")) {
@@ -119,8 +139,14 @@ export const adminOverview = createServerFn({ method: "GET" })
       owner: t.owner_id ? (profileOf.get(t.owner_id)?.username ?? null) : null,
       members: memberRows
         .filter((m) => m.team_id === t.id)
-        .map((m) => ({ username: profileOf.get(m.user_id)?.username ?? null, role: m.role })),
-      characters: (characters.data ?? []).filter((c) => c.team_id === t.id).length,
+        .map((m) => ({
+          user_id: m.user_id,
+          username: profileOf.get(m.user_id)?.username ?? null,
+          role: m.role,
+        })),
+      characters: characterRows
+        .filter((c) => c.team_id === t.id)
+        .map((c) => ({ id: c.id, name: c.name, owner_id: c.owner_id })),
       last_activity: lastActivity.get(t.id) ?? null,
     }));
     const activity: AdminEvent[] = [
@@ -142,16 +168,27 @@ export const adminOverview = createServerFn({ method: "GET" })
         text: m.body,
         secret: m.channel !== "all",
       })),
-    ]
-      .sort((a, b) => b.at.localeCompare(a.at))
-      .slice(0, 50);
+      ...(log.data ?? []).map((l) => ({
+        id: `a${l.id}`,
+        kind: "admin" as const,
+        at: l.created_at,
+        team: "",
+        who: (l.admin_id && profileOf.get(l.admin_id)?.username) || "Admin",
+        text: l.target ? `${l.action} : ${l.target}` : l.action,
+        secret: false,
+      })),
+    ].sort((a, b) => b.at.localeCompare(a.at));
 
     return {
       stats: {
         accounts: accounts.length,
+        newAccounts7d: accounts.filter((a) => a.created_at >= since).length,
+        active7d: accounts.filter((a) => (a.last_sign_in_at ?? "") >= since).length,
         suspended: accounts.filter((a) => a.suspended).length,
+        noTeam: accounts.filter((a) => !a.admin && a.teams.length === 0).length,
         teams: teamRows.length,
-        characters: characters.data?.length ?? 0,
+        emptyTeams: teamRows.filter((t) => t.members.length === 0).length,
+        characters: characterRows.length,
         rolls7d: rolls7d.count ?? 0,
         messages7d: messages7d.count ?? 0,
       },
@@ -161,35 +198,271 @@ export const adminOverview = createServerFn({ method: "GET" })
     };
   });
 
-export const adminSetSuspended = createServerFn({ method: "POST" })
+// ---------- Comptes ----------
+
+export const adminCreateAccount = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator(z.object({ userId: z.string().uuid(), suspended: z.boolean() }))
+  .validator(
+    z.object({
+      email: z.string().trim().email("E-mail invalide."),
+      password: z.string().min(8, "Le mot de passe doit faire au moins 8 caractères."),
+      username: z.string().trim(),
+    }),
+  )
   .handler(async ({ data, context }) => {
-    const admin = await requireAdmin(context.supabase);
-    if (data.userId === context.userId) throw new Error("Tu ne peux pas te suspendre toi-même.");
-    // La base coupe l'accès tout de suite ; Auth empêche ensuite de se reconnecter.
+    const { admin, logAdmin } = await requireAdmin(context.supabase);
+    if (data.username) {
+      const invalid = validateUsername(data.username);
+      if (invalid) throw new Error(invalid);
+    }
+    const { data: created, error } = await admin.auth.admin.createUser({
+      email: data.email,
+      password: data.password,
+      email_confirm: true,
+    });
+    if (error || !created.user) throw new Error("Création impossible : e-mail déjà utilisé ?");
+    if (data.username) {
+      const { error: nameError } = await admin
+        .from("profiles")
+        .update({ username: data.username })
+        .eq("id", created.user.id);
+      if (nameError) throw new Error("Compte créé, mais ce pseudo est déjà pris.");
+    }
+    await logAdmin(context.userId, "Compte créé", data.email);
+    return { id: created.user.id };
+  });
+
+export const adminUpdateAccount = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator(
+    z.object({
+      userId,
+      username: z.string().trim(),
+      email: z.string().trim().email("E-mail invalide."),
+    }),
+  )
+  .handler(async ({ data, context }) => {
+    const { admin, logAdmin } = await requireAdmin(context.supabase);
+    const invalid = validateUsername(data.username);
+    if (invalid) throw new Error(invalid);
     const { error } = await admin
       .from("profiles")
-      .update({ suspended_at: data.suspended ? new Date().toISOString() : null })
+      .update({ username: data.username })
       .eq("id", data.userId);
+    if (error) throw new Error(error.code === "23505" ? "Ce pseudo est déjà pris." : error.message);
+    const { error: mailError } = await admin.auth.admin.updateUserById(data.userId, {
+      email: data.email,
+      email_confirm: true,
+    });
+    if (mailError) throw new Error("Pseudo enregistré, mais cet e-mail est refusé.");
+    await logAdmin(context.userId, "Compte modifié", data.username);
+    return { ok: true };
+  });
+
+export const adminSetSuspended = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator(z.object({ userId, suspended: z.boolean() }))
+  .handler(async ({ data, context }) => {
+    const { admin, logAdmin } = await requireAdmin(context.supabase);
+    if (data.userId === context.userId) throw new Error("Tu ne peux pas te suspendre toi-même.");
+    // La base coupe l'accès tout de suite ; Auth empêche ensuite de se reconnecter.
+    const { data: row, error } = await admin
+      .from("profiles")
+      .update({ suspended_at: data.suspended ? new Date().toISOString() : null })
+      .eq("id", data.userId)
+      .select("username")
+      .single();
     if (error) throw new Error("Changement impossible.");
     const { error: banError } = await admin.auth.admin.updateUserById(data.userId, {
       ban_duration: data.suspended ? BAN_FOREVER : "none",
     });
     if (banError) throw new Error("Accès coupé, mais la connexion n’a pas pu être bloquée.");
+    await logAdmin(
+      context.userId,
+      data.suspended ? "Compte suspendu" : "Compte réactivé",
+      row.username ?? "",
+    );
+    return { ok: true };
+  });
+
+export const adminSetPlatformAdmin = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator(z.object({ userId, admin: z.boolean() }))
+  .handler(async ({ data, context }) => {
+    const { admin, logAdmin } = await requireAdmin(context.supabase);
+    if (data.userId === context.userId)
+      throw new Error("Tu ne peux pas retirer ton propre accès admin.");
+    const { error } = data.admin
+      ? await admin.from("platform_admins").upsert({ user_id: data.userId })
+      : await admin.from("platform_admins").delete().eq("user_id", data.userId);
+    if (error) throw new Error("Changement impossible.");
+    const { data: row } = await admin
+      .from("profiles")
+      .select("username")
+      .eq("id", data.userId)
+      .maybeSingle();
+    await logAdmin(
+      context.userId,
+      data.admin ? "Accès admin donné" : "Accès admin retiré",
+      row?.username ?? "",
+    );
     return { ok: true };
   });
 
 export const adminSendPasswordReset = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator(z.object({ userId: z.string().uuid(), redirectTo: z.string().url() }))
+  .validator(z.object({ userId, redirectTo: z.string().url() }))
   .handler(async ({ data, context }) => {
-    const admin = await requireAdmin(context.supabase);
+    const { admin, logAdmin } = await requireAdmin(context.supabase);
     const { data: target } = await admin.auth.admin.getUserById(data.userId);
     if (!target.user?.email) throw new Error("Compte introuvable.");
     const { error } = await admin.auth.resetPasswordForEmail(target.user.email, {
       redirectTo: data.redirectTo,
     });
     if (error) throw new Error("Envoi impossible. Réessaie dans quelques minutes.");
+    await logAdmin(context.userId, "Lien de mot de passe envoyé", target.user.email);
+    return { ok: true };
+  });
+
+// ---------- Équipes ----------
+
+export const adminCreateTeam = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator(
+    z.object({
+      name: z.string().trim().min(2, "Nom trop court.").max(40, "Nom trop long."),
+      gmId: userId.nullable(),
+    }),
+  )
+  .handler(async ({ data, context }) => {
+    const { admin, logAdmin } = await requireAdmin(context.supabase);
+    const { data: code, error: codeError } = await admin.rpc("new_join_code");
+    if (codeError || !code) throw new Error("Création impossible.");
+    const { data: team, error } = await admin
+      .from("teams")
+      .insert({ name: data.name, join_code: code, owner_id: data.gmId })
+      .select("id")
+      .single();
+    if (error) throw new Error("Création impossible.");
+    if (data.gmId) {
+      await admin.from("team_members").insert({ team_id: team.id, user_id: data.gmId, role: "gm" });
+    }
+    await logAdmin(context.userId, "Équipe créée", data.name);
+    return { id: team.id };
+  });
+
+export const adminRenameTeam = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator(
+    z.object({
+      teamId,
+      name: z.string().trim().min(2, "Nom trop court.").max(40, "Nom trop long."),
+    }),
+  )
+  .handler(async ({ data, context }) => {
+    const { admin, logAdmin } = await requireAdmin(context.supabase);
+    const { error } = await admin.from("teams").update({ name: data.name }).eq("id", data.teamId);
+    if (error) throw new Error("Renommage impossible.");
+    await logAdmin(context.userId, "Équipe renommée", data.name);
+    return { ok: true };
+  });
+
+export const adminRegenerateCode = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator(z.object({ teamId }))
+  .handler(async ({ data, context }) => {
+    const { admin, logAdmin } = await requireAdmin(context.supabase);
+    const { data: code, error: codeError } = await admin.rpc("new_join_code");
+    if (codeError || !code) throw new Error("Changement impossible.");
+    const { data: team, error } = await admin
+      .from("teams")
+      .update({ join_code: code })
+      .eq("id", data.teamId)
+      .select("name")
+      .single();
+    if (error) throw new Error("Changement impossible.");
+    await logAdmin(context.userId, "Code d’invitation changé", team.name);
+    return { ok: true };
+  });
+
+/** Ajoute un membre, change son rôle, ou le retire (role null). */
+export const adminSetMember = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator(z.object({ teamId, userId, role: z.enum(["player", "gm"]).nullable() }))
+  .handler(async ({ data, context }) => {
+    const { admin, logAdmin } = await requireAdmin(context.supabase);
+    const [{ data: team }, { data: profile }] = await Promise.all([
+      admin.from("teams").select("name").eq("id", data.teamId).single(),
+      admin.from("profiles").select("username").eq("id", data.userId).single(),
+    ]);
+    const target = `${profile?.username ?? "?"} / ${team?.name ?? "?"}`;
+    if (data.role === null) {
+      const { error } = await admin
+        .from("team_members")
+        .delete()
+        .eq("team_id", data.teamId)
+        .eq("user_id", data.userId);
+      if (error) throw new Error("Retrait impossible.");
+      await logAdmin(context.userId, "Membre retiré", target);
+      return { ok: true };
+    }
+    const [{ count: otherGms }, { data: current }] = await Promise.all([
+      admin
+        .from("team_members")
+        .select("user_id", { count: "exact", head: true })
+        .eq("team_id", data.teamId)
+        .eq("role", "gm")
+        .neq("user_id", data.userId),
+      admin
+        .from("team_members")
+        .select("role")
+        .eq("team_id", data.teamId)
+        .eq("user_id", data.userId)
+        .maybeSingle(),
+    ]);
+    if (otherGms === 0 && current?.role === "gm" && data.role === "player")
+      throw new Error("L’équipe doit garder au moins un MJ.");
+    // Une équipe sans MJ reçoit le sien avec son premier membre ajouté
+    const role = otherGms === 0 && !current ? "gm" : data.role;
+    const { error } = await admin
+      .from("team_members")
+      .upsert({ team_id: data.teamId, user_id: data.userId, role });
+    if (error) throw new Error("Changement impossible.");
+    await logAdmin(context.userId, role === "gm" ? "Rôle MJ donné" : "Rôle joueur donné", target);
+    return { ok: true };
+  });
+
+// ---------- Fiches ----------
+
+export const adminSetCharacterOwner = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator(z.object({ characterId: z.string().uuid(), ownerId: userId.nullable() }))
+  .handler(async ({ data, context }) => {
+    const { admin, logAdmin } = await requireAdmin(context.supabase);
+    // Le trigger characters_guard refuse un joueur qui n'est pas membre de l'équipe de la fiche
+    const { data: row, error } = await admin
+      .from("characters")
+      .update({ owner_id: data.ownerId })
+      .eq("id", data.characterId)
+      .select("name")
+      .single();
+    if (error) throw new Error("Attribution impossible.");
+    await logAdmin(context.userId, "Fiche réattribuée", row.name);
+    return { ok: true };
+  });
+
+export const adminDeleteCharacter = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator(z.object({ characterId: z.string().uuid() }))
+  .handler(async ({ data, context }) => {
+    const { admin, logAdmin } = await requireAdmin(context.supabase);
+    const { data: row, error } = await admin
+      .from("characters")
+      .delete()
+      .eq("id", data.characterId)
+      .select("name")
+      .single();
+    if (error) throw new Error("Suppression impossible.");
+    await logAdmin(context.userId, "Fiche supprimée", row.name);
     return { ok: true };
   });
