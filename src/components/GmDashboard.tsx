@@ -13,8 +13,8 @@ import {
   Crosshair,
   Swords,
 } from "lucide-react";
-import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { InlineError } from "@/components/InlineError";
 import type { Json } from "@/integrations/supabase/types";
 import { useIdentity } from "@/lib/active-character";
 import { useTable } from "@/lib/table-context";
@@ -51,6 +51,7 @@ export function GmDashboard() {
   const navigate = useNavigate();
   const [rows, setRows] = useState<DashboardRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
   const [visible, setVisible] = useState<Set<Section>>(new Set(sections));
   const [onlineOnly, setOnlineOnly] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
@@ -70,7 +71,7 @@ export function GmDashboard() {
       )
       .order("name");
     if (error) {
-      toast.error(`Chargement impossible : ${error.message}`);
+      setErr(`Chargement impossible : ${error.message}`);
       setLoading(false);
       return;
     }
@@ -154,7 +155,7 @@ export function GmDashboard() {
         if (error || !data?.length) throw new Error(error?.message ?? "Accès refusé");
       })
       .catch((error) => {
-        toast.error(`Sauvegarde échouée : ${error.message}`);
+        setErr(`Sauvegarde échouée : ${error.message}`);
         void load();
       });
   }
@@ -173,7 +174,7 @@ export function GmDashboard() {
       .in("id", ids)
       .select("id");
     if (error || (data?.length ?? 0) !== ids.length) {
-      toast.error(`Changement impossible : ${error?.message ?? "accès refusé"}`);
+      setErr(`Changement impossible : ${error?.message ?? "accès refusé"}`);
       void load();
     }
   }
@@ -208,6 +209,7 @@ export function GmDashboard() {
           {rows.filter((r) => table.online.has(r.id)).length}/{rows.length} EN LIGNE
         </span>
       </div>
+      <InlineError message={err} onClear={() => setErr(null)} />
       <div className="dashboard-summary" aria-label="Personnages du groupe">
         {filtered.map((r) => {
           const state = r.character_state;

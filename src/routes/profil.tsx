@@ -1,11 +1,11 @@
 import { useWords } from "@/lib/universe-context";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
-import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { AVATAR_MAX_MB, NEON_COLORS, validateAvatar, validateUsername } from "@/lib/profile";
 
 import { Button } from "@/components/ui/button";
+import { InlineError } from "@/components/InlineError";
 import { Save, Upload, UserRound, ArrowUpRight, Check, Users } from "lucide-react";
 
 export const Route = createFileRoute("/profil")({
@@ -40,6 +40,7 @@ function ProfilePage() {
   const [avatar, setAvatar] = useState<string | null>(null);
   const [chars, setChars] = useState<{ id: string; name: string; handle: string | null }[]>([]);
   const [username, setUsername] = useState("");
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const { data: u } = await supabase.auth.getUser();
@@ -82,14 +83,13 @@ function ProfilePage() {
   async function saveUsername() {
     if (me === null || me === "none") return;
     const err = validateUsername(username);
-    if (err) return void toast.error(err);
+    if (err) return void setSaveError(err);
     const { error } = await supabase
       .from("profiles")
       .update({ username: username.trim() })
       .eq("id", me.id);
     if (error)
-      return void toast.error(error.code === "23505" ? "Ce pseudo est déjà pris." : error.message);
-    toast.success("Pseudo mis à jour");
+      return void setSaveError(error.code === "23505" ? "Ce pseudo est déjà pris." : error.message);
     changed();
     load();
   }
@@ -97,19 +97,18 @@ function ProfilePage() {
   async function uploadAvatar(f: File) {
     if (me === null || me === "none") return;
     const err = validateAvatar(f);
-    if (err) return void toast.error(err);
+    if (err) return void setSaveError(err);
     const path = `${me.id}/avatar-${Date.now()}.${f.name.split(".").pop() || "png"}`;
     const { error } = await supabase.storage
       .from("avatars")
       .upload(path, f, { contentType: f.type });
-    if (error) return void toast.error(error.message);
+    if (error) return void setSaveError(error.message);
     const { error: e2 } = await supabase
       .from("profiles")
       .update({ avatar_url: path })
       .eq("id", me.id);
-    if (e2) return void toast.error(e2.message);
+    if (e2) return void setSaveError(e2.message);
     if (me.avatar_url) supabase.storage.from("avatars").remove([me.avatar_url]);
-    toast.success("Avatar mis à jour");
     changed();
     load();
   }
@@ -117,7 +116,7 @@ function ProfilePage() {
   async function setColor(c: string) {
     if (me === null || me === "none") return;
     const { error } = await supabase.from("profiles").update({ color: c }).eq("id", me.id);
-    if (error) return void toast.error(error.message);
+    if (error) return void setSaveError(error.message);
     changed();
     load();
   }
@@ -182,6 +181,7 @@ function ProfilePage() {
                 </Button>
               </div>
               <p className="note">3 à 20 caractères · unique</p>
+              <InlineError message={saveError} onClear={() => setSaveError(null)} />
             </section>
 
             <section className="profile-section">

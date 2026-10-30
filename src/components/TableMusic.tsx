@@ -61,7 +61,7 @@ import {
 } from "@/lib/table";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
-import { toast } from "sonner";
+import { InlineError } from "@/components/InlineError";
 import {
   contextIndexes,
   fadeActive,
@@ -199,6 +199,7 @@ export function TableMusic({ children }: { children: ReactNode }) {
   const [enabled, setEnabled] = useState(false);
   const [duration, setDuration] = useState(0);
   const [failed, setFailed] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
   const tableRef = useRef(table);
   tableRef.current = table;
   const gmRef = useRef(id.isGm);
@@ -230,7 +231,7 @@ export function TableMusic({ children }: { children: ReactNode }) {
     const payload = rebaseFade(tableRef.current.music, next, tableRef.current.serverNow());
     if (payload.fade === undefined) delete payload.fade;
     const { error } = await supabase.rpc("set_table_music", { payload: payload as Json });
-    if (error) toast.error(error.message);
+    if (error) setErr(error.message);
     else await table.refresh();
   }
   const updateRef = useRef(update);
@@ -756,6 +757,7 @@ export function TableMusic({ children }: { children: ReactNode }) {
             {!collapsed && (
               <div className="mw-body">
                 {failed && <p className="note error">Vidéo indisponible</p>}
+                <InlineError message={err} onClear={() => setErr(null)} />
                 {!enabled ? (
                   <Button
                     variant="prototype"

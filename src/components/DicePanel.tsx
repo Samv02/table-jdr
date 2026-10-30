@@ -1,6 +1,5 @@
 import { useEffect, useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { Pin, PinOff, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -307,7 +306,6 @@ function Launcher() {
       window.dispatchEvent(new CustomEvent("roll:new", { detail: row }));
     } catch (e) {
       window.dispatchEvent(new Event("roll:failed"));
-      toast.error(e instanceof Error ? e.message : "Jet impossible");
       setErr(e instanceof Error ? e.message : "Erreur");
     }
     setBusy(false);

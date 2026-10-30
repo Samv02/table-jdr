@@ -1129,10 +1129,6 @@ img.av {
 .sound-gate .btn {
   height: 52px;
 }
-body.clean [data-sonner-toaster] {
-  opacity: 0;
-  pointer-events: none;
-}
 body.clean .fx,
 body.clean .scrim,
 body.clean .drawer,

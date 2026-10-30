@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { InlineError } from "@/components/InlineError";
 import { DieIcon } from "@/components/DieIcon";
 import { orderedSkills, shortSkillName, topSkillIndexes } from "@/lib/skill-presentation";
 import { useTable } from "@/lib/table-context";
@@ -125,6 +125,7 @@ function Sheet({ charId, isGm, userId }: { charId: string; isGm: boolean; userId
   const sheetRevision = useRef(0);
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState("");
+  const [err, setErr] = useState<string | null>(null);
   const [edit, setEdit] = useState(false);
   // Texte brut tapé dans les titres de compétence : la sauvegarde retire les
   // espaces de début/fin, ce qui effacerait un espace tapé entre deux mots.
@@ -157,7 +158,7 @@ function Sheet({ charId, isGm, userId }: { charId: string; isGm: boolean; userId
         .eq("character_id", charId)
         .maybeSingle(),
     ]);
-    if (e1 || e2) return void toast.error(`Chargement impossible : ${(e1 ?? e2)?.message}`);
+    if (e1 || e2) return void setErr(`Chargement impossible : ${(e1 ?? e2)?.message}`);
     if (c && !sheetQueue.current.pending && fixedRevision === sheetRevision.current) {
       const next = {
         id: c.id,
@@ -256,7 +257,7 @@ function Sheet({ charId, isGm, userId }: { charId: string; isGm: boolean; userId
     if (error || !data?.length) {
       characterRef.current = previous;
       setCh(previous);
-      toast.error(`Changement impossible : ${error?.message ?? "accès refusé"}`);
+      setErr(`Changement impossible : ${error?.message ?? "accès refusé"}`);
     }
   }
 
@@ -290,9 +291,7 @@ function Sheet({ charId, isGm, userId }: { charId: string; isGm: boolean; userId
         stateRef.current = prev;
         setSt(prev);
       }
-      toast.error(
-        `Sauvegarde échouée : ${error instanceof Error ? error.message : "erreur réseau"}`,
-      );
+      setErr(`Sauvegarde échouée : ${error instanceof Error ? error.message : "erreur réseau"}`);
     }
   }
 
@@ -321,9 +320,7 @@ function Sheet({ charId, isGm, userId }: { charId: string; isGm: boolean; userId
         setCh(previous);
       }
       setSaveStatus("Échec de l’enregistrement");
-      toast.error(
-        `Sauvegarde échouée : ${error instanceof Error ? error.message : "erreur réseau"}`,
-      );
+      setErr(`Sauvegarde échouée : ${error instanceof Error ? error.message : "erreur réseau"}`);
       return false;
     }
   }
@@ -336,7 +333,6 @@ function Sheet({ charId, isGm, userId }: { charId: string; isGm: boolean; userId
       if (saved) {
         setEdit(false);
         setTitleDraft({});
-        toast.success("Modifications enregistrées");
       }
     } finally {
       setSaving(false);
@@ -378,7 +374,7 @@ function Sheet({ charId, isGm, userId }: { charId: string; isGm: boolean; userId
       window.dispatchEvent(new CustomEvent("roll:new", { detail: row }));
     } catch (e) {
       window.dispatchEvent(new Event("roll:failed"));
-      toast.error(`Jet impossible : ${e instanceof Error ? e.message : "erreur"}`);
+      setErr(`Jet impossible : ${e instanceof Error ? e.message : "erreur"}`);
     }
   }
 
@@ -404,7 +400,18 @@ function Sheet({ charId, isGm, userId }: { charId: string; isGm: boolean; userId
     URL.revokeObjectURL(url);
   }
 
-  if (!ch || !st) return <Centered>Chargement…</Centered>;
+  if (!ch || !st)
+    return (
+      <Centered>
+        {err ? (
+          <span className="note error" role="alert">
+            {err}
+          </span>
+        ) : (
+          "Chargement…"
+        )}
+      </Centered>
+    );
 
   // Le joueur ne modifie sa fiche que si le MJ l'a autorisé (vérifié aussi par la base, RLS).
   const canEdit = mayWrite;
@@ -519,6 +526,7 @@ function Sheet({ charId, isGm, userId }: { charId: string; isGm: boolean; userId
             </span>
           )}
         </div>
+        <InlineError message={err} onClear={() => setErr(null)} />
         <div className="player-grid">
           <div className={`tabview ${tab === "perso" ? "on" : ""}`} data-tab="perso">
             <section className="panel cut">

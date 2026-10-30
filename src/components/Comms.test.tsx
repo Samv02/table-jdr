@@ -20,9 +20,6 @@ vi.mock("./ui/button", () => ({
     <button {...(rest as object)}>{children}</button>
   ),
 }));
-vi.mock("sonner", () => ({
-  toast: Object.assign(vi.fn(), { error: vi.fn(), success: vi.fn() }),
-}));
 vi.mock("@/integrations/supabase/client", () => {
   const channel = {
     on: (
@@ -56,7 +53,6 @@ vi.mock("@/integrations/supabase/client", () => {
 });
 
 import { Comms } from "./Comms";
-import { toast } from "sonner";
 
 const foreignMessage = {
   id: "msg-from-other-player",
@@ -85,7 +81,7 @@ describe("holo-net notifications", () => {
       mocks.handlers["messages:INSERT"]?.({ new: foreignMessage });
     });
 
-    expect(toast).not.toHaveBeenCalled();
+    expect(document.querySelector("[role=alert]")).toBeNull();
     // Le message arrive quand même : aperçu dans la liste + compteur de non-lus
     expect(document.body.textContent).toContain("Rendez-vous au bar, vite.");
     const fab = document.querySelector(".comms-fab");

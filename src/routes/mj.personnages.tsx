@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { rowsToSheet, sheetToRows, type InventoryItem } from "@/lib/character-import";
 import type { Json } from "@/integrations/supabase/types";
-import { toast } from "sonner";
+import { InlineError } from "@/components/InlineError";
 import { SceneManager } from "@/components/SceneManager";
 import { GmTable } from "@/components/GmTable";
 import { MusicManager } from "@/components/TableMusic";
@@ -52,6 +52,8 @@ function GmCharacters() {
   const [showImport, setShowImport] = useState(false);
   const [text, setText] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
+  const [playersErr, setPlayersErr] = useState<string | null>(null);
+  const [charsErr, setCharsErr] = useState<string | null>(null);
   const profiles = useProfiles();
   const table = useTable();
   const identity = useIdentity();
@@ -155,15 +157,14 @@ function GmCharacters() {
       .from("characters")
       .update({ owner_id: owner || null })
       .eq("id", id);
-    if (error) return void toast.error(error.message);
+    if (error) return void setCharsErr(error.message);
     window.dispatchEvent(new Event("table:refresh"));
     load();
   }
 
   async function setRole(id: string, role: string) {
     const { error } = await supabase.rpc("set_user_role", { _user: id, _role: role });
-    if (error) return void toast.error(error.message);
-    toast.success("Rôle mis à jour");
+    if (error) return void setPlayersErr(error.message);
     window.dispatchEvent(new Event("profile:changed"));
     load();
   }
@@ -183,12 +184,11 @@ function GmCharacters() {
     setDeleting(p.id);
     try {
       await removeAccount({ data: { userId: p.id } });
-      toast.success("Compte supprimé. Personnages conservés sans propriétaire.");
       window.dispatchEvent(new Event("profile:changed"));
       window.dispatchEvent(new Event("table:refresh"));
       await load();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Suppression impossible.");
+      setPlayersErr(error instanceof Error ? error.message : "Suppression impossible.");
     } finally {
       setDeleting(null);
     }
@@ -345,6 +345,7 @@ function GmCharacters() {
             {msg && <p className="note">{msg}</p>}
 
             <h2 className="ph">JOUEURS</h2>
+            <InlineError message={playersErr} onClear={() => setPlayersErr(null)} />
             <ul className="pcards">
               {players.map((p) => (
                 <li key={p.id} className="pcard cut-s gm-record">
@@ -392,6 +393,7 @@ function GmCharacters() {
             </ul>
 
             <h2 className="ph">PERSONNAGES</h2>
+            <InlineError message={charsErr} onClear={() => setCharsErr(null)} />
             <ul className="pcards">
               {rows.length === 0 && <li className="note">Aucun personnage.</li>}
               {rows.map((r) => (

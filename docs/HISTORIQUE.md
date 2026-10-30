@@ -392,6 +392,7 @@ Sommaire :
 | `Infinity` cassé | Import Lucide qui masque le global | `Infinity as InfinityIcon` |
 | Erreurs `exactOptionalPropertyTypes` | `prop: undefined` refusé | Construire l'objet sans la clé, ou typer `T \| undefined` |
 | Un test échoue à cause d'un toast restant | Toasts supprimés partout | Ne plus en utiliser |
+| Les erreurs ne s'affichaient plus du tout (appels `toast` sans Toaster monté) | Remplacés le 30/10/2026 par `InlineError`, un message rouge dans la page près de l'action, effacé après 8 s | Pour une nouvelle erreur : un état `useState<string \| null>` + `<InlineError>` ; jamais de pop-up |
 | Bouton de dés MJ invisible sur mobile | Classe `gm-home` plus posée par aucun code | Règle `.fab-desk:not(.player-fab)` |
 | Fonction `usePreset` refusée par ESLint | Nom commençant par `use` = hook | Renommée `applyPreset` |
 | `npm` non reconnu sous Windows | Node.js pas installé ou terminal ouvert avant | Installer Node, rouvrir VS Code |

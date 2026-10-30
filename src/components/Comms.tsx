@@ -11,7 +11,6 @@ import {
   UserRound,
   X,
 } from "lucide-react";
-import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useIdentity } from "@/lib/active-character";
 import { useTable } from "@/lib/table-context";
@@ -28,6 +27,7 @@ import {
   type Message,
 } from "@/lib/messaging";
 import { useWords } from "@/lib/universe-context";
+import { InlineError } from "@/components/InlineError";
 import { confirmAction } from "@/components/ConfirmDialog";
 
 const readKey = (uid: string) => `holonet:read:${uid}`;
@@ -59,6 +59,7 @@ export function Comms() {
   const [lastRead, setLastRead] = useState<Record<string, string>>({});
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
   const scroller = useRef<HTMLDivElement>(null);
   const state = useRef({ open, view, active });
   state.current = { open, view, active };
@@ -203,7 +204,7 @@ export function Comms() {
       .single();
     setSending(false);
     if (error)
-      return void toast.error(
+      return void setErr(
         current.kind === "holo"
           ? "Échange coupé : le MJ n'autorise plus cette conversation."
           : `Message non envoyé : ${error.message}`,
@@ -224,7 +225,7 @@ export function Comms() {
     )
       return;
     const { error } = await supabase.from("messages").delete().eq("id", m.id);
-    if (error) toast.error(error.message);
+    if (error) setErr(error.message);
     else setMessages((l) => l.filter((x) => x.id !== m.id));
   }
   async function setLink(x: string, y: string, on: boolean) {
@@ -232,7 +233,7 @@ export function Comms() {
     const { error } = on
       ? await supabase.from("holo_links").insert({ a, b })
       : await supabase.from("holo_links").delete().eq("a", a).eq("b", b);
-    if (error) return void toast.error(error.message);
+    if (error) return void setErr(error.message);
     setLinks((old) =>
       on
         ? [...old.filter((l) => !(l.a === a && l.b === b)), { a, b }]
@@ -260,7 +261,7 @@ export function Comms() {
           .from("holo_links")
           .upsert(pairs, { onConflict: "a,b", ignoreDuplicates: true })
       : await supabase.from("holo_links").delete().not("a", "is", null);
-    if (error) return void toast.error(error.message);
+    if (error) return void setErr(error.message);
     setLinks(on ? pairs : []);
   }
 
@@ -331,6 +332,7 @@ export function Comms() {
             <X size={18} />
           </Button>
         </header>
+        <InlineError message={err} onClear={() => setErr(null)} />
 
         {view === "list" && (
           <div className="comms-list">

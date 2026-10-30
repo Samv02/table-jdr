@@ -13,7 +13,6 @@ import { useIdentity } from "@/lib/active-character";
 import type { Music } from "@/lib/table";
 import { Button } from "@/components/ui/button";
 import { Eye } from "lucide-react";
-import { toast } from "sonner";
 import { TableContext, type Scene, type PartyMember } from "@/lib/table-context";
 export function TableEnvironment({ children }: { children: ReactNode }) {
   const identity = useIdentity();
@@ -33,10 +32,8 @@ export function TableEnvironment({ children }: { children: ReactNode }) {
       supabase.rpc("get_party"),
       supabase.from("profiles").select("avatar_url,color").eq("role", "gm").limit(1).maybeSingle(),
     ]);
-    if (s.error || state.error || members.error) {
-      toast.error("Impossible de charger la table.");
-      return;
-    }
+    // Échec normal avant connexion (get_party est réservé aux comptes) : on n'affiche rien.
+    if (s.error || state.error || members.error) return;
     const signed = await supabase.storage.from("scenes").createSignedUrls(
       (s.data ?? []).map((x) => x.image_path),
       3600,

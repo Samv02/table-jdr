@@ -6,8 +6,8 @@ import { hpMax, readStats, readWeapons, type Sheet } from "@/lib/sheet";
 import { useUniverse } from "@/lib/universe-context";
 import { Button } from "./ui/button";
 import { useNavigate } from "@tanstack/react-router";
-import { toast } from "sonner";
 import { confirmAction } from "@/components/ConfirmDialog";
+import { InlineError } from "@/components/InlineError";
 type Row = {
   id: string;
   name: string;
@@ -21,6 +21,7 @@ export function GmTable() {
   const navigate = useNavigate();
   const { universe: u } = useUniverse();
   const [rows, setRows] = useState<Row[]>([]);
+  const [err, setErr] = useState<string | null>(null);
   useEffect(() => {
     if (!id.isGm) return;
     const load = async () => {
@@ -28,7 +29,7 @@ export function GmTable() {
         .from("characters")
         .select("id,name,handle,sheet,character_state(hp_current,eddies,ammo)")
         .order("name");
-      if (error) toast.error(error.message);
+      if (error) setErr(error.message);
       else setRows((data ?? []) as Row[]);
     };
     void load();
@@ -61,16 +62,15 @@ export function GmTable() {
       return;
     const st = await supabase.from("character_state").delete().eq("character_id", r.id);
     if (st.error) {
-      toast.error(st.error.message);
+      setErr(st.error.message);
       return;
     }
     const { error } = await supabase.from("characters").delete().eq("id", r.id);
     if (error) {
-      toast.error(error.message);
+      setErr(error.message);
       return;
     }
     setRows((x) => x.filter((y) => y.id !== r.id));
-    toast.success("Fiche supprimée");
   };
   return (
     <section className="panel cut">
@@ -80,6 +80,7 @@ export function GmTable() {
           {rows.filter((r) => table.online.has(r.id)).length}/{rows.length} EN LIGNE
         </span>
       </div>
+      <InlineError message={err} onClear={() => setErr(null)} />
       <div className="pcards">
         {rows.map((r) => {
           const max = hpMax(readStats(r.sheet, u), r.sheet, u);

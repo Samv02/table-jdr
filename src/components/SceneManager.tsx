@@ -4,8 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useTable, type Scene } from "@/lib/table-context";
 import { Button } from "./ui/button";
 import { validateScene } from "@/lib/table";
-import { toast } from "sonner";
 import { confirmAction } from "@/components/ConfirmDialog";
+import { InlineError } from "@/components/InlineError";
 export function SceneManager() {
   const table = useTable();
   const [adding, setAdding] = useState(false);
@@ -14,12 +14,14 @@ export function SceneManager() {
   const [subtitle, setSubtitle] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [editing, setEditing] = useState<Scene | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [formErr, setFormErr] = useState<string | null>(null);
   async function save() {
     if (!name.trim()) return;
-    if (!editing && !file) return void toast.error("Choisis une image.");
+    if (!editing && !file) return void setFormErr("Choisis une image.");
     if (file) {
       const error = validateScene(file);
-      if (error) return void toast.error(error);
+      if (error) return void setFormErr(error);
     }
     setBusy(true);
     let path = editing?.image_path ?? "";
@@ -47,7 +49,7 @@ export function SceneManager() {
       setFile(null);
       await table.refresh();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Enregistrement impossible.");
+      setFormErr(e instanceof Error ? e.message : "Enregistrement impossible.");
     } finally {
       setBusy(false);
     }
@@ -57,7 +59,7 @@ export function SceneManager() {
       .from("session_state")
       .update({ active_scene_id: s.id })
       .eq("id", 1);
-    if (error) toast.error(error.message);
+    if (error) setErr(error.message);
     else await table.refresh();
   }
   async function remove(s: Scene) {
@@ -69,7 +71,7 @@ export function SceneManager() {
     )
       return;
     const { error } = await supabase.from("scenes").delete().eq("id", s.id);
-    if (error) return void toast.error(error.message);
+    if (error) return void setErr(error.message);
     await supabase.storage.from("scenes").remove([s.image_path]);
     await table.refresh();
   }
@@ -84,7 +86,7 @@ export function SceneManager() {
         .eq("id", current.id),
       supabase.from("scenes").update({ sort_order: index }).eq("id", other.id),
     ]);
-    if (results.some((x) => x.error)) toast.error("Réorganisation impossible.");
+    if (results.some((x) => x.error)) setErr("Réorganisation impossible.");
     await table.refresh();
   }
   return (
@@ -93,6 +95,7 @@ export function SceneManager() {
         <h2>Scènes</h2>
         <span className="tag">UN CLIC = CHANGE POUR TOUS</span>
       </div>
+      <InlineError message={err} onClear={() => setErr(null)} />
       <div className="scenes">
         {table.scenes.map((s, i) => (
           <article key={s.id} className="scene-entry">
@@ -201,6 +204,7 @@ export function SceneManager() {
               Annuler
             </Button>
           </div>
+          <InlineError message={formErr} onClear={() => setFormErr(null)} />
         </div>
       )}
     </section>

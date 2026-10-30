@@ -16,9 +16,6 @@ vi.mock("@/lib/active-character", () => ({
 vi.mock("@/lib/profile", () => ({ useProfiles: () => ({}) }));
 vi.mock("@tanstack/react-start", () => ({ useServerFn: () => vi.fn() }));
 vi.mock("@/lib/dice.functions", () => ({ rollDice: {} }));
-vi.mock("sonner", () => ({
-  toast: Object.assign(vi.fn(), { error: vi.fn(), success: vi.fn() }),
-}));
 vi.mock("@/integrations/supabase/client", () => {
   const channel = { on: () => channel, subscribe: () => channel };
   return {
@@ -33,7 +30,6 @@ vi.mock("@/integrations/supabase/client", () => {
 });
 
 import { DicePanel } from "./DicePanel";
-import { toast } from "sonner";
 
 const foreignRoll = {
   id: "roll-from-other-player",
@@ -69,7 +65,7 @@ describe("roll feed notifications", () => {
       window.dispatchEvent(new CustomEvent("roll:new", { detail: foreignRoll }));
     });
 
-    expect(toast).not.toHaveBeenCalled();
+    expect(document.querySelector("[role=alert]")).toBeNull();
     expect(view.baseElement.textContent).toContain("dexter");
     expect(document.body.textContent).not.toContain("Esquive : 7");
   });
