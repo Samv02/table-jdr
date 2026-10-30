@@ -200,3 +200,47 @@ export const adminExportAccount = createServerFn({ method: "POST" })
       2,
     );
   });
+
+export const adminAddModerationWord = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator(
+    z.object({
+      word: z.string().trim().toLowerCase().min(2, "Mot trop court.").max(60, "Mot trop long."),
+      category: z.enum(["haine", "menace", "danger", "sexuel", "insulte", "arnaque"]),
+    }),
+  )
+  .handler(async ({ data, context }) => {
+    const { admin, logAdmin } = await requireAdmin(context.supabase);
+    const { error } = await admin.from("moderation_words").insert(data);
+    if (error)
+      throw new Error(error.code === "23505" ? "Ce mot est déjà dans la liste." : error.message);
+    await logAdmin(context.userId, "Mot de modération ajouté", data.word);
+    return { ok: true };
+  });
+
+export const adminDeleteModerationWord = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator(z.object({ id }))
+  .handler(async ({ data, context }) => {
+    const { admin, logAdmin } = await requireAdmin(context.supabase);
+    const { data: row, error } = await admin
+      .from("moderation_words")
+      .delete()
+      .eq("id", data.id)
+      .select("word")
+      .single();
+    if (error) throw new Error("Suppression impossible.");
+    await logAdmin(context.userId, "Mot de modération retiré", row.word);
+    return { ok: true };
+  });
+
+/** Message signalé déjà traité : il reste surligné mais sort de la liste « À traiter ». */
+export const adminReviewMessage = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator(z.object({ id }))
+  .handler(async ({ data, context }) => {
+    const { admin } = await requireAdmin(context.supabase);
+    const { error } = await admin.from("moderation_reviews").upsert({ message_id: data.id });
+    if (error) throw new Error("Enregistrement impossible.");
+    return { ok: true };
+  });

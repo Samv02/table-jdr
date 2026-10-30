@@ -1,14 +1,17 @@
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
-import { Download, Megaphone, Trash2, Undo2 } from "lucide-react";
+import { Download, Megaphone, Plus, Trash2, Undo2, X } from "lucide-react";
 import { confirmAction } from "@/components/ConfirmDialog";
 import {
+  adminAddModerationWord,
   adminCreateAnnouncement,
+  adminDeleteModerationWord,
   adminSetAnnouncement,
   adminUpdateSettings,
 } from "@/lib/admin-platform.functions";
 import type { AdminOverview } from "@/lib/admin.functions";
 import { downloadFile, formatDay, formatMoment, toCsv } from "@/lib/admin";
+import { MODERATION_CATEGORIES } from "@/lib/moderation";
 import type { AdminRun } from "@/routes/admin";
 
 /** Réglages de toute la plateforme, annonces et exports. */
@@ -24,6 +27,11 @@ export function AdminControl({
   const saveSettings = useServerFn(adminUpdateSettings);
   const publish = useServerFn(adminCreateAnnouncement);
   const setAnnouncement = useServerFn(adminSetAnnouncement);
+  const addWord = useServerFn(adminAddModerationWord);
+  const removeWord = useServerFn(adminDeleteModerationWord);
+  const [word, setWord] = useState("");
+  const [wordCategory, setWordCategory] =
+    useState<(typeof MODERATION_CATEGORIES)[number]["key"]>("insulte");
   const [settings, setSettings] = useState(data.settings);
   const [body, setBody] = useState("");
   const [level, setLevel] = useState<"info" | "warning">("info");
@@ -240,6 +248,74 @@ export function AdminControl({
             </li>
           ))}
         </ul>
+      </section>
+
+      <section>
+        <h2 className="bo-section">Modération des messages</h2>
+        <p className="bo-muted">
+          Rien n’est bloqué : ces mots surlignent seulement le message en rouge dans Activité.
+          Ajoute « * » à la fin pour accepter toutes les terminaisons, comme « connard* ».
+        </p>
+        <form
+          className="bo-row bo-word-form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void run(async () => {
+              await addWord({ data: { word, category: wordCategory } });
+              setWord("");
+            });
+          }}
+        >
+          <input
+            className="bo-input"
+            placeholder="Mot ou expression"
+            aria-label="Mot à signaler"
+            maxLength={60}
+            required
+            value={word}
+            onChange={(e) => setWord(e.target.value)}
+          />
+          <select
+            className="bo-input bo-narrow"
+            aria-label="Famille du mot"
+            value={wordCategory}
+            onChange={(e) =>
+              setWordCategory(e.target.value as (typeof MODERATION_CATEGORIES)[number]["key"])
+            }
+          >
+            {MODERATION_CATEGORIES.map((c) => (
+              <option key={c.key} value={c.key}>
+                {c.label}
+              </option>
+            ))}
+          </select>
+          <button type="submit" className="bo-btn" disabled={busy}>
+            <Plus size={16} aria-hidden="true" /> Ajouter
+          </button>
+        </form>
+        {MODERATION_CATEGORIES.map((c) => (
+          <div key={c.key} className="bo-words">
+            <h3>{c.label}</h3>
+            <ul>
+              {data.moderationWords
+                .filter((w) => w.category === c.key)
+                .map((w) => (
+                  <li key={w.id}>
+                    {w.word}
+                    <button
+                      type="button"
+                      aria-label={`Retirer ${w.word}`}
+                      title="Retirer"
+                      disabled={busy}
+                      onClick={() => void run(() => removeWord({ data: { id: w.id } }))}
+                    >
+                      <X size={12} aria-hidden="true" />
+                    </button>
+                  </li>
+                ))}
+            </ul>
+          </div>
+        ))}
       </section>
 
       <section>

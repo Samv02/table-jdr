@@ -4,6 +4,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { validateUsername } from "./profile";
+import { findFlags, type ModerationWord } from "./moderation";
 
 const WEEK_MS = 7 * 24 * 3600 * 1000;
 const ACTIVITY_LIMIT = 200;
@@ -48,6 +49,9 @@ export type AdminEvent = {
   /** Jet : dés et résultat ; message : canal ; journal : cible. */
   detail: string;
   secret: boolean;
+  senderId: string | null;
+  /** Message signalé déjà vu par l'admin. */
+  reviewed: boolean;
 };
 export type AdminDay = { day: string; signups: number; rolls: number; messages: number };
 export type AdminSettings = {
@@ -86,6 +90,7 @@ export type AdminStats = {
   rollsPrev7d: number;
   messages7d: number;
   messagesPrev7d: number;
+  flaggedMessages: number;
   ticketsOpen: number;
   ticketsInProgress: number;
   ticketsResolved7d: number;
@@ -99,6 +104,7 @@ export type AdminOverview = {
   activity: AdminEvent[];
   settings: AdminSettings;
   announcements: AdminAnnouncement[];
+  moderationWords: ModerationWord[];
 };
 
 async function requireAdmin(supabase: SupabaseClient<Database>) {
@@ -133,6 +139,8 @@ export const adminOverview = createServerFn({ method: "GET" })
       settings,
       announcements,
       tickets,
+      moderationWords,
+      reviews,
     ] = await Promise.all([
       admin.auth.admin.listUsers({ perPage: 1000 }),
       admin.from("profiles").select("id,username,suspended_at"),
@@ -147,7 +155,7 @@ export const adminOverview = createServerFn({ method: "GET" })
         .limit(ACTIVITY_LIMIT),
       admin
         .from("messages")
-        .select("id,team_id,sender_name,channel,body,created_at")
+        .select("id,team_id,sender_user,sender_name,channel,body,created_at")
         .order("created_at", { ascending: false })
         .limit(ACTIVITY_LIMIT),
       admin
@@ -161,6 +169,8 @@ export const adminOverview = createServerFn({ method: "GET" })
       admin.from("platform_settings").select("*").eq("id", 1).single(),
       admin.from("announcements").select("*").order("created_at", { ascending: false }),
       admin.from("support_tickets").select("status,created_at,first_reply_at,resolved_at"),
+      admin.from("moderation_words").select("id,word,category").order("word"),
+      admin.from("moderation_reviews").select("message_id"),
     ]);
 
     const profileOf = new Map((profiles.data ?? []).map((p) => [p.id, p]));
@@ -169,6 +179,8 @@ export const adminOverview = createServerFn({ method: "GET" })
     const adminIds = new Set((admins.data ?? []).map((a) => a.user_id));
     const memberRows = members.data ?? [];
     const characterRows = characters.data ?? [];
+    const reviewed = new Set((reviews.data ?? []).map((r) => r.message_id));
+    const wordList = moderationWords.data ?? [];
     const noteOf = new Map((notes.data ?? []).map((n) => [n.user_id, n.body]));
     const teamActivity = new Map((activity7d.data ?? []).map((t) => [t.team_id, t]));
     const days = (daily.data ?? []) as AdminDay[];
@@ -226,6 +238,8 @@ export const adminOverview = createServerFn({ method: "GET" })
         text: r.label ?? "",
         detail: `${r.dice_count}d${r.dice_sides} → ${r.total}`,
         secret: r.is_secret,
+        senderId: null,
+        reviewed: false,
       })),
       ...(messages.data ?? []).map((m) => ({
         id: `m${m.id}`,
@@ -238,6 +252,8 @@ export const adminOverview = createServerFn({ method: "GET" })
         text: m.body,
         detail: channelLabel(m.channel),
         secret: m.channel !== "all",
+        senderId: m.sender_user,
+        reviewed: reviewed.has(m.id),
       })),
       ...(log.data ?? []).map((l) => ({
         id: `a${l.id}`,
@@ -250,6 +266,8 @@ export const adminOverview = createServerFn({ method: "GET" })
         text: l.action,
         detail: l.target,
         secret: false,
+        senderId: null,
+        reviewed: false,
       })),
     ].sort((a, b) => b.at.localeCompare(a.at));
     const ticketRows = tickets.data ?? [];
@@ -280,6 +298,9 @@ export const adminOverview = createServerFn({ method: "GET" })
         rollsPrev7d: sum("rolls", 0, CHART_DAYS - 7),
         messages7d: sum("messages", CHART_DAYS - 7, CHART_DAYS),
         messagesPrev7d: sum("messages", 0, CHART_DAYS - 7),
+        flaggedMessages: (messages.data ?? []).filter(
+          (m) => !reviewed.has(m.id) && findFlags(m.body, wordList).length > 0,
+        ).length,
         ticketsOpen: ticketRows.filter((t) => t.status === "open").length,
         ticketsInProgress: ticketRows.filter((t) => t.status === "in_progress").length,
         ticketsResolved7d: ticketRows.filter(
@@ -295,6 +316,7 @@ export const adminOverview = createServerFn({ method: "GET" })
       activity,
       settings: settings.data as AdminSettings,
       announcements: announcements.data ?? [],
+      moderationWords: wordList,
     };
   });
 

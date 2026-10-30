@@ -310,6 +310,50 @@ export type Database = {
           },
         ];
       };
+      moderation_reviews: {
+        Row: {
+          message_id: string;
+          reviewed_at: string;
+        };
+        Insert: {
+          message_id: string;
+          reviewed_at?: string;
+        };
+        Update: {
+          message_id?: string;
+          reviewed_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "moderation_reviews_message_id_fkey";
+            columns: ["message_id"];
+            isOneToOne: true;
+            referencedRelation: "messages";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      moderation_words: {
+        Row: {
+          category: string;
+          created_at: string;
+          id: string;
+          word: string;
+        };
+        Insert: {
+          category?: string;
+          created_at?: string;
+          id?: string;
+          word: string;
+        };
+        Update: {
+          category?: string;
+          created_at?: string;
+          id?: string;
+          word?: string;
+        };
+        Relationships: [];
+      };
       platform_admins: {
         Row: {
           created_at: string;

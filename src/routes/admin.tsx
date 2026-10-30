@@ -53,6 +53,7 @@ function AdminPage() {
   const [tab, setTab] = useState<Tab>("vue");
   const [accountFilter, setAccountFilter] = useState<AccountFilter>("all");
   const [teamFilter, setTeamFilter] = useState<TeamFilter>("all");
+  const [flaggedOnly, setFlaggedOnly] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -95,11 +96,13 @@ function AdminPage() {
   function show(next: Tab) {
     setTab(next);
     setInfo(null);
+    setFlaggedOnly(false);
     setAccountFilter("all");
     setTeamFilter("all");
   }
   function go(target: TodoItem["go"]) {
     show(target.tab);
+    if (target.tab === "activite") setFlaggedOnly(true);
     if (target.tab === "comptes" && target.filter) setAccountFilter(target.filter as AccountFilter);
     if (target.tab === "equipes" && target.filter) setTeamFilter(target.filter as TeamFilter);
   }
@@ -201,7 +204,15 @@ function AdminPage() {
             run={run}
           />
         ) : tab === "activite" ? (
-          <AdminActivity events={data.activity} teams={data.teams} busy={busy} run={run} />
+          <AdminActivity
+            key={String(flaggedOnly)}
+            events={data.activity}
+            teams={data.teams}
+            words={data.moderationWords}
+            flaggedOnly={flaggedOnly}
+            busy={busy}
+            run={run}
+          />
         ) : (
           <AdminControl key={JSON.stringify(data.settings)} data={data} busy={busy} run={run} />
         )}

@@ -7036,3 +7036,61 @@ code.bo-card-side {
   flex: none;
   width: 100%;
 }
+.bo-msg.flagged {
+  background: color-mix(in srgb, var(--red) 9%, transparent);
+  box-shadow: inset 3px 0 0 var(--red);
+}
+.bo-flag {
+  padding: 0 3px;
+  border-radius: 3px;
+  background: var(--red);
+  color: var(--ink);
+  font-weight: 600;
+}
+.bo-msg-tools {
+  display: inline-flex;
+  gap: 4px;
+  margin-left: auto;
+}
+.bo-msg-tools .bo-btn.bo-icon {
+  margin-left: 0;
+}
+.bo-word-form {
+  margin-top: 10px;
+}
+.bo-words {
+  margin-top: 12px;
+}
+.bo-main .bo-words h3 {
+  margin-bottom: 6px;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 600;
+}
+.bo-words ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.bo-words li {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 32px;
+  padding: 0 4px 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--text);
+  font-size: 13px;
+}
+.bo-words button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  color: var(--mute);
+}
+.bo-words button:hover {
+  color: var(--red);
+}

@@ -11,7 +11,7 @@ export const plural = (n: number, word: string) => `${n} ${word}${n > 1 ? "s" : 
 export type AccountFilter = "all" | "suspended" | "admin" | "noTeam" | "neverSignedIn";
 export type TeamFilter = "all" | "empty" | "noGm" | "inactive";
 export type EventKind = AdminEvent["kind"];
-export type EventVisibility = "all" | "public" | "private";
+export type EventVisibility = "all" | "public" | "private" | "flagged";
 export type LogCategory = "all" | "comptes" | "equipes" | "fiches" | "support" | "reglages";
 
 /** Recherche du back office : pseudo, e-mail ou nom d'équipe, sans tenir compte de la casse. */
@@ -53,7 +53,7 @@ export function filterTeams(teams: AdminTeam[], search: string, filter: TeamFilt
 export function logCategory(action: string): Exclude<LogCategory, "all"> {
   if (/ticket|support/i.test(action)) return "support";
   if (/fiche/i.test(action)) return "fiches";
-  if (/réglage|annonce/i.test(action)) return "reglages";
+  if (/réglage|annonce|modération/i.test(action)) return "reglages";
   if (/équipe|code|membre|rôle|jets vidés|messages vidés|message supprimé/i.test(action))
     return "equipes";
   return "comptes";
@@ -77,7 +77,9 @@ export function filterEvents(events: AdminEvent[], q: EventQuery) {
       e.kind === q.kind &&
       (!q.teamId || e.teamId === q.teamId) &&
       e.at >= since &&
-      (q.visibility === "all" || e.secret === (q.visibility === "private")) &&
+      (q.visibility === "all" ||
+        q.visibility === "flagged" ||
+        e.secret === (q.visibility === "private")) &&
       (q.category === "all" || logCategory(e.text) === q.category) &&
       (!text || `${e.who} ${e.text} ${e.detail}`.toLowerCase().includes(text)),
   );
@@ -111,12 +113,21 @@ export type TodoItem = {
   key: string;
   label: string;
   count: number;
-  go: { tab: "support" | "comptes" | "equipes"; filter?: AccountFilter | TeamFilter };
+  go: {
+    tab: "support" | "comptes" | "equipes" | "activite";
+    filter?: AccountFilter | TeamFilter;
+  };
 };
 
 /** Ce qui demande une action, du plus urgent au moins urgent ; les lignes à zéro disparaissent. */
 export function buildTodo({ stats: s }: Pick<AdminOverview, "stats">): TodoItem[] {
   const items: TodoItem[] = [
+    {
+      key: "flagged",
+      label: "Messages signalés",
+      count: s.flaggedMessages,
+      go: { tab: "activite" },
+    },
     { key: "open", label: "Tickets sans réponse", count: s.ticketsOpen, go: { tab: "support" } },
     {
       key: "noGm",

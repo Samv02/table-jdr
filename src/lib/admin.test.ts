@@ -61,6 +61,8 @@ describe("filterEvents", () => {
   const event = (over: Partial<AdminEvent>): AdminEvent => ({
     id: "e",
     rawId: "e",
+    senderId: null,
+    reviewed: false,
     kind: "roll",
     at: "2026-10-30T10:00:00.000Z",
     teamId: "a",

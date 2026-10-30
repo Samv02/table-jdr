@@ -30,6 +30,11 @@ function Privacy() {
             messages privés, et voit ton e-mail, pour gérer les comptes et assurer le bon
             fonctionnement du site.
           </li>
+          <li>
+            Les messages sont analysés automatiquement pour repérer les propos haineux, les menaces
+            ou les arnaques. Rien n’est bloqué, mais les messages repérés sont signalés à
+            l’administrateur, qui peut suspendre un compte.
+          </li>
           <li>Ton e-mail n’est jamais affiché aux autres joueurs ni aux MJ.</li>
         </ul>
         <h2>Tes droits</h2>

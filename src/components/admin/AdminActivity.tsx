@@ -1,9 +1,26 @@
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
-import { Dices, EyeOff, Megaphone, MessageSquare, ScrollText, Trash2 } from "lucide-react";
+import {
+  Ban,
+  Check,
+  Dices,
+  EyeOff,
+  Flag,
+  Megaphone,
+  MessageSquare,
+  ScrollText,
+  Trash2,
+} from "lucide-react";
 import { confirmAction } from "@/components/ConfirmDialog";
-import { adminDeleteMessage } from "@/lib/admin-platform.functions";
-import type { AdminEvent, AdminTeam } from "@/lib/admin.functions";
+import { adminDeleteMessage, adminReviewMessage } from "@/lib/admin-platform.functions";
+import { adminSetSuspended, type AdminEvent, type AdminTeam } from "@/lib/admin.functions";
+import {
+  categoryName,
+  findFlags,
+  splitFlags,
+  type FlagMatch,
+  type ModerationWord,
+} from "@/lib/moderation";
 import {
   filterEvents,
   formatTime,
@@ -39,26 +56,41 @@ const PAGE = 50;
 export function AdminActivity({
   events,
   teams,
+  words,
+  flaggedOnly,
   busy,
   run,
 }: {
   events: AdminEvent[];
   teams: AdminTeam[];
+  words: ModerationWord[];
+  flaggedOnly: boolean;
   busy: boolean;
   run: AdminRun;
 }) {
   const removeMessage = useServerFn(adminDeleteMessage);
-  const [kind, setKind] = useState<EventKind>("roll");
+  const review = useServerFn(adminReviewMessage);
+  const suspend = useServerFn(adminSetSuspended);
+  const [kind, setKind] = useState<EventKind>(flaggedOnly ? "message" : "roll");
   const [teamId, setTeamId] = useState("");
   const [days, setDays] = useState(0);
-  const [visibility, setVisibility] = useState<EventVisibility>("all");
+  const [visibility, setVisibility] = useState<EventVisibility>(flaggedOnly ? "flagged" : "all");
   const [category, setCategory] = useState<LogCategory>("all");
   const [search, setSearch] = useState("");
   const [limit, setLimit] = useState(PAGE);
   const inJournal = kind === "admin";
+  const flagsOf = useMemo(() => {
+    const map = new Map<string, FlagMatch[]>();
+    for (const e of events) {
+      if (e.kind !== "message") continue;
+      const found = findFlags(e.text, words);
+      if (found.length) map.set(e.id, found);
+    }
+    return map;
+  }, [events, words]);
   const shown = useMemo(
     () =>
-      filterEvents(events, {
+      filterEvents(visibility === "flagged" ? events.filter((e) => flagsOf.has(e.id)) : events, {
         kind,
         teamId: inJournal ? "" : teamId,
         days,
@@ -67,7 +99,7 @@ export function AdminActivity({
         search,
         now: Date.now(),
       }),
-    [events, kind, inJournal, teamId, days, visibility, category, search],
+    [events, flagsOf, kind, inJournal, teamId, days, visibility, category, search],
   );
   const groups = groupByDay(shown.slice(0, limit));
   // Les équipes sans rien à montrer dans cette vue restent atteignables, mais en fin de liste
@@ -79,6 +111,17 @@ export function AdminActivity({
       message: `${e.who} (${e.team}) : « ${e.text.slice(0, 80)} »\nIl disparaîtra pour tout le monde.`,
     });
     if (ok) await run(() => removeMessage({ data: { id: e.rawId } }));
+  }
+  async function askSuspend(e: AdminEvent) {
+    const userId = e.senderId;
+    if (!userId) return;
+    const ok = await confirmAction({
+      title: `Suspendre « ${e.who} » ?`,
+      message: "Plus aucun accès aux équipes jusqu’à sa réactivation. Rien n’est supprimé.",
+      confirmLabel: "Suspendre",
+    });
+    if (ok)
+      await run(() => suspend({ data: { userId, suspended: true } }), `${e.who} est suspendu.`);
   }
 
   return (
@@ -94,6 +137,7 @@ export function AdminActivity({
             onClick={() => {
               setKind(key);
               setLimit(PAGE);
+              if (visibility === "flagged" && key !== "message") setVisibility("all");
             }}
           >
             <Icon size={16} aria-hidden="true" /> {label}
@@ -167,6 +211,7 @@ export function AdminActivity({
             <option value="all">Public et privé</option>
             <option value="public">Public</option>
             <option value="private">{kind === "roll" ? "Jets secrets" : "Privé"}</option>
+            {kind === "message" && <option value="flagged">Signalés ({flagsOf.size})</option>}
           </select>
         )}
       </div>
@@ -187,7 +232,10 @@ export function AdminActivity({
                   event={e}
                   showTeam={!teamId}
                   busy={busy}
+                  flags={flagsOf.get(e.id) ?? []}
                   onDelete={() => void askDelete(e)}
+                  onSuspend={() => void askSuspend(e)}
+                  onReview={() => void run(() => review({ data: { id: e.rawId } }))}
                 />
               ) : (
                 <JournalRow key={e.id} event={e} />
@@ -226,15 +274,23 @@ function MessageRow({
   event: e,
   showTeam,
   busy,
+  flags,
   onDelete,
+  onSuspend,
+  onReview,
 }: {
   event: AdminEvent;
   showTeam: boolean;
   busy: boolean;
+  flags: FlagMatch[];
   onDelete: () => void;
+  onSuspend: () => void;
+  onReview: () => void;
 }) {
+  const flagged = flags.length > 0;
+  const families = [...new Set(flags.map((f) => categoryName(f.category)))].join(", ");
   return (
-    <li className={`bo-msg ${e.secret ? "private" : ""}`}>
+    <li className={`bo-msg ${e.secret ? "private" : ""} ${flagged ? "flagged" : ""}`}>
       <div className="bo-msg-head">
         <time>{formatTime(e.at)}</time>
         <b>{e.who}</b>
@@ -242,18 +298,60 @@ function MessageRow({
           {e.detail === "Annonce" && <Megaphone size={11} aria-hidden="true" />} {e.detail}
         </i>
         {showTeam && <small className="bo-muted">{e.team}</small>}
-        <button
-          type="button"
-          className="bo-btn bo-icon"
-          aria-label={`Supprimer le message de ${e.who}`}
-          title="Supprimer le message"
-          disabled={busy}
-          onClick={onDelete}
-        >
-          <Trash2 size={14} aria-hidden="true" />
-        </button>
+        {flagged && (
+          <i className="bo-tag red">
+            <Flag size={11} aria-hidden="true" /> {families}
+          </i>
+        )}
+        {flagged && e.reviewed && <i className="bo-tag">Vu</i>}
+        <span className="bo-msg-tools">
+          {flagged && !e.reviewed && (
+            <button
+              type="button"
+              className="bo-btn bo-icon"
+              aria-label={`Marquer vu le message de ${e.who}`}
+              title="Marquer vu"
+              disabled={busy}
+              onClick={onReview}
+            >
+              <Check size={14} aria-hidden="true" />
+            </button>
+          )}
+          {flagged && e.senderId && (
+            <button
+              type="button"
+              className="bo-btn bo-icon danger"
+              aria-label={`Suspendre ${e.who}`}
+              title="Suspendre l’auteur"
+              disabled={busy}
+              onClick={onSuspend}
+            >
+              <Ban size={14} aria-hidden="true" />
+            </button>
+          )}
+          <button
+            type="button"
+            className="bo-btn bo-icon"
+            aria-label={`Supprimer le message de ${e.who}`}
+            title="Supprimer le message"
+            disabled={busy}
+            onClick={onDelete}
+          >
+            <Trash2 size={14} aria-hidden="true" />
+          </button>
+        </span>
       </div>
-      <p className="bo-text">{e.text}</p>
+      <p className="bo-text">
+        {splitFlags(e.text, flags).map((part, i) =>
+          part.flagged ? (
+            <mark key={i} className="bo-flag">
+              {part.text}
+            </mark>
+          ) : (
+            <span key={i}>{part.text}</span>
+          ),
+        )}
+      </p>
     </li>
   );
 }
