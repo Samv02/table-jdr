@@ -1,6 +1,14 @@
+import {
+  DEFAULT_PREFS,
+  arrangeRows,
+  moveCharacter,
+  moveSection,
+  readPrefs,
+  type DashboardPrefs,
+} from "./dashboard";
+import { presetById } from "./universe";
 import { describe, it, expect } from "vitest";
 import { dashboardAlerts, hudParty, loginDestination, type DashboardRow } from "./dashboard";
-import { presetById } from "./universe";
 const cp = presetById("cyberpunk");
 const row: DashboardRow = {
   id: "a",
@@ -73,5 +81,52 @@ describe("MJ dashboard rules", () => {
         { ...cp, modules: { ...cp.modules, ammo: false } },
       ).ammo,
     ).toBe(false);
+  });
+});
+
+describe("dashboard layout", () => {
+  const row = (id: string, name: string, hp: number, eddies = 0) =>
+    ({
+      id,
+      name,
+      handle: null,
+      sheet: { hpMax: 20 },
+      players_can_edit: false,
+      character_state: { hp_current: hp, eddies, ammo: {}, inventory: [] },
+    }) as DashboardRow;
+  const u = presetById("neutre");
+  const list = [row("a", "Zed", 20, 5), row("b", "Alex", 5, 50), row("c", "Mia", 10, 1)];
+  const ids = (prefs: Partial<DashboardPrefs>) =>
+    arrangeRows(list, { ...DEFAULT_PREFS, ...prefs }, { isOnline: (id) => id === "a", u }).map(
+      (r) => r.id,
+    );
+
+  it("keeps the GM's order, new characters last", () =>
+    expect(ids({ order: ["c", "a"] })).toEqual(["c", "a", "b"]));
+  it("sorts by name, money and injuries", () => {
+    expect(ids({ sort: "name" })).toEqual(["b", "c", "a"]);
+    expect(ids({ sort: "money" })).toEqual(["b", "a", "c"]);
+  });
+  it("filters hidden, online and characters", () => {
+    expect(ids({ hiddenCharacters: ["b"] })).toEqual(["a", "c"]);
+    expect(ids({ onlineOnly: true })).toEqual(["a"]);
+  });
+  it("moves a character and stays in bounds", () => {
+    expect(moveCharacter([], ["a", "b", "c"], "c", -1)).toEqual(["a", "c", "b"]);
+    expect(moveCharacter([], ["a", "b"], "a", -1)).toEqual(["a", "b"]);
+  });
+  it("moves a section", () => {
+    const moved = moveSection(DEFAULT_PREFS.sections, "Stats", -1).map((s) => s.key);
+    expect(moved.slice(0, 2)).toEqual(["Stats", "Vitaux"]);
+  });
+  it("reads damaged prefs and adds missing sections", () => {
+    const prefs = readPrefs({
+      sort: "nimp",
+      sections: [{ key: "Sac", visible: false }, { key: "x" }],
+    });
+    expect(prefs.sort).toBe("manual");
+    expect(prefs.sections[0]).toEqual({ key: "Sac", visible: false });
+    expect(prefs.sections).toHaveLength(5);
+    expect(readPrefs(null)).toEqual(DEFAULT_PREFS);
   });
 });

@@ -12,6 +12,7 @@ import {
   PackagePlus,
   Crosshair,
   Swords,
+  SlidersHorizontal,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { InlineError } from "@/components/InlineError";
@@ -40,9 +41,14 @@ import { Button } from "./ui/button";
 import { confirmAction } from "@/components/ConfirmDialog";
 import { useUniverse } from "@/lib/universe-context";
 import { gaugeMax, woundedFor } from "@/lib/universe";
-
-const sections = ["Vitaux", "Stats", "Compétences", "Combat", "Sac"] as const;
-type Section = (typeof sections)[number];
+import { DashboardSettings } from "@/components/DashboardSettings";
+import {
+  DEFAULT_PREFS,
+  arrangeRows,
+  manualOrder,
+  readPrefs,
+  type DashboardPrefs,
+} from "@/lib/dashboard";
 
 export function GmDashboard() {
   const identity = useIdentity();
@@ -52,8 +58,9 @@ export function GmDashboard() {
   const [rows, setRows] = useState<DashboardRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
-  const [visible, setVisible] = useState<Set<Section>>(new Set(sections));
-  const [onlineOnly, setOnlineOnly] = useState(false);
+  const [prefs, setPrefs] = useState<DashboardPrefs>(DEFAULT_PREFS);
+  const [organizing, setOrganizing] = useState(false);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const rail = useRef<HTMLDivElement>(null);
   const rowRefs = useRef(new Map<string, DashboardRow>());
@@ -178,10 +185,30 @@ export function GmDashboard() {
       void load();
     }
   }
-  const filtered = rows.filter((r) => !onlineOnly || table.online.has(r.id));
+  const filtered = arrangeRows(rows, prefs, { isOnline: (id) => table.online.has(id), u });
+  const ordered = manualOrder(rows, prefs.order);
+  const visible = new Set<string>(prefs.sections.filter((s) => s.visible).map((s) => s.key));
+  useEffect(() => {
+    void supabase.rpc("get_dashboard_prefs").then(({ data }) => setPrefs(readPrefs(data)));
+    return () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+    };
+  }, []);
+  // Chaque changement est gardé en base, pour le retrouver sur tous les appareils
+  function changePrefs(next: DashboardPrefs) {
+    setPrefs(next);
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      void supabase
+        .rpc("save_dashboard_prefs", { _prefs: next as unknown as Json })
+        .then(({ error }) => {
+          if (error) setErr(error.message);
+        });
+    }, 400);
+  }
   useEffect(() => {
     if (!filtered.some((r) => r.id === selected)) setSelected(filtered[0]?.id ?? null);
-  }, [rows, onlineOnly, table.online, selected]);
+  }, [filtered, selected]);
   // Clic sur un personnage du bandeau : amène sa colonne à l'écran et la fait briller un instant
   const select = (id: string) => {
     setSelected(id);
@@ -298,24 +325,32 @@ export function GmDashboard() {
       </div>
       <div className="dashboard-toolbar">
         <div className="dashboard-sections">
-          {sections.map((s) => (
+          {prefs.sections.map((s) => (
             <Button
               variant="prototype"
-              className={`btn ${visible.has(s) ? "on" : ""}`}
-              key={s}
-              aria-pressed={visible.has(s)}
+              className={`btn ${s.visible ? "on" : ""}`}
+              key={s.key}
+              aria-pressed={s.visible}
               onClick={() =>
-                setVisible((old) => {
-                  const next = new Set(old);
-                  if (next.has(s)) next.delete(s);
-                  else next.add(s);
-                  return next;
+                changePrefs({
+                  ...prefs,
+                  sections: prefs.sections.map((x) =>
+                    x.key === s.key ? { ...x, visible: !x.visible } : x,
+                  ),
                 })
               }
             >
-              {s}
+              {s.key}
             </Button>
           ))}
+          <Button
+            variant="prototype"
+            className={`btn ${organizing ? "on" : ""}`}
+            aria-expanded={organizing}
+            onClick={() => setOrganizing((v) => !v)}
+          >
+            <SlidersHorizontal size={15} /> Organiser
+          </Button>
         </div>
         <div className="dashboard-locks">
           <Button
@@ -350,17 +385,26 @@ export function GmDashboard() {
         <label className="dashboard-filter">
           <input
             type="checkbox"
-            checked={onlineOnly}
-            onChange={(e) => setOnlineOnly(e.target.checked)}
+            checked={prefs.onlineOnly}
+            onChange={(e) => changePrefs({ ...prefs, onlineOnly: e.target.checked })}
           />
           En ligne seulement
         </label>
+        <label className="dashboard-filter">
+          <input
+            type="checkbox"
+            checked={prefs.hurtOnly}
+            onChange={(e) => changePrefs({ ...prefs, hurtOnly: e.target.checked })}
+          />
+          Blessés seulement
+        </label>
       </div>
+      {organizing && <DashboardSettings rows={ordered} prefs={prefs} onChange={changePrefs} />}
       {loading ? (
         <p className="empty-state">Chargement…</p>
       ) : !filtered.length ? (
         <p className="empty-state">
-          {onlineOnly ? "Aucun personnage en ligne." : "Aucun personnage."}
+          {rows.length ? "Aucune fiche avec ces filtres." : "Aucun personnage."}
         </p>
       ) : (
         <div
@@ -382,6 +426,7 @@ export function GmDashboard() {
               key={r.id}
               row={r}
               visible={visible}
+              prefs={prefs}
               hurt={hurt.has(r.id)}
               update={(change) => update(r.id, change)}
               onLock={(value) => void setLock([r.id], value)}
@@ -395,12 +440,18 @@ export function GmDashboard() {
 
 type ColumnProps = {
   row: DashboardRow;
-  visible: Set<Section>;
+  visible: Set<string>;
+  prefs: DashboardPrefs;
   hurt: boolean;
   update: (change: (s: DashboardState) => Partial<DashboardState>) => void;
   onLock: (value: boolean) => void;
 };
-function DashboardColumn({ row: r, visible, hurt, update, onLock }: ColumnProps) {
+/** L'ordre des sections passe par CSS : les colonnes alignées (subgrid) gardent leurs lignes. */
+const sectionOrder = (prefs: DashboardPrefs, key: string) => ({
+  order: prefs.sections.findIndex((s) => s.key === key) + 1,
+});
+
+function DashboardColumn({ row: r, visible, prefs, hurt, update, onLock }: ColumnProps) {
   const table = useTable();
   const identity = useIdentity();
   const navigate = useNavigate();
@@ -409,6 +460,9 @@ function DashboardColumn({ row: r, visible, hurt, update, onLock }: ColumnProps)
   const [item, setItem] = useState("");
   const { universe: u } = useUniverse();
   const W = u.words;
+  const shownDefenses = u.rules.defenses.filter((d) => !prefs.hiddenFields.includes(d.key));
+  const shownGauges = u.rules.gauges.filter((g) => !prefs.hiddenFields.includes(g.key));
+  const shownFields = shownDefenses.length + shownGauges.length;
   const stats = readStats(r.sheet, u);
   const max = hpMax(stats, r.sheet, u);
   const skills = readSkills(r.sheet);
@@ -485,6 +539,7 @@ function DashboardColumn({ row: r, visible, hurt, update, onLock }: ColumnProps)
       <section
         className={`dashboard-section dashboard-vitals hp-${status} ${hurt ? "hp-loss" : ""}`}
         hidden={!visible.has("Vitaux")}
+        style={sectionOrder(prefs, "Vitaux")}
       >
         <h3>Vitaux</h3>
         <div className="dashboard-hp">
@@ -549,15 +604,15 @@ function DashboardColumn({ row: r, visible, hurt, update, onLock }: ColumnProps)
             Encaisser
           </Button>
         </form>
-        {u.rules.defenses.length + u.rules.gauges.length > 0 && (
+        {shownFields > 0 && (
           <dl className="dashboard-vital-grid">
-            {u.rules.defenses.map((d) => (
+            {shownDefenses.map((d) => (
               <div key={d.key}>
                 <dt>{d.label}</dt>
                 <dd>{str(r.sheet, d.key) || "—"}</dd>
               </div>
             ))}
-            {u.rules.gauges.map((g) => (
+            {shownGauges.map((g) => (
               <div key={g.key}>
                 <dt>{g.label}</dt>
                 <dd>
@@ -568,18 +623,28 @@ function DashboardColumn({ row: r, visible, hurt, update, onLock }: ColumnProps)
           </dl>
         )}
       </section>
-      <section className="dashboard-section" hidden={!visible.has("Stats")}>
+      <section
+        className="dashboard-section"
+        hidden={!visible.has("Stats")}
+        style={sectionOrder(prefs, "Stats")}
+      >
         <h3>Stats</h3>
         <div className="dashboard-stats">
-          {u.rules.stats.map((st) => (
-            <div key={st.key}>
-              <small>{st.label}</small>
-              <b>{stats[st.key] ?? 0}</b>
-            </div>
-          ))}
+          {u.rules.stats
+            .filter((st) => !prefs.hiddenStats.includes(st.key))
+            .map((st) => (
+              <div key={st.key}>
+                <small>{st.label}</small>
+                <b>{stats[st.key] ?? 0}</b>
+              </div>
+            ))}
         </div>
       </section>
-      <section className="dashboard-section" hidden={!visible.has("Compétences")}>
+      <section
+        className="dashboard-section"
+        hidden={!visible.has("Compétences")}
+        style={sectionOrder(prefs, "Compétences")}
+      >
         <h3>Compétences</h3>
         <div className="dashboard-skills">
           {orderedSkills(skills, u.rules.skillOrder).map(({ skill, index }) => (
@@ -590,7 +655,11 @@ function DashboardColumn({ row: r, visible, hurt, update, onLock }: ColumnProps)
           ))}
         </div>
       </section>
-      <section className="dashboard-section" hidden={!visible.has("Combat")}>
+      <section
+        className="dashboard-section"
+        hidden={!visible.has("Combat")}
+        style={sectionOrder(prefs, "Combat")}
+      >
         <h3>Combat</h3>
         <div className="dw-list">
           {weapons.map((w, i) => {
@@ -713,7 +782,11 @@ function DashboardColumn({ row: r, visible, hurt, update, onLock }: ColumnProps)
           {!weapons.length && <p className="note">Aucune arme.</p>}
         </div>
       </section>
-      <section className="dashboard-section" hidden={!visible.has("Sac")}>
+      <section
+        className="dashboard-section"
+        hidden={!visible.has("Sac")}
+        style={sectionOrder(prefs, "Sac")}
+      >
         <h3>Sac</h3>
         {u.modules.money && (
           <div className="dashboard-money">

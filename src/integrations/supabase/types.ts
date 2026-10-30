@@ -761,18 +761,21 @@ export type Database = {
       };
       team_members: {
         Row: {
+          dashboard: Json;
           joined_at: string;
           role: string;
           team_id: string;
           user_id: string;
         };
         Insert: {
+          dashboard?: Json;
           joined_at?: string;
           role?: string;
           team_id: string;
           user_id: string;
         };
         Update: {
+          dashboard?: Json;
           joined_at?: string;
           role?: string;
           team_id?: string;
@@ -855,6 +858,7 @@ export type Database = {
       create_team: { Args: { _name: string }; Returns: string };
       current_team: { Args: never; Returns: string };
       enter_team: { Args: { _team: string }; Returns: undefined };
+      get_dashboard_prefs: { Args: never; Returns: Json };
       get_join_code: { Args: never; Returns: string };
       get_party: {
         Args: never;
@@ -927,6 +931,7 @@ export type Database = {
         Args: { _body: string; _ticket: string };
         Returns: undefined;
       };
+      save_dashboard_prefs: { Args: { _prefs: Json }; Returns: undefined };
       set_table_music: { Args: { payload: Json }; Returns: Json };
       set_user_role: {
         Args: { _role: string; _user: string };
