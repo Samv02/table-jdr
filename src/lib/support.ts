@@ -1,8 +1,23 @@
 export const TICKET_CATEGORIES = [
-  { key: "question", label: "Question" },
-  { key: "compte", label: "Mon compte" },
-  { key: "bug", label: "Un bug" },
-  { key: "autre", label: "Autre" },
+  {
+    key: "question",
+    label: "Question",
+    hint: "Comment faire, où trouver",
+    ask: "Que cherches-tu à faire ?",
+  },
+  {
+    key: "compte",
+    label: "Mon compte",
+    hint: "Connexion, pseudo, accès",
+    ask: "Que se passe-t-il avec ton compte ?",
+  },
+  {
+    key: "bug",
+    label: "Un bug",
+    hint: "Quelque chose ne marche pas",
+    ask: "Que faisais-tu, et qu’a-t-il affiché ?",
+  },
+  { key: "autre", label: "Autre", hint: "Une idée, un retour", ask: "Dis-nous tout." },
 ] as const;
 export const TICKET_STATUSES = [
   { key: "open", label: "Ouvert" },

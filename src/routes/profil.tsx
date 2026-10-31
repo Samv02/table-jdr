@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { AVATAR_MAX_MB, NEON_COLORS, validateAvatar, validateUsername } from "@/lib/profile";
 import { useIdentity } from "@/lib/active-character";
@@ -9,7 +9,17 @@ import { deleteMyAccount } from "@/lib/accounts.functions";
 import { Button } from "@/components/ui/button";
 import { InlineError } from "@/components/InlineError";
 import { confirmAction } from "@/components/ConfirmDialog";
-import { Check, LogOut, Save, Trash2, Upload, UserRound } from "lucide-react";
+import {
+  Camera,
+  Check,
+  ChevronRight,
+  KeyRound,
+  LogOut,
+  Save,
+  ShieldCheck,
+  Trash2,
+  UserRound,
+} from "lucide-react";
 
 export const Route = createFileRoute("/profil")({
   ssr: false,
@@ -43,6 +53,8 @@ function ProfilePage() {
   const [avatar, setAvatar] = useState<string | null>(null);
   const [username, setUsername] = useState("");
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+  const typing = useRef(false);
 
   const load = useCallback(async () => {
     const { data: u } = await supabase.auth.getUser();
@@ -54,7 +66,8 @@ function ProfilePage() {
       .single();
     if (!p) return setMe("none");
     setMe(p);
-    setUsername(p.username ?? "");
+    // Ne pas écraser ce que le joueur est en train de taper
+    if (!typing.current) setUsername(p.username ?? "");
     if (p.avatar_url) {
       const { data: s } = await supabase.storage
         .from("avatars")
@@ -86,6 +99,8 @@ function ProfilePage() {
       .eq("id", me.id);
     if (error)
       return void setSaveError(error.code === "23505" ? "Ce pseudo est déjà pris." : error.message);
+    typing.current = false;
+    setSaved(true);
     changed();
     load();
   }
@@ -134,71 +149,69 @@ function ProfilePage() {
     }
   }
 
+  const shown = username.trim() || me.username;
+  const edited = username.trim() !== (me.username ?? "");
   return (
     <main className="profile-page">
-      <div className="profile-content">
-        <header className="profile-heading">
-          <div>
-            <h1>Mon compte</h1>
-          </div>
+      <div className={`wrap hub acct neon-${me.color}`}>
+        <header className="hub-head">
+          <p className="hub-hello">Ton identité, à toutes tes tables</p>
+          <h1>Mon compte</h1>
         </header>
+        <InlineError message={saveError} onClear={() => setSaveError(null)} />
 
-        <div className="profile-layout">
-          <div className="profile-identity">
-            <section className="profile-section">
-              <div className="ph">
-                <h2>IDENTITÉ</h2>
-              </div>
-              <div className="profile-avatar-row">
-                <div className={`profile-avatar neon-${me.color}`}>
-                  {avatar ? <img src={avatar} alt="Avatar" /> : <UserRound size={32} />}
-                </div>
-                <div className="profile-upload">
-                  <Button asChild className="btn profile-action">
-                    <label htmlFor="profile-avatar">
-                      <Upload size={16} />
-                      Changer l’avatar
-                    </label>
-                  </Button>
-                  <input
-                    id="profile-avatar"
-                    type="file"
-                    accept="image/*"
-                    className="profile-file"
-                    onChange={(e) => e.target.files?.[0] && uploadAvatar(e.target.files[0])}
-                  />
-                  <p className="note">Image · {AVATAR_MAX_MB} Mo maximum</p>
-                </div>
-              </div>
-              <label className="profile-label" htmlFor="profile-username">
-                PSEUDO
-              </label>
-              <div className="profile-input-row">
+        <section className="id-card" aria-label="Identité">
+          <div className="id-main">
+            <label className="id-avatar" htmlFor="profile-avatar" title="Changer l’avatar">
+              {avatar ? <img src={avatar} alt="" /> : <UserRound size={38} aria-hidden="true" />}
+              <span>
+                <Camera size={15} aria-hidden="true" />
+              </span>
+            </label>
+            <input
+              id="profile-avatar"
+              type="file"
+              accept="image/*"
+              aria-label="Changer l’avatar"
+              className="profile-file"
+              onChange={(e) => e.target.files?.[0] && uploadAvatar(e.target.files[0])}
+            />
+            <div className="id-name">
+              <strong>{shown}</strong>
+              <small>Image de {AVATAR_MAX_MB} Mo maximum, touche ton avatar pour la changer.</small>
+            </div>
+          </div>
+          <div className="id-fields">
+            <form
+              className="id-field"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void saveUsername();
+              }}
+            >
+              <label htmlFor="profile-username">Pseudo</label>
+              <div className="hub-form-row">
                 <input
                   id="profile-username"
                   className="field"
                   value={username}
                   maxLength={20}
-                  onChange={(e) => setUsername(e.target.value)}
+                  onChange={(e) => {
+                    typing.current = true;
+                    setUsername(e.target.value);
+                    setSaved(false);
+                  }}
                 />
-                <Button
-                  className="btn y profile-save"
-                  onClick={saveUsername}
-                  aria-label="Enregistrer le pseudo"
-                  title="Enregistrer le pseudo"
-                >
-                  <Save size={18} />
+                <Button type="submit" className="btn y" disabled={!edited}>
+                  {saved && !edited ? <Check size={16} /> : <Save size={16} />}
+                  {saved && !edited ? "Enregistré" : "Enregistrer"}
                 </Button>
               </div>
-              <p className="note">3 à 20 caractères · unique</p>
-              <InlineError message={saveError} onClear={() => setSaveError(null)} />
-            </section>
-
-            <section className="profile-section">
-              <div className="ph">
-                <h2>COULEUR</h2>
-              </div>
-              <div className="profile-swatches">
+              <small>3 à 20 caractères, unique sur le site.</small>
+            </form>
+            <div className="id-field">
+              <span id="profile-color">Ta couleur</span>
+              <div className="profile-swatches" role="group" aria-labelledby="profile-color">
                 {NEON_COLORS.map((c) => (
                   <Button
                     key={c.id}
@@ -212,42 +225,59 @@ function ProfilePage() {
                   </Button>
                 ))}
               </div>
-              <p className={`profile-preview neon-${me.color}`}>
-                <span className="profile-status-dot" />
-                {me.username}
-              </p>
-            </section>
+            </div>
           </div>
-          <div className="profile-details">
-            <section className="profile-section">
-              <div className="ph">
-                <h2>COMPTE</h2>
-              </div>
-              <div className="profile-account">
-                <Button asChild className="btn profile-action">
-                  <Link to="/mot-de-passe">Changer le mot de passe</Link>
-                </Button>
-                <Button
-                  className="btn"
-                  onClick={async () => {
-                    await supabase.auth.signOut();
-                    window.location.assign("/");
-                  }}
-                >
-                  <LogOut size={16} /> Déconnexion
-                </Button>
-                {!identity.isAdmin && (
-                  <Button className="btn red" onClick={deleteMe}>
-                    <Trash2 size={16} /> Supprimer mon compte
-                  </Button>
-                )}
-              </div>
-              <p className="note">
-                <Link to="/confidentialite">Confidentialité</Link>
-              </p>
-            </section>
-          </div>
-        </div>
+        </section>
+
+        <ul className="acct-rows">
+          <li>
+            <Link to="/mot-de-passe">
+              <KeyRound size={18} aria-hidden="true" />
+              <span>
+                <b>Mot de passe</b>
+                <small>Le changer</small>
+              </span>
+              <ChevronRight size={18} aria-hidden="true" />
+            </Link>
+          </li>
+          <li>
+            <Link to="/confidentialite">
+              <ShieldCheck size={18} aria-hidden="true" />
+              <span>
+                <b>Confidentialité</b>
+                <small>Ce que nous gardons, et pourquoi</small>
+              </span>
+              <ChevronRight size={18} aria-hidden="true" />
+            </Link>
+          </li>
+          <li>
+            <Button
+              onClick={async () => {
+                await supabase.auth.signOut();
+                window.location.assign("/");
+              }}
+            >
+              <LogOut size={18} aria-hidden="true" />
+              <span>
+                <b>Déconnexion</b>
+                <small>Quitter ce compte sur cet appareil</small>
+              </span>
+              <ChevronRight size={18} aria-hidden="true" />
+            </Button>
+          </li>
+        </ul>
+
+        {!identity.isAdmin && (
+          <section className="acct-danger">
+            <div>
+              <h2>Supprimer mon compte</h2>
+              <p>Définitif. Tes fiches restent dans leur table, sans joueur.</p>
+            </div>
+            <Button className="btn red" onClick={deleteMe}>
+              <Trash2 size={16} /> Supprimer
+            </Button>
+          </section>
+        )}
       </div>
     </main>
   );

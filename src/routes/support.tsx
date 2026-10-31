@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
-import { ArrowLeft, Plus, Send } from "lucide-react";
+import { ArrowLeft, Bug, ChevronRight, CircleHelp, Send, Sparkles, UserCog } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { InlineError } from "@/components/InlineError";
 import { useIdentity } from "@/lib/active-character";
@@ -29,11 +29,18 @@ type Ticket = {
 };
 type Message = { id: string; from_admin: boolean; body: string; created_at: string };
 
+const CATEGORY_ICONS: Record<(typeof TICKET_CATEGORIES)[number]["key"], typeof Bug> = {
+  question: CircleHelp,
+  compte: UserCog,
+  bug: Bug,
+  autre: Sparkles,
+};
+
 function SupportPage() {
   const id = useIdentity();
   const [tickets, setTickets] = useState<Ticket[] | null>(null);
   const [open, setOpen] = useState<string | null>(null);
-  const [creating, setCreating] = useState(false);
+  const [creating, setCreating] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -60,10 +67,11 @@ function SupportPage() {
   const current = tickets?.find((t) => t.id === open) ?? null;
   return (
     <main>
-      <div className="wrap support-page">
-        <div className="ph">
+      <div className="wrap hub acct support-page">
+        <header className="hub-head">
+          <p className="hub-hello">La réponse arrive ici, sur cette page</p>
           <h1>Aide</h1>
-        </div>
+        </header>
         <InlineError message={err} onClear={() => setErr(null)} />
         {current ? (
           <Thread
@@ -77,36 +85,48 @@ function SupportPage() {
           />
         ) : creating ? (
           <NewTicket
-            onCancel={() => setCreating(false)}
+            category={creating}
+            onCancel={() => setCreating(null)}
             onCreated={async (ticket) => {
-              setCreating(false);
+              setCreating(null);
               await load();
               setOpen(ticket);
             }}
           />
         ) : (
           <>
-            <p className="note">
-              Un problème, une question ? Écris-nous : la réponse arrive ici, sur cette page.
-            </p>
-            <Button className="bo-btn primary" onClick={() => setCreating(true)}>
-              <Plus size={16} aria-hidden="true" /> Nouvelle demande
-            </Button>
-            <ul className="bo-list support-list">
-              {tickets?.length === 0 && <li className="note">Aucune demande pour l’instant.</li>}
+            <h2 className="help-title">De quoi as-tu besoin ?</h2>
+            <ul className="help-doors">
+              {TICKET_CATEGORIES.map((c) => {
+                const Icon = CATEGORY_ICONS[c.key];
+                return (
+                  <li key={c.key}>
+                    <Button onClick={() => setCreating(c.key)}>
+                      <span aria-hidden="true">
+                        <Icon size={20} />
+                      </span>
+                      <b>{c.label}</b>
+                      <small>{c.hint}</small>
+                    </Button>
+                  </li>
+                );
+              })}
+            </ul>
+            <h2 className="help-title">Mes demandes</h2>
+            {tickets?.length === 0 && <p className="help-none">Aucune demande pour l’instant.</p>}
+            <ul className="help-list">
               {tickets?.map((t) => (
-                <li key={t.id} className="bo-card">
-                  <Button className="bo-card-head" onClick={() => setOpen(t.id)}>
-                    <span className="bo-card-title">
+                <li key={t.id} className={t.user_unread ? "unread" : ""}>
+                  <Button onClick={() => setOpen(t.id)}>
+                    <span>
                       <b>{t.subject}</b>
-                      {t.user_unread && <i className="bo-tag warn">Nouvelle réponse</i>}
                       <small>
                         {categoryLabel(t.category)} · {formatMoment(t.updated_at)}
                       </small>
                     </span>
-                    <i className={`bo-tag ${t.status === "resolved" ? "" : "warn"}`}>
-                      {statusLabel(t.status)}
-                    </i>
+                    {t.user_unread && <i className="help-new">Nouvelle réponse</i>}
+                    <i className={`help-status ${t.status}`}>{statusLabel(t.status)}</i>
+                    <ChevronRight size={18} aria-hidden="true" />
                   </Button>
                 </li>
               ))}
@@ -119,17 +139,20 @@ function SupportPage() {
 }
 
 function NewTicket({
+  category: start,
   onCancel,
   onCreated,
 }: {
+  category: string;
   onCancel: () => void;
   onCreated: (id: string) => Promise<void>;
 }) {
   const [subject, setSubject] = useState("");
-  const [category, setCategory] = useState("question");
+  const [category, setCategory] = useState(start);
   const [body, setBody] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const ask = TICKET_CATEGORIES.find((c) => c.key === category)?.ask ?? "";
 
   async function submit() {
     const invalid = validateTicket(subject, body);
@@ -147,35 +170,37 @@ function NewTicket({
 
   return (
     <form
-      className="bo-card bo-form"
+      className="help-panel"
       onSubmit={(e) => {
         e.preventDefault();
         void submit();
       }}
     >
+      <h2>{ask}</h2>
       <InlineError message={err} onClear={() => setErr(null)} />
+      <div className="help-chips" role="radiogroup" aria-label="Sujet">
+        {TICKET_CATEGORIES.map((c) => (
+          <Button
+            key={c.key}
+            role="radio"
+            aria-checked={category === c.key}
+            className={category === c.key ? "on" : ""}
+            onClick={() => setCategory(c.key)}
+          >
+            {c.label}
+          </Button>
+        ))}
+      </div>
       <input
-        className="bo-input"
-        placeholder="Titre de ta demande"
+        className="field"
+        placeholder="En quelques mots"
         aria-label="Titre de ta demande"
         maxLength={120}
         value={subject}
         onChange={(e) => setSubject(e.target.value)}
       />
-      <select
-        className="bo-input"
-        aria-label="Sujet"
-        value={category}
-        onChange={(e) => setCategory(e.target.value)}
-      >
-        {TICKET_CATEGORIES.map((c) => (
-          <option key={c.key} value={c.key}>
-            {c.label}
-          </option>
-        ))}
-      </select>
       <textarea
-        className="bo-input bo-area"
+        className="field"
         rows={6}
         maxLength={4000}
         placeholder="Explique ce qui se passe"
@@ -183,12 +208,12 @@ function NewTicket({
         value={body}
         onChange={(e) => setBody(e.target.value)}
       />
-      <div className="bo-actions">
-        <Button type="submit" className="bo-btn primary" disabled={busy}>
-          <Send size={16} aria-hidden="true" /> Envoyer
-        </Button>
-        <Button className="bo-btn" onClick={onCancel}>
+      <div className="help-actions">
+        <Button className="btn" onClick={onCancel}>
           Annuler
+        </Button>
+        <Button type="submit" className="btn y" disabled={busy}>
+          <Send size={16} aria-hidden="true" /> Envoyer
         </Button>
       </div>
     </form>
@@ -255,26 +280,26 @@ function Thread({
   }
 
   return (
-    <div className="bo-card bo-form">
-      <Button className="bo-btn support-back" onClick={onBack}>
+    <div className="help-panel">
+      <Button className="help-back" onClick={onBack}>
         <ArrowLeft size={16} aria-hidden="true" /> Mes demandes
       </Button>
-      <h2>{t.subject}</h2>
-      <p className="note">
-        {categoryLabel(t.category)} · {statusLabel(t.status)}
-      </p>
-      <ul className="bo-thread">
+      <div className="help-thread-head">
+        <h2>{t.subject}</h2>
+        <i className={`help-status ${t.status}`}>{statusLabel(t.status)}</i>
+      </div>
+      <ul className="help-thread">
         {messages.map((m) => (
           <li key={m.id} className={m.from_admin ? "" : "mine"}>
+            <p>{m.body}</p>
             <small>
               {m.from_admin ? "Support" : "Toi"} · {formatMoment(m.created_at)}
             </small>
-            <p className="bo-text">{m.body}</p>
           </li>
         ))}
       </ul>
       <textarea
-        className="bo-input bo-area"
+        className="field"
         rows={3}
         maxLength={4000}
         placeholder={t.status === "resolved" ? "Répondre rouvre ta demande" : "Ta réponse"}
@@ -282,19 +307,15 @@ function Thread({
         value={body}
         onChange={(e) => setBody(e.target.value)}
       />
-      <div className="bo-actions">
-        <Button
-          className="bo-btn primary"
-          disabled={busy || !body.trim()}
-          onClick={() => void send()}
-        >
-          <Send size={16} aria-hidden="true" /> Envoyer
-        </Button>
+      <div className="help-actions">
         {t.status !== "resolved" && (
-          <Button className="bo-btn" onClick={() => void close()}>
+          <Button className="btn" onClick={() => void close()}>
             Mon problème est réglé
           </Button>
         )}
+        <Button className="btn y" disabled={busy || !body.trim()} onClick={() => void send()}>
+          <Send size={16} aria-hidden="true" /> Envoyer
+        </Button>
       </div>
     </div>
   );
