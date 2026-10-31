@@ -9,7 +9,7 @@ import { deleteMyAccount } from "@/lib/accounts.functions";
 import { Button } from "@/components/ui/button";
 import { InlineError } from "@/components/InlineError";
 import { confirmAction } from "@/components/ConfirmDialog";
-import { Check, LifeBuoy, LogOut, Save, Trash2, Upload, UserRound } from "lucide-react";
+import { Check, LogOut, Save, Trash2, Upload, UserRound } from "lucide-react";
 
 export const Route = createFileRoute("/profil")({
   ssr: false,
@@ -43,7 +43,6 @@ function ProfilePage() {
   const [avatar, setAvatar] = useState<string | null>(null);
   const [username, setUsername] = useState("");
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [supportUnread, setSupportUnread] = useState(0);
 
   const load = useCallback(async () => {
     const { data: u } = await supabase.auth.getUser();
@@ -62,11 +61,6 @@ function ProfilePage() {
         .createSignedUrl(p.avatar_url, 3600);
       setAvatar(s?.signedUrl ?? null);
     } else setAvatar(null);
-    const { count } = await supabase
-      .from("support_tickets")
-      .select("id", { count: "exact", head: true })
-      .eq("user_unread", true);
-    setSupportUnread(count ?? 0);
   }, []);
   useEffect(() => void load(), [load]);
 
@@ -225,24 +219,6 @@ function ProfilePage() {
             </section>
           </div>
           <div className="profile-details">
-            <section className="profile-section">
-              <div className="ph">
-                <h2>AIDE</h2>
-                {supportUnread > 0 && (
-                  <span className="tag">
-                    {supportUnread} {supportUnread > 1 ? "réponses" : "réponse"}
-                  </span>
-                )}
-              </div>
-              <p className="note">Un problème, une question ? Écris-nous, la réponse arrive ici.</p>
-              <div className="profile-account">
-                <Button asChild className="btn profile-action">
-                  <Link to="/support">
-                    <LifeBuoy size={16} /> Mes demandes
-                  </Link>
-                </Button>
-              </div>
-            </section>
             <section className="profile-section">
               <div className="ph">
                 <h2>COMPTE</h2>

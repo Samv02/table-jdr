@@ -6,6 +6,7 @@ import {
   Globe2,
   IdCard,
   LayoutGrid,
+  LifeBuoy,
   List,
   LogOut,
   Music2,
@@ -34,7 +35,7 @@ const TAB_ICONS: Record<TableTabIcon, typeof Gauge> = {
 };
 
 /** Hors de toute table : pas de groupe ni de dés, seulement le compte. */
-function AccountBar() {
+function AccountBar({ helpUnread }: { helpUnread: boolean }) {
   const navigate = useNavigate();
   return (
     <header className="account-bar">
@@ -45,6 +46,9 @@ function AccountBar() {
         {OUTSIDE_TABS.map((tab) => (
           <Link key={tab.to} to={tab.to} activeProps={{ className: "active" }}>
             {tab.label}
+            {tab.to === "/support" && helpUnread && (
+              <span className="nav-dot" aria-label="Nouvelle réponse à ta demande d’aide" />
+            )}
           </Link>
         ))}
       </nav>
@@ -113,7 +117,7 @@ export function AppHeader() {
   }, [id.userId, pinned]);
   // L'admin hors table a son back office
   if (!id.ready || !id.userId || (id.isAdmin && !id.teamId)) return null;
-  if (!id.teamId) return <AccountBar />;
+  if (!id.teamId) return <AccountBar helpUnread={supportUnread} />;
   const current = activeTab(pathname, id.isGm);
   // Le joueur change de personnage ; le MJ change de fiche seulement quand il en lit une
   const showPicker = id.isGm
@@ -226,6 +230,18 @@ export function AppHeader() {
             </select>
           )}
           <Link
+            to="/support"
+            className="nav-account"
+            title="Aide"
+            aria-label="Aide"
+            activeProps={{ className: "active" }}
+          >
+            <LifeBuoy size={16} aria-hidden="true" />
+            {supportUnread && (
+              <span className="nav-dot" aria-label="Nouvelle réponse à ta demande d’aide" />
+            )}
+          </Link>
+          <Link
             to="/profil"
             className="nav-account"
             title="Mon compte"
@@ -233,7 +249,6 @@ export function AppHeader() {
             activeProps={{ className: "active" }}
           >
             <UserRound size={16} aria-hidden="true" />
-            {supportUnread && <span className="nav-dot" aria-label="Nouvelle réponse du support" />}
           </Link>
         </div>
       </div>

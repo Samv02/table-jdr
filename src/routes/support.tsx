@@ -12,7 +12,7 @@ export const Route = createFileRoute("/support")({
   ssr: false,
   head: () => ({
     meta: [
-      { title: "Support" },
+      { title: "Aide" },
       { name: "description", content: "Demande de l’aide et suis tes demandes." },
     ],
   }),
@@ -61,11 +61,8 @@ function SupportPage() {
   return (
     <main>
       <div className="wrap support-page">
-        <Link to="/profil" className="bo-btn support-back">
-          <ArrowLeft size={16} aria-hidden="true" /> Mon profil
-        </Link>
         <div className="ph">
-          <h1>SUPPORT</h1>
+          <h1>Aide</h1>
         </div>
         <InlineError message={err} onClear={() => setErr(null)} />
         {current ? (
