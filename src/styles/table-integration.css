@@ -8425,3 +8425,83 @@ body.corners-scroll .field {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* ===== Bibliothèque de compétences ===== */
+.skill-picker {
+  margin-top: 8px;
+}
+.skill-picker > .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.skill-picker-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+.skill-picker-tools,
+.skill-bulk-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.skill-picker-tools .field,
+.skill-bulk-tools .field {
+  flex: 1 1 150px;
+  width: auto;
+  min-width: 0;
+}
+.skill-picker-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 190px), 1fr));
+  gap: 6px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.skill-picker-list button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 46px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  color: var(--text);
+  font-size: 14px;
+  text-align: left;
+}
+.skill-picker-list button:hover {
+  border-color: var(--yellow);
+}
+.skill-picker-list span {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.skill-picker-list small {
+  color: var(--mute);
+  font-size: 12px;
+}
+.skill-picker-list em {
+  color: var(--yellow);
+  font-family: var(--mono);
+  font-style: normal;
+  font-weight: 600;
+}
+.skill-picker-list svg {
+  flex: none;
+  color: var(--mute);
+}
+.skill-bulk {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+}
+.skill-bulk .field {
+  width: 100%;
+}

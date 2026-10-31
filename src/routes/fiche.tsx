@@ -13,6 +13,7 @@ import { readDeckSlots, readPrograms, type Program } from "@/lib/programs";
 import { useServerFn } from "@tanstack/react-start";
 import { consumeItem } from "@/lib/catalog.functions";
 import { ShopPanel } from "@/components/ShopPanel";
+import { SkillPicker } from "@/components/SkillLibrary";
 import { sheetCanRoll } from "@/lib/table";
 import { createSaveQueue } from "@/lib/save-queue";
 import { weaponAttack, weaponDamage } from "@/lib/weapon-rules";
@@ -35,6 +36,7 @@ import { rowsToSheet, type AmmoEntry, type InventoryItem } from "@/lib/character
 import { rollDice } from "@/lib/dice.functions";
 import {
   newSkillName,
+  addSkills,
   ammoNote,
   hpMax,
   hpStatus,
@@ -875,6 +877,19 @@ function Sheet({ charId, isGm, userId }: { charId: string; isGm: boolean; userId
                 })}
               </div>
               {edit && (
+                <SkillPicker
+                  u={u}
+                  skills={skills}
+                  stats={stats}
+                  onAdd={(items) => {
+                    const fresh = characterRef.current?.sheet ?? sheet;
+                    void saveSheet({
+                      skills: writeSkills(fresh, addSkills(readSkills(fresh), items)),
+                    });
+                  }}
+                />
+              )}
+              {edit && (
                 <Button
                   variant="prototype"
                   className="btn y"
@@ -887,7 +902,7 @@ function Sheet({ charId, isGm, userId }: { charId: string; isGm: boolean; userId
                     })
                   }
                 >
-                  + Ajouter
+                  + Compétence libre
                 </Button>
               )}
             </section>

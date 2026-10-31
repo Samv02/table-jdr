@@ -112,6 +112,8 @@ export type Rules = {
   autofire: boolean;
   /** Ordre d'affichage des compétences (début des noms) ; le reste suit par ordre alphabétique */
   skillOrder: string[];
+  /** Compétences prêtes à ajouter sur les fiches, liées à leur caractéristique */
+  skillLibrary: TemplateSkill[];
 };
 
 export type Modules = {
@@ -355,6 +357,19 @@ const NEUTRAL: Universe = {
     rangedStat: "AGI",
     meleeStat: "PHY",
     autofire: false,
+    skillLibrary: [
+      { name: "Athlétisme", stat: "PHY", level: 0 },
+      { name: "Bagarre", stat: "PHY", level: 0 },
+      { name: "Armes de poing", stat: "AGI", level: 0 },
+      { name: "Discrétion", stat: "AGI", level: 0 },
+      { name: "Investigation", stat: "ESP", level: 0 },
+      { name: "Savoir", stat: "ESP", level: 0 },
+      { name: "Observation", stat: "PER", level: 0 },
+      { name: "Survie", stat: "PER", level: 0 },
+      { name: "Sang-froid", stat: "VOL", level: 0 },
+      { name: "Négociation", stat: "PRE", level: 0 },
+      { name: "Persuasion", stat: "PRE", level: 0 },
+    ],
     skillOrder: [],
   },
   modules: { ammo: true, money: true, slots: false, features: true, shop: true },
@@ -441,6 +456,21 @@ const FANTASY: Universe = {
     rangedStat: "DEX",
     meleeStat: "FOR",
     autofire: false,
+    skillLibrary: [
+      { name: "Athlétisme", stat: "FOR", level: 0 },
+      { name: "Acrobaties", stat: "DEX", level: 0 },
+      { name: "Discrétion", stat: "DEX", level: 0 },
+      { name: "Escamotage", stat: "DEX", level: 0 },
+      { name: "Arcanes", stat: "INT", level: 0 },
+      { name: "Histoire", stat: "INT", level: 0 },
+      { name: "Investigation", stat: "INT", level: 0 },
+      { name: "Médecine", stat: "SAG", level: 0 },
+      { name: "Perception", stat: "SAG", level: 0 },
+      { name: "Survie", stat: "SAG", level: 0 },
+      { name: "Intimidation", stat: "CHA", level: 0 },
+      { name: "Persuasion", stat: "CHA", level: 0 },
+      { name: "Tromperie", stat: "CHA", level: 0 },
+    ],
     skillOrder: [],
   },
   modules: { ammo: true, money: true, slots: true, features: true, shop: true },
@@ -546,6 +576,22 @@ const GRIMDARK: Universe = {
     rangedStat: "CT",
     meleeStat: "CC",
     autofire: false,
+    skillLibrary: [
+      { name: "Corps à corps", stat: "CC", level: 0 },
+      { name: "Tir", stat: "CT", level: 0 },
+      { name: "Intimidation", stat: "F", level: 0 },
+      { name: "Résistance", stat: "E", level: 0 },
+      { name: "Perception", stat: "I", level: 0 },
+      { name: "Athlétisme", stat: "AG", level: 0 },
+      { name: "Esquive", stat: "AG", level: 0 },
+      { name: "Furtivité", stat: "AG", level: 0 },
+      { name: "Crochetage", stat: "DEX", level: 0 },
+      { name: "Savoir", stat: "INT", level: 0 },
+      { name: "Soins", stat: "INT", level: 0 },
+      { name: "Calme", stat: "FM", level: 0 },
+      { name: "Charme", stat: "SOC", level: 0 },
+      { name: "Ragots", stat: "SOC", level: 0 },
+    ],
     skillOrder: [],
   },
   modules: { ammo: true, money: true, slots: false, features: true, shop: true },
@@ -635,6 +681,20 @@ const HORROR: Universe = {
     rangedStat: "DEX",
     meleeStat: "FOR",
     autofire: false,
+    skillLibrary: [
+      { name: "Corps à corps", stat: "FOR", level: 25 },
+      { name: "Armes à feu", stat: "DEX", level: 20 },
+      { name: "Discrétion", stat: "DEX", level: 20 },
+      { name: "Esquive", stat: "DEX", level: 20 },
+      { name: "Baratin", stat: "APP", level: 5 },
+      { name: "Persuasion", stat: "APP", level: 10 },
+      { name: "Bibliothèque", stat: "EDU", level: 20 },
+      { name: "Occultisme", stat: "EDU", level: 5 },
+      { name: "Premiers soins", stat: "EDU", level: 30 },
+      { name: "Écouter", stat: "INT", level: 20 },
+      { name: "Psychologie", stat: "INT", level: 10 },
+      { name: "Trouver objet caché", stat: "INT", level: 25 },
+    ],
     skillOrder: [],
   },
   modules: { ammo: true, money: true, slots: true, features: true, shop: true },
@@ -728,6 +788,26 @@ const CYBERPUNK: Universe = {
     rangedStat: "REF",
     meleeStat: "DEX",
     autofire: true,
+    skillLibrary: [
+      { name: "Pistolet", stat: "REF", level: 0 },
+      { name: "Fusil", stat: "REF", level: 0 },
+      { name: "Tir automatique", stat: "REF", level: 0 },
+      { name: "Mêlée", stat: "DEX", level: 0 },
+      { name: "Bagarre", stat: "DEX", level: 0 },
+      { name: "Esquive", stat: "DEX", level: 0 },
+      { name: "Athlétisme", stat: "DEX", level: 0 },
+      { name: "Infiltration", stat: "DEX", level: 0 },
+      { name: "Perception", stat: "INT", level: 0 },
+      { name: "Piratage", stat: "INT", level: 0 },
+      { name: "Cybertech", stat: "TECH", level: 0 },
+      { name: "Électronique", stat: "TECH", level: 0 },
+      { name: "Premier secours", stat: "TECH", level: 0 },
+      { name: "Persuasion", stat: "PRE", level: 0 },
+      { name: "Négociation", stat: "PRE", level: 0 },
+      { name: "Tromperie", stat: "PRE", level: 0 },
+      { name: "Connaissance de la rue", stat: "PRE", level: 0 },
+      { name: "Volonté", stat: "VOL", level: 0 },
+    ],
     skillOrder: [
       "Pistolet",
       "Fusil",
@@ -918,6 +998,9 @@ export function normalizeUniverse(raw: unknown): Universe {
     rangedStat: isStr(ru["rangedStat"], 40) ? varKey(ru["rangedStat"]) : base.rules.rangedStat,
     meleeStat: isStr(ru["meleeStat"], 40) ? varKey(ru["meleeStat"]) : base.rules.meleeStat,
     autofire: typeof ru["autofire"] === "boolean" ? ru["autofire"] : base.rules.autofire,
+    skillLibrary: Array.isArray(ru["skillLibrary"])
+      ? readSkillList(ru["skillLibrary"])
+      : base.rules.skillLibrary,
     skillOrder: Array.isArray(ru["skillOrder"])
       ? ru["skillOrder"].filter((s): s is string => isStr(s, 60)).slice(0, 60)
       : base.rules.skillOrder,
@@ -936,6 +1019,21 @@ export function normalizeUniverse(raw: unknown): Universe {
     template: readTemplate(r["template"]),
   };
 }
+function readSkillList(raw: unknown[]): TemplateSkill[] {
+  return raw.slice(0, 120).flatMap((s) => {
+    const o = obj(s);
+    const level = Math.round(Number(o["level"]));
+    return isStr(o["name"], 60) && o["name"] && isStr(o["stat"], 40)
+      ? [
+          {
+            name: o["name"],
+            stat: o["stat"],
+            level: Number.isFinite(level) ? Math.min(1000, Math.max(0, level)) : 0,
+          },
+        ]
+      : [];
+  });
+}
 function readTemplate(raw: unknown): Template {
   const t = obj(raw);
   const int = (v: unknown, min: number, max: number) => {
@@ -952,12 +1050,7 @@ function readTemplate(raw: unknown): Template {
     stats,
     money: int(t["money"], 0, 100000000),
     slots: int(t["slots"], 0, 20),
-    skills: skills.slice(0, 80).flatMap((s) => {
-      const o = obj(s);
-      return isStr(o["name"], 60) && isStr(o["stat"], 40)
-        ? [{ name: o["name"], stat: o["stat"], level: int(o["level"], 0, 1000) }]
-        : [];
-    }),
+    skills: readSkillList(skills),
     items: items.filter((i): i is string => isStr(i, 40)).slice(0, 50),
   };
 }
@@ -981,6 +1074,8 @@ export function universeErrors(u: Universe): Record<string, string> {
   if (u.rules.deathSave) check("deathSave", u.rules.deathSave.formula);
   if (u.rules.unarmed) check("unarmed", u.rules.unarmed.count);
   u.rules.gauges.forEach((g, i) => check(`gauge${i}`, g.max));
+  if (u.rules.skillLibrary.some((s) => !statKeys.includes(s.stat)))
+    errs["skillLibrary"] = "Une compétence n'a pas de caractéristique valable.";
   if (!u.rules.stats.length) errs["stats"] = "Il faut au moins une caractéristique.";
   const keys = u.rules.stats.map((s) => s.key);
   const dup = keys.find((k, i) => keys.indexOf(k) !== i);
@@ -1044,6 +1139,8 @@ export function gaugeMax(
   if (!g.max.trim()) return Math.max(0, Math.round(Number(sheet[`${g.key}Max`]) || 0));
   return Math.max(0, evalFormula(g.max, formulaVars(u, stats, sheet)));
 }
+export const statFor = (stat: StatDef | undefined) => stat?.label ?? "Sans caractéristique";
+
 export function skillBaseFor(u: Universe, stat: number, level: number, stats: Stats): number {
   return evalFormula(
     u.rules.skillBase,

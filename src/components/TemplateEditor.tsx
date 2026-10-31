@@ -144,6 +144,14 @@ export function TemplateEditor({
         >
           Ajouter une compétence
         </Button>
+        <Button
+          variant="prototype"
+          className="btn"
+          disabled={!draft.rules.skillLibrary.length}
+          onClick={() => patch({ skills: draft.rules.skillLibrary })}
+        >
+          Reprendre la bibliothèque ({draft.rules.skillLibrary.length})
+        </Button>
       </div>
 
       <h3>Objets de départ</h3>

@@ -15,6 +15,8 @@ import { confirmAction } from "@/components/ConfirmDialog";
 import { useUniverse } from "@/lib/universe-context";
 import { HpVisual } from "@/components/HpVisual";
 import { FormulaField } from "@/components/FormulaField";
+import { SkillBulkAdd } from "@/components/SkillLibrary";
+import { missingSkills } from "@/lib/sheet";
 import type { FormulaVar } from "@/lib/formula-builder";
 import { varKey } from "@/lib/formula";
 import { hpVisualsFor } from "@/lib/hp-visual";
@@ -34,6 +36,7 @@ import {
   type GaugeDef,
   type Hue,
   type StatDef,
+  type TemplateSkill,
   type Universe,
   type Words,
 } from "@/lib/universe";
@@ -724,6 +727,68 @@ export function UniverseEditor() {
             }
           />
         </label>
+      </Section>
+
+      <Section
+        title="Compétences de la table"
+        tag={`${draft.rules.skillLibrary.length} PRÊTES`}
+        error={errors["skillLibrary"]}
+      >
+        <p className="note">
+          Prépare-les une fois : sur chaque fiche, elles s’ajoutent d’un clic et leur dé se calcule
+          avec la caractéristique choisie ici.
+        </p>
+        <ListEditor<TemplateSkill>
+          items={draft.rules.skillLibrary}
+          max={120}
+          columns={["Nom", "Caractéristique", "Niveau de départ"]}
+          onChange={(skillLibrary) => rule("skillLibrary", skillLibrary)}
+          make={(list) => ({
+            name: `Compétence ${list.length + 1}`,
+            stat: draft.rules.stats[0]?.key ?? "",
+            level: 0,
+          })}
+          render={(s, patch) => (
+            <>
+              <input
+                className="field"
+                aria-label="Nom de la compétence"
+                maxLength={60}
+                value={s.name}
+                onChange={(e) => patch({ name: e.target.value })}
+              />
+              <select
+                className="field"
+                aria-label={`Caractéristique de ${s.name}`}
+                value={s.stat}
+                onChange={(e) => patch({ stat: e.target.value })}
+              >
+                {draft.rules.stats.map((st) => (
+                  <option key={st.key} value={st.key}>
+                    {st.label}
+                  </option>
+                ))}
+              </select>
+              <input
+                className="field"
+                type="number"
+                min={0}
+                aria-label={`Niveau de départ de ${s.name}`}
+                value={s.level}
+                onChange={(e) => patch({ level: Math.max(0, Number(e.target.value) || 0) })}
+              />
+            </>
+          )}
+        />
+        <SkillBulkAdd
+          u={draft}
+          onAdd={(items) =>
+            rule("skillLibrary", [
+              ...draft.rules.skillLibrary,
+              ...missingSkills(items, draft.rules.skillLibrary),
+            ])
+          }
+        />
       </Section>
 
       <Section title="Catalogue" tag="ARMES · OBJETS · POUVOIRS">

@@ -1,3 +1,4 @@
+import { addSkills, missingSkills } from "./sheet";
 import { describe, expect, it } from "vitest";
 import {
   ammoStatus,
@@ -217,5 +218,20 @@ describe("compétences créées par le MJ", () => {
     expect(newSkillName([{ name: "Nouvelle compétence" }, { name: "Nouvelle compétence 2" }])).toBe(
       "Nouvelle compétence 3",
     );
+  });
+});
+
+describe("skill library on a sheet", () => {
+  const library = [
+    { name: "Écouter", stat: "INT", level: 20 },
+    { name: "Esquive", stat: "DEX", level: 20 },
+  ];
+  it("ignores accents and case when looking for what is missing", () => {
+    expect(missingSkills(library, [{ name: "ecouter" }]).map((s) => s.name)).toEqual(["Esquive"]);
+  });
+  it("never adds the same skill twice", () => {
+    const once = addSkills([], library);
+    expect(addSkills(once, library)).toHaveLength(2);
+    expect(once[0]).toMatchObject({ name: "Écouter", stat: "INT", level: 20 });
   });
 });

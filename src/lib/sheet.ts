@@ -128,6 +128,25 @@ export function writeSkills(sheet: Sheet, skills: SheetSkill[]): unknown {
   }));
 }
 
+const skillId = (name: string) => name.trim().normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+
+/** Compétences de la bibliothèque absentes de la fiche, sans tenir compte des accents ni de la casse. */
+export function missingSkills<T extends { name: string }>(
+  library: T[],
+  skills: { name: string }[],
+) {
+  const owned = new Set(skills.map((s) => skillId(s.name)));
+  return library.filter((s) => !owned.has(skillId(s.name)));
+}
+
+/** Ajoute des compétences à la fiche sans jamais créer de doublon. */
+export function addSkills(
+  skills: SheetSkill[],
+  items: { name: string; stat: string; level: number }[],
+): SheetSkill[] {
+  return [...skills, ...missingSkills(items, skills)];
+}
+
 /** Base d'une compétence, selon la formule de l'univers (par défaut : caractéristique + niveau). */
 export function skillBase(skill: SheetSkill, stats: Stats, u: Universe): number {
   const key = statKey(skill.stat, u);

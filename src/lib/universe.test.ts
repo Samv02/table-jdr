@@ -149,3 +149,30 @@ describe("relecture tolérante", () => {
     expect(normalizeUniverse(null).preset).toBe("neutre");
   });
 });
+
+describe("skill library", () => {
+  it.each(PRESETS.map((p) => [p.id, p.universe] as const))(
+    "%s links skills to real stats",
+    (_, u) => {
+      const keys = u.rules.stats.map((s) => s.key);
+      expect(u.rules.skillLibrary.length).toBeGreaterThan(5);
+      for (const s of u.rules.skillLibrary) expect(keys).toContain(s.stat);
+      expect(universeErrors(u)["skillLibrary"]).toBeUndefined();
+    },
+  );
+  it("gives existing tables their preset list, and keeps a custom one", () => {
+    expect(normalizeUniverse({ preset: "horreur" }).rules.skillLibrary.length).toBeGreaterThan(5);
+    const own = [{ name: "Pêche", stat: "INT", level: 2 }];
+    const u = normalizeUniverse({ preset: "horreur", rules: { skillLibrary: own } });
+    expect(u.rules.skillLibrary).toEqual(own);
+    expect(normalizeUniverse({ rules: { skillLibrary: [] } }).rules.skillLibrary).toEqual([]);
+  });
+  it("flags a skill whose stat no longer exists", () => {
+    const u = normalizeUniverse({ preset: "horreur" });
+    const broken = {
+      ...u,
+      rules: { ...u.rules, skillLibrary: [{ name: "X", stat: "NON", level: 0 }] },
+    };
+    expect(universeErrors(broken)["skillLibrary"]).toBeTruthy();
+  });
+});
