@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { hubTable, inviteLink, sessionLabel, setupSteps, sinceLabel, type HubRow } from "./hub";
+import {
+  greeting,
+  hubTable,
+  inviteLink,
+  sessionLabel,
+  setupSteps,
+  sinceLabel,
+  soonestTable,
+  type HubRow,
+} from "./hub";
 import { activeTab, GM_TABS } from "./navigation";
 
 const now = new Date(2026, 9, 31, 12, 0);
@@ -10,6 +19,7 @@ const row: HubRow = {
   members: 3,
   sheets: 2,
   characters: ["Alex"],
+  party: [],
   universe: { preset: "horreur" },
   scene: null,
   last_opened_at: "2026-10-30T10:00:00.000Z",
@@ -39,6 +49,22 @@ describe("hub", () => {
       "aujourd’hui à 20:30",
     );
     expect(sessionLabel(new Date(2026, 10, 1, 20, 30).toISOString(), now)).toBe("demain à 20:30");
+  });
+  it("greets according to the hour", () => {
+    expect(greeting(9)).toBe("Bonjour");
+    expect(greeting(21)).toBe("Bonsoir");
+    expect(greeting(2)).toBe("Bonsoir");
+  });
+  it("picks the closest session still to come", () => {
+    const at = (d: number) => new Date(2026, 10, d, 20).toISOString();
+    const list = [
+      { next_session: at(9) },
+      { next_session: new Date(2026, 9, 1).toISOString() },
+      { next_session: at(3) },
+      { next_session: null },
+    ];
+    expect(soonestTable(list, now)?.next_session).toBe(at(3));
+    expect(soonestTable([{ next_session: null }], now)).toBeNull();
   });
   it("builds an invitation link", () => {
     expect(inviteLink("AB CD", "https://x.fr")).toBe("https://x.fr/rejoindre?code=AB%20CD");

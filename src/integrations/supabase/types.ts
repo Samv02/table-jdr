@@ -923,6 +923,7 @@ export type Database = {
           members: number;
           name: string;
           next_session: string;
+          party: Json;
           role: string;
           scene: string;
           sheets: number;

@@ -7,6 +7,7 @@ export type HubRow = {
   members: number;
   sheets: number;
   characters: string[];
+  party: { label: string; color: string | null }[];
   universe: unknown;
   scene: string | null;
   last_opened_at: string | null;
@@ -44,6 +45,20 @@ export function sessionLabel(iso: string | null, now = new Date()) {
   if (days === 1) return `demain à ${time}`;
   const day = at.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
   return `${day} à ${time}`;
+}
+
+export const greeting = (hour: number) => (hour >= 5 && hour < 18 ? "Bonjour" : "Bonsoir");
+
+/** Table dont la séance à venir est la plus proche. */
+export function soonestTable<T extends { next_session: string | null }>(
+  tables: T[],
+  now = new Date(),
+) {
+  return (
+    tables
+      .filter((t) => sessionLabel(t.next_session, now))
+      .sort((x, y) => (x.next_session as string).localeCompare(y.next_session as string))[0] ?? null
+  );
 }
 
 /** Valeur attendue par un champ datetime-local, à l'heure de l'appareil. */
