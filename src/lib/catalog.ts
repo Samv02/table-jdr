@@ -2,7 +2,15 @@
  * CATALOGUE — ce que le MJ prépare à l'avance : armes, consommables, pouvoirs, équipement.
  * Rien de propre à un jeu ici : les cibles d'effet viennent des règles de l'univers.
  */
-import { hpAfter, parseDamage, readStats, statLabel, writeStat, type Sheet } from "./sheet";
+import {
+  hpAfter,
+  hpShown,
+  parseDamage,
+  readStats,
+  statLabel,
+  writeStat,
+  type Sheet,
+} from "./sheet";
 import { gaugeMax, hpMaxFor, type Universe } from "./universe";
 
 export const ITEM_KINDS = [
@@ -120,7 +128,7 @@ export function applyEffects(
   const ordered = [...effects].sort(
     (a, b) => Number(b.target.startsWith("stat:")) - Number(a.target.startsWith("stat:")),
   );
-  let hp = state.hp;
+  let hp = hpShown(state.hp, hpMaxFor(u, readStats(state.sheet, u), state.sheet));
   let money = state.money;
   for (const e of ordered) {
     const v = value(e);
@@ -135,7 +143,7 @@ export function applyEffects(
       const gauge = u.rules.gauges.find((g) => g.key === key);
       if (!gauge) continue;
       const max = gaugeMax(u, gauge, readStats(sheet, u), sheet);
-      const next = Math.max(0, Math.min(max, (Number(sheet[key]) || 0) + v));
+      const next = hpAfter(Number(sheet[key]) || 0, v, max);
       sheet = { ...sheet, [key]: next };
       lines.push(`${gauge.label} ${signed(v)}`);
     } else if (e.target === "money") {

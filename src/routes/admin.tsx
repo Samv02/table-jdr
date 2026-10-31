@@ -25,6 +25,7 @@ import { useIdentity } from "@/lib/active-character";
 import { adminOverview, type AdminOverview } from "@/lib/admin.functions";
 import type { AccountFilter, TeamFilter, TodoItem } from "@/lib/admin";
 import { openTeam } from "@/lib/team";
+import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/admin")({
   ssr: false,
@@ -119,9 +120,8 @@ function AdminPage() {
         </div>
         <nav aria-label="Back office">
           {TABS.map(({ key, label, icon: Icon }) => (
-            <button
+            <Button
               key={key}
-              type="button"
               className={tab === key ? "on" : ""}
               aria-current={tab === key ? "page" : undefined}
               onClick={() => show(key)}
@@ -131,7 +131,7 @@ function AdminPage() {
               {key === "support" && !!data?.stats.ticketsOpen && (
                 <i className="bo-count">{data.stats.ticketsOpen}</i>
               )}
-            </button>
+            </Button>
           ))}
         </nav>
         <div className="bo-side-foot">
@@ -139,8 +139,7 @@ function AdminPage() {
             <KeyRound size={18} aria-hidden="true" />
             <span>Mot de passe</span>
           </Link>
-          <button
-            type="button"
+          <Button
             onClick={async () => {
               await supabase.auth.signOut();
               await navigate({ to: "/", replace: true });
@@ -148,14 +147,13 @@ function AdminPage() {
           >
             <LogOut size={18} aria-hidden="true" />
             <span>Déconnexion</span>
-          </button>
+          </Button>
         </div>
       </aside>
       <main className="bo-main">
         <header className="bo-top">
           <h1>{TABS.find((t) => t.key === tab)?.label}</h1>
-          <button
-            type="button"
+          <Button
             className="bo-btn"
             aria-label="Actualiser"
             title="Actualiser"
@@ -163,7 +161,7 @@ function AdminPage() {
             onClick={() => void refresh()}
           >
             <RefreshCw size={16} aria-hidden="true" />
-          </button>
+          </Button>
         </header>
         <InlineError message={err} onClear={() => setErr(null)} />
         {info && (

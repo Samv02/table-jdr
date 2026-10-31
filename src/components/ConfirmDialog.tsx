@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { TriangleAlert } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 /**
  * Confirmation dans l'appli (remplace window.confirm du navigateur).
@@ -78,12 +79,12 @@ export function ConfirmHost() {
         <h3 id="confirm-title">{pending.title}</h3>
         {pending.message && <p id="confirm-msg">{pending.message}</p>}
         <div className="confirm-actions">
-          <button ref={cancelRef} type="button" className="btn" onClick={() => close(false)}>
+          <Button ref={cancelRef} className="btn" onClick={() => close(false)}>
             {pending.cancelLabel ?? "Annuler"}
-          </button>
-          <button type="button" className="btn red" onClick={() => close(true)}>
+          </Button>
+          <Button className="btn red" onClick={() => close(true)}>
             {pending.confirmLabel ?? "Supprimer"}
-          </button>
+          </Button>
         </div>
       </div>
     </div>,

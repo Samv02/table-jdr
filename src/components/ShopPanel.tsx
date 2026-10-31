@@ -107,7 +107,6 @@ export function ShopPanel({
             </span>
             {item.in_shop && (
               <Button
-                variant="prototype"
                 className="btn y"
                 aria-label={`Acheter ${item.name}`}
                 disabled={busy || !canEdit || money < item.price}
@@ -118,7 +117,6 @@ export function ShopPanel({
             )}
             {isGm && (
               <Button
-                variant="prototype"
                 className="btn"
                 aria-label={`Donner ${item.name}`}
                 title="Donner gratuitement"

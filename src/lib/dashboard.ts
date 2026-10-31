@@ -1,5 +1,5 @@
 import type { AmmoEntry, InventoryItem } from "./character-import";
-import { hpMax, hpStatus, readStats, readWeapons, type Sheet } from "./sheet";
+import { hpMax, hpStatus, readStats, readWeapons, type Sheet, hpFill, hpShown } from "./sheet";
 import { woundedFor, type Universe } from "./universe";
 import type { PartyMember } from "./table-context";
 
@@ -31,7 +31,7 @@ export function dashboardAlerts(row: DashboardRow, u: Universe) {
   const stats = readStats(row.sheet, u);
   const max = hpMax(stats, row.sheet, u);
   const health = state
-    ? hpStatus(state.hp_current, woundedFor(u, max, stats, row.sheet)) !== "ok"
+    ? hpStatus(hpShown(state.hp_current, max), woundedFor(u, max, stats, row.sheet)) !== "ok"
     : false;
   const ammo =
     u.modules.ammo && state
@@ -266,7 +266,7 @@ export function moveSection(sections: DashboardPrefs["sections"], key: string, d
 
 function hpRatio(r: DashboardRow, u: Universe) {
   const max = hpMax(readStats(r.sheet, u), r.sheet, u);
-  return max > 0 ? (r.character_state?.hp_current ?? 0) / max : 1;
+  return max > 0 ? hpFill(r.character_state?.hp_current ?? 0, max) : 1;
 }
 function ammoRatio(r: DashboardRow) {
   const ratios = readWeapons(r.sheet)

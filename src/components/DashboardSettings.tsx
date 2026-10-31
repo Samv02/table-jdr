@@ -16,7 +16,7 @@ import {
   type DashboardRow,
   type DashboardSort,
 } from "@/lib/dashboard";
-import { hpMax, readStats } from "@/lib/sheet";
+import { hpMax, readStats, hpFill } from "@/lib/sheet";
 import { useUniverse } from "@/lib/universe-context";
 
 type Grab = (e: PointerEvent<HTMLElement>, id: string) => void;
@@ -31,8 +31,7 @@ const arrow = (key: string) =>
 
 function EyeToggle({ label, on, onToggle }: { label: string; on: boolean; onToggle: () => void }) {
   return (
-    <button
-      type="button"
+    <Button
       className="custom-eye"
       aria-label={`Afficher ${label}`}
       aria-pressed={on}
@@ -40,7 +39,7 @@ function EyeToggle({ label, on, onToggle }: { label: string; on: boolean; onTogg
       onClick={onToggle}
     >
       {on ? <Eye size={18} aria-hidden="true" /> : <EyeOff size={18} aria-hidden="true" />}
-    </button>
+    </Button>
   );
 }
 
@@ -85,44 +84,40 @@ export function DashboardSettings({
     <aside className="customize" aria-label="Personnaliser le tableau de bord">
       <header className="customize-head">
         <h2>Personnaliser</h2>
-        <button
-          type="button"
+        <Button
           aria-label="Annuler la dernière modification"
           title="Annuler"
           disabled={!canUndo}
           onClick={onUndo}
         >
           <Undo2 size={18} aria-hidden="true" />
-        </button>
-        <button type="button" aria-label="Fermer le panneau" onClick={onClose}>
+        </Button>
+        <Button aria-label="Fermer le panneau" onClick={onClose}>
           <X size={18} aria-hidden="true" />
-        </button>
+        </Button>
       </header>
       <div className="customize-body">
         <section className="customize-group">
           <h3>Vues</h3>
           <div className="custom-chips">
             {QUICK_VIEWS.map((v) => (
-              <button
-                type="button"
+              <Button
                 key={v.key}
                 aria-pressed={isQuickView(prefs, v.sections)}
                 onClick={() => onChange(applyQuickView(prefs, v.sections))}
               >
                 {v.label}
-              </button>
+              </Button>
             ))}
             {prefs.views.map((v) => (
               <span className="custom-view" key={v.id}>
-                <button
-                  type="button"
+                <Button
                   aria-pressed={isSavedView(prefs, v)}
                   onClick={() => onChange({ ...prefs, ...v.snapshot })}
                 >
                   {v.name}
-                </button>
-                <button
-                  type="button"
+                </Button>
+                <Button
                   className="remove"
                   aria-label={`Supprimer la vue ${v.name}`}
                   onClick={() =>
@@ -130,7 +125,7 @@ export function DashboardSettings({
                   }
                 >
                   <X size={13} aria-hidden="true" />
-                </button>
+                </Button>
               </span>
             ))}
           </div>
@@ -150,7 +145,7 @@ export function DashboardSettings({
               onChange={(e) => setViewName(e.target.value)}
             />
             <Button
-              variant="prototype"
+              type="submit"
               className="btn y"
               disabled={!viewName.trim() || prefs.views.length >= MAX_VIEWS}
             >
@@ -179,12 +174,11 @@ export function DashboardSettings({
             {rows.map((r) => {
               const name = r.handle || r.name;
               const max = hpMax(readStats(r.sheet, u), r.sheet, u);
-              const hp = Math.max(0, Math.min(r.character_state?.hp_current ?? 0, max));
+              const hp = r.character_state?.hp_current ?? 0;
               const shown = !prefs.hiddenCharacters.includes(r.id);
               return (
                 <li key={r.id} data-order-row={r.id} className={shown ? "" : "off"}>
-                  <button
-                    type="button"
+                  <Button
                     className="grip"
                     aria-label={`Déplacer ${name}`}
                     title="Glisse, ou utilise les flèches du clavier"
@@ -201,11 +195,11 @@ export function DashboardSettings({
                     }}
                   >
                     <GripVertical size={16} aria-hidden="true" />
-                  </button>
+                  </Button>
                   <span className="custom-name">
                     {name}
                     <i aria-hidden="true">
-                      <b style={{ width: `${max ? (hp / max) * 100 : 0}%` }} />
+                      <b style={{ width: `${hpFill(hp, max) * 100}%` }} />
                     </i>
                   </span>
                   <EyeToggle
@@ -231,8 +225,7 @@ export function DashboardSettings({
           <ul className="custom-rows">
             {prefs.sections.map((s) => (
               <li key={s.key} data-section-row={s.key} className={s.visible ? "" : "off"}>
-                <button
-                  type="button"
+                <Button
                   className="grip"
                   aria-label={`Déplacer la section ${s.key}`}
                   title="Glisse, ou utilise les flèches du clavier"
@@ -245,7 +238,7 @@ export function DashboardSettings({
                   }}
                 >
                   <GripVertical size={16} aria-hidden="true" />
-                </button>
+                </Button>
                 <span className="custom-name">{s.key}</span>
                 <EyeToggle
                   label={`la section ${s.key}`}
@@ -268,26 +261,23 @@ export function DashboardSettings({
           <h3>
             {u.words.stats}
             <span>
-              <button
-                type="button"
+              <Button
                 className="customize-link"
                 onClick={() => onChange({ ...prefs, hiddenStats: [] })}
               >
                 Tout
-              </button>
-              <button
-                type="button"
+              </Button>
+              <Button
                 className="customize-link"
                 onClick={() => onChange({ ...prefs, hiddenStats: statKeys })}
               >
                 Aucune
-              </button>
+              </Button>
             </span>
           </h3>
           <div className="custom-chips">
             {u.rules.stats.map((s) => (
-              <button
-                type="button"
+              <Button
                 key={s.key}
                 aria-pressed={!prefs.hiddenStats.includes(s.key)}
                 onClick={() =>
@@ -295,7 +285,7 @@ export function DashboardSettings({
                 }
               >
                 {s.label}
-              </button>
+              </Button>
             ))}
           </div>
         </section>
@@ -305,8 +295,7 @@ export function DashboardSettings({
             <h3>{u.words.vitals}</h3>
             <div className="custom-chips">
               {fields.map((f) => (
-                <button
-                  type="button"
+                <Button
                   key={f.key}
                   aria-pressed={!prefs.hiddenFields.includes(f.key)}
                   onClick={() =>
@@ -314,19 +303,18 @@ export function DashboardSettings({
                   }
                 >
                   {f.label}
-                </button>
+                </Button>
               ))}
             </div>
           </section>
         )}
 
-        <button
-          type="button"
+        <Button
           className="custom-reset"
           onClick={() => onChange({ ...DEFAULT_PREFS, views: prefs.views })}
         >
           <RotateCcw size={15} aria-hidden="true" /> Tout réinitialiser
-        </button>
+        </Button>
       </div>
     </aside>
   );

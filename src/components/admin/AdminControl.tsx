@@ -13,6 +13,7 @@ import type { AdminOverview } from "@/lib/admin.functions";
 import { downloadFile, formatDay, formatMoment, toCsv } from "@/lib/admin";
 import { MODERATION_CATEGORIES } from "@/lib/moderation";
 import type { AdminRun } from "@/routes/admin";
+import { Button } from "@/components/ui/button";
 
 /** Réglages de toute la plateforme, annonces et exports. */
 export function AdminControl({
@@ -140,14 +141,9 @@ export function AdminControl({
               }
             />
           </label>
-          <button
-            type="button"
-            className="bo-btn primary"
-            disabled={busy}
-            onClick={() => void save()}
-          >
+          <Button className="bo-btn primary" disabled={busy} onClick={() => void save()}>
             Enregistrer les réglages
-          </button>
+          </Button>
         </div>
       </section>
 
@@ -208,9 +204,9 @@ export function AdminControl({
               <option value={30}>30 jours</option>
             </select>
           </div>
-          <button type="submit" className="bo-btn primary" disabled={busy}>
+          <Button type="submit" className="bo-btn primary" disabled={busy}>
             <Megaphone size={16} aria-hidden="true" /> Publier
-          </button>
+          </Button>
         </form>
         <ul className="bo-list">
           {data.announcements.map((a) => (
@@ -223,8 +219,7 @@ export function AdminControl({
                   {a.active ? "" : " · retirée"}
                 </small>
               </span>
-              <button
-                type="button"
+              <Button
                 className="bo-btn"
                 disabled={busy}
                 onClick={() =>
@@ -232,9 +227,8 @@ export function AdminControl({
                 }
               >
                 {a.active ? "Retirer" : <Undo2 size={16} aria-label="Remettre" />}
-              </button>
-              <button
-                type="button"
+              </Button>
+              <Button
                 className="bo-btn danger"
                 aria-label="Supprimer l’annonce"
                 title="Supprimer l’annonce"
@@ -244,7 +238,7 @@ export function AdminControl({
                 }
               >
                 <Trash2 size={16} aria-hidden="true" />
-              </button>
+              </Button>
             </li>
           ))}
         </ul>
@@ -289,9 +283,9 @@ export function AdminControl({
               </option>
             ))}
           </select>
-          <button type="submit" className="bo-btn" disabled={busy}>
+          <Button type="submit" className="bo-btn" disabled={busy}>
             <Plus size={16} aria-hidden="true" /> Ajouter
-          </button>
+          </Button>
         </form>
         {MODERATION_CATEGORIES.map((c) => (
           <div key={c.key} className="bo-words">
@@ -302,15 +296,14 @@ export function AdminControl({
                 .map((w) => (
                   <li key={w.id}>
                     {w.word}
-                    <button
-                      type="button"
+                    <Button
                       aria-label={`Retirer ${w.word}`}
                       title="Retirer"
                       disabled={busy}
                       onClick={() => void run(() => removeWord({ data: { id: w.id } }))}
                     >
                       <X size={12} aria-hidden="true" />
-                    </button>
+                    </Button>
                   </li>
                 ))}
             </ul>
@@ -321,12 +314,12 @@ export function AdminControl({
       <section>
         <h2 className="bo-section">Exports</h2>
         <div className="bo-actions">
-          <button type="button" className="bo-btn" onClick={exportAccounts}>
+          <Button className="bo-btn" onClick={exportAccounts}>
             <Download size={16} aria-hidden="true" /> Comptes (CSV)
-          </button>
-          <button type="button" className="bo-btn" onClick={exportTeams}>
+          </Button>
+          <Button className="bo-btn" onClick={exportTeams}>
             <Download size={16} aria-hidden="true" /> Équipes (CSV)
-          </button>
+          </Button>
         </div>
       </section>
     </div>

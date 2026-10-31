@@ -33,6 +33,7 @@ import {
   type AccountFilter,
 } from "@/lib/admin";
 import type { AdminRun } from "@/routes/admin";
+import { Button } from "@/components/ui/button";
 
 const FILTERS: { key: AccountFilter; label: string }[] = [
   { key: "all", label: "Tous" },
@@ -78,9 +79,9 @@ export function AdminAccounts({
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        <button type="button" className="bo-btn primary" onClick={() => setAdding((v) => !v)}>
+        <Button className="bo-btn primary" onClick={() => setAdding((v) => !v)}>
           <Plus size={16} aria-hidden="true" /> Nouveau compte
-        </button>
+        </Button>
       </div>
       {adding && (
         <form
@@ -124,22 +125,21 @@ export function AdminAccounts({
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
-          <button type="submit" className="bo-btn primary" disabled={busy}>
+          <Button type="submit" className="bo-btn primary" disabled={busy}>
             Créer le compte
-          </button>
+          </Button>
         </form>
       )}
       <div className="bo-filters">
         {FILTERS.map((f) => (
-          <button
+          <Button
             key={f.key}
-            type="button"
             className={`bo-chip ${filter === f.key ? "on" : ""}`}
             aria-pressed={filter === f.key}
             onClick={() => setFilter(f.key)}
           >
             {f.label}
-          </button>
+          </Button>
         ))}
         <span className="bo-muted">
           {shown.length} sur {accounts.length}
@@ -149,8 +149,7 @@ export function AdminAccounts({
         {shown.length === 0 && <li className="bo-muted">Aucun compte.</li>}
         {shown.map((a) => (
           <li key={a.id} className={`bo-card ${a.suspended ? "off" : ""}`}>
-            <button
-              type="button"
+            <Button
               className="bo-card-head"
               aria-expanded={open === a.id}
               onClick={() => setOpen(open === a.id ? null : a.id)}
@@ -165,7 +164,7 @@ export function AdminAccounts({
                 {a.teams.map((t) => t.name).join(", ") || "Aucune équipe"}
               </small>
               <ChevronDown size={18} aria-hidden="true" />
-            </button>
+            </Button>
             {open === a.id && (
               <AccountDetail
                 key={`${a.username}-${a.email}`}
@@ -273,9 +272,9 @@ function AccountDetail({
             onChange={(e) => setEmail(e.target.value)}
           />
         </label>
-        <button type="submit" className="bo-btn primary" disabled={busy}>
+        <Button type="submit" className="bo-btn primary" disabled={busy}>
           Enregistrer
-        </button>
+        </Button>
       </form>
 
       <h3>Note interne</h3>
@@ -289,8 +288,7 @@ function AccountDetail({
         onChange={(e) => setNote(e.target.value)}
       />
       <div className="bo-actions">
-        <button
-          type="button"
+        <Button
           className="bo-btn"
           disabled={busy || note === a.note}
           onClick={() =>
@@ -298,7 +296,7 @@ function AccountDetail({
           }
         >
           <Save size={16} aria-hidden="true" /> Enregistrer la note
-        </button>
+        </Button>
       </div>
 
       <h3>Équipes</h3>
@@ -323,8 +321,7 @@ function AccountDetail({
               <option value="player">Joueur</option>
               <option value="gm">MJ</option>
             </select>
-            <button
-              type="button"
+            <Button
               className="bo-btn"
               title="Retirer de l’équipe"
               aria-label={`Retirer de ${t.name}`}
@@ -334,7 +331,7 @@ function AccountDetail({
               }
             >
               <UserMinus size={16} aria-hidden="true" />
-            </button>
+            </Button>
           </li>
         ))}
       </ul>
@@ -353,8 +350,7 @@ function AccountDetail({
               </option>
             ))}
           </select>
-          <button
-            type="button"
+          <Button
             className="bo-btn"
             disabled={busy || !teamId}
             onClick={() =>
@@ -365,7 +361,7 @@ function AccountDetail({
             }
           >
             <Plus size={16} aria-hidden="true" /> Ajouter
-          </button>
+          </Button>
         </div>
       )}
 
@@ -393,15 +389,14 @@ function AccountDetail({
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
-            <button type="submit" className="bo-btn" disabled={busy}>
+            <Button type="submit" className="bo-btn" disabled={busy}>
               Définir
-            </button>
+            </Button>
           </form>
 
           <h3>Actions</h3>
           <div className="bo-actions">
-            <button
-              type="button"
+            <Button
               className="bo-btn"
               disabled={busy}
               onClick={() =>
@@ -412,9 +407,8 @@ function AccountDetail({
               }
             >
               <Download size={16} aria-hidden="true" /> Exporter ses données
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
               className="bo-btn"
               disabled={busy}
               onClick={() =>
@@ -431,37 +425,22 @@ function AccountDetail({
               }
             >
               <KeyRound size={16} aria-hidden="true" /> Envoyer un lien de mot de passe
-            </button>
-            <button
-              type="button"
-              className="bo-btn"
-              disabled={busy}
-              onClick={() => void askAdmin()}
-            >
+            </Button>
+            <Button className="bo-btn" disabled={busy} onClick={() => void askAdmin()}>
               <ShieldCheck size={16} aria-hidden="true" />
               {a.admin ? "Retirer l’accès admin" : "Rendre admin"}
-            </button>
-            <button
-              type="button"
-              className="bo-btn"
-              disabled={busy}
-              onClick={() => void askSuspend()}
-            >
+            </Button>
+            <Button className="bo-btn" disabled={busy} onClick={() => void askSuspend()}>
               {a.suspended ? (
                 <Undo2 size={16} aria-hidden="true" />
               ) : (
                 <Ban size={16} aria-hidden="true" />
               )}
               {a.suspended ? "Réactiver" : "Suspendre"}
-            </button>
-            <button
-              type="button"
-              className="bo-btn danger"
-              disabled={busy}
-              onClick={() => void askDelete()}
-            >
+            </Button>
+            <Button className="bo-btn danger" disabled={busy} onClick={() => void askDelete()}>
               <Trash2 size={16} aria-hidden="true" /> Supprimer le compte
-            </button>
+            </Button>
           </div>
         </>
       )}

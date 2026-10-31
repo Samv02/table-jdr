@@ -127,7 +127,6 @@ export function SlotPanel({
           <span>Capacité ({W.slotUnit}s)</span>
           <div className="stepper">
             <Button
-              variant="prototype"
               aria-label="Un emplacement de moins"
               disabled={capacity <= 0}
               onClick={() => setCapacity(capacity - 1)}
@@ -136,7 +135,6 @@ export function SlotPanel({
             </Button>
             <b>{capacity}</b>
             <Button
-              variant="prototype"
               aria-label="Un emplacement de plus"
               disabled={capacity >= DECK_SLOTS_MAX}
               onClick={() => setCapacity(capacity + 1)}
@@ -193,8 +191,7 @@ export function SlotPanel({
               style={{ ["--h" as string]: hue(p.id) }}
             >
               <div className="prog-top">
-                <button
-                  type="button"
+                <Button
                   className="prog-switch"
                   role="switch"
                   aria-checked={p.active}
@@ -204,7 +201,7 @@ export function SlotPanel({
                 >
                   <i />
                   <span>{p.active ? "ACTIF" : "OFF"}</span>
-                </button>
+                </Button>
 
                 {canEdit ? (
                   <DraftInput
@@ -221,7 +218,6 @@ export function SlotPanel({
                 {configure ? (
                   <div className="stepper sm" aria-label="Slots du programme">
                     <Button
-                      variant="prototype"
                       aria-label="Un emplacement de moins"
                       disabled={pending || (p.slots ?? 1) <= 1}
                       onClick={() => setSlots(p, (p.slots ?? 1) - 1)}
@@ -230,7 +226,6 @@ export function SlotPanel({
                     </Button>
                     <b>{pending ? "?" : p.slots}</b>
                     <Button
-                      variant="prototype"
                       aria-label="Un emplacement de plus"
                       onClick={() => setSlots(p, pending ? 1 : p.slots! + 1)}
                     >
@@ -245,7 +240,6 @@ export function SlotPanel({
 
                 {canEdit && (
                   <Button
-                    variant="prototype"
                     className="x"
                     aria-label={`Retirer ${p.name || item}`}
                     onClick={async () => {
@@ -299,7 +293,6 @@ export function SlotPanel({
 
               {dice && (
                 <Button
-                  variant="prototype"
                   className="btn prog-roll"
                   disabled={!canRoll || !p.active}
                   title={!p.active ? "Active-le pour l'utiliser" : undefined}
@@ -338,7 +331,7 @@ export function SlotPanel({
             placeholder={`${W.slotItem} à ajouter`}
             aria-label={`${W.slotItem} à ajouter`}
           />
-          <Button variant="prototype" className="btn y">
+          <Button type="submit" className="btn y">
             Ajouter
           </Button>
         </form>

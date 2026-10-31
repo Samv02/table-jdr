@@ -89,6 +89,17 @@ describe("applyEffects", () => {
     );
     expect(r.hp).toBe(18);
   });
+  it("does not wipe a gauge when its maximum is unknown", () => {
+    const u = presetById("cyberpunk");
+    const gauge = { key: "focus", label: "Focus", color: "cyan", max: "" };
+    const r = applyEffects(
+      { hp: 10, money: 0, sheet: { focus: 6 } },
+      [{ target: "gauge:focus", amount: 2, useDie: false }],
+      null,
+      { ...u, rules: { ...u.rules, gauges: [gauge] } } as typeof u,
+    );
+    expect(r.sheet["focus"]).toBe(8);
+  });
   it("keeps money positive", () => {
     const r = applyEffects(
       { hp: 1, money: 3, sheet },

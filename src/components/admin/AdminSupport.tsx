@@ -18,6 +18,7 @@ import {
   sortTickets,
   statusLabel,
 } from "@/lib/support";
+import { Button } from "@/components/ui/button";
 
 const REFRESH_MS = 20000;
 
@@ -61,9 +62,8 @@ export function AdminSupport({ onChanged }: { onChanged: () => void }) {
       <InlineError message={err} onClear={() => setErr(null)} />
       <div className="bo-views" role="tablist" aria-label="État des tickets">
         {TICKET_STATUSES.map((s) => (
-          <button
+          <Button
             key={s.key}
-            type="button"
             role="tab"
             aria-selected={status === s.key}
             className={status === s.key ? "on" : ""}
@@ -73,7 +73,7 @@ export function AdminSupport({ onChanged }: { onChanged: () => void }) {
             }}
           >
             {s.label} <small>{count(s.key)}</small>
-          </button>
+          </Button>
         ))}
       </div>
       <div className="bo-row">
@@ -93,8 +93,7 @@ export function AdminSupport({ onChanged }: { onChanged: () => void }) {
         <ul className="bo-list">
           {shown.map((t) => (
             <li key={t.id} className={`bo-card ${t.awaiting ? "waiting" : ""}`}>
-              <button
-                type="button"
+              <Button
                 className="bo-card-head"
                 aria-expanded={open === t.id}
                 onClick={() => setOpen(open === t.id ? null : t.id)}
@@ -110,7 +109,7 @@ export function AdminSupport({ onChanged }: { onChanged: () => void }) {
                 </span>
                 <small className="bo-card-side">{formatMoment(t.updated_at)}</small>
                 <ChevronDown size={18} aria-hidden="true" />
-              </button>
+              </Button>
               {open === t.id && <TicketDetail ticket={t} onChanged={changed} onError={setErr} />}
             </li>
           ))}
@@ -241,33 +240,30 @@ function TicketDetail({
         onChange={(e) => setBody(e.target.value)}
       />
       <div className="bo-actions">
-        <button
-          type="button"
+        <Button
           className="bo-btn primary"
           disabled={busy || !body.trim()}
           onClick={() => void send(false)}
         >
           <Send size={16} aria-hidden="true" /> Répondre
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
           className="bo-btn"
           disabled={busy || !body.trim()}
           title="Invisible pour l’utilisateur"
           onClick={() => void send(true)}
         >
           <Lock size={16} aria-hidden="true" /> Note interne
-        </button>
+        </Button>
         {t.status !== "resolved" && (
-          <button
-            type="button"
+          <Button
             className="bo-btn"
             disabled={busy}
             onClick={() => void act(() => update({ data: { id: t.id, status: "resolved" } }))}
           >
             <MessageCircleReply size={16} aria-hidden="true" /> Marquer{" "}
             {statusLabel("resolved").toLowerCase()}
-          </button>
+          </Button>
         )}
       </div>
     </div>

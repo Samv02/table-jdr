@@ -86,7 +86,6 @@ export function FormulaField({
       <div className="ff-head">
         <span className="ff-label">{label}</span>
         <Button
-          variant="prototype"
           className="icon-btn cut-s"
           aria-label={`${open ? "Fermer" : "Modifier"} ${label}`}
           aria-expanded={open}
@@ -130,21 +129,21 @@ export function FormulaField({
               />
               <div className="ff-chips" aria-label="Valeurs à insérer">
                 {vars.map((v) => (
-                  <button type="button" key={v.code} onClick={() => insert(v.code)}>
+                  <Button key={v.code} onClick={() => insert(v.code)}>
                     {v.label}
-                  </button>
+                  </Button>
                 ))}
               </div>
               <div className="ff-chips ops" aria-label="Opérations à insérer">
                 {OPERATORS.map(([text, code]) => (
-                  <button type="button" key={text} onClick={() => insert(code)}>
+                  <Button key={text} onClick={() => insert(code)}>
                     {text}
-                  </button>
+                  </Button>
                 ))}
                 {FUNCTIONS.map(([text, code]) => (
-                  <button type="button" key={text} onClick={() => insert(code)}>
+                  <Button key={text} onClick={() => insert(code)}>
                     {text}
-                  </button>
+                  </Button>
                 ))}
               </div>
             </>
@@ -300,24 +299,22 @@ function Sentence({
               onChange={(v) => onChange({ ...r, steps: r.steps.map((s, j) => (j === i ? v : s)) })}
             />
             {r.steps.length > 1 && (
-              <button
-                type="button"
+              <Button
                 aria-label={`Retirer le palier ${i + 1}`}
                 onClick={() => onChange({ ...r, steps: r.steps.filter((_, j) => j !== i) })}
               >
                 <X size={12} aria-hidden="true" />
-              </button>
+              </Button>
             )}
           </span>
         ))}
-        <button
-          type="button"
+        <Button
           className="ff-add"
           aria-label={`Ajouter un palier à ${label}`}
           onClick={() => onChange({ ...r, steps: [...r.steps, (r.steps.at(-1) ?? 0) + 2] })}
         >
           <Plus size={14} aria-hidden="true" />
-        </button>
+        </Button>
       </div>
     );
   return (

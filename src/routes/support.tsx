@@ -6,6 +6,7 @@ import { InlineError } from "@/components/InlineError";
 import { useIdentity } from "@/lib/active-character";
 import { formatMoment } from "@/lib/admin";
 import { TICKET_CATEGORIES, categoryLabel, statusLabel, validateTicket } from "@/lib/support";
+import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/support")({
   ssr: false,
@@ -91,14 +92,14 @@ function SupportPage() {
             <p className="note">
               Un problème, une question ? Écris-nous : la réponse arrive ici, sur cette page.
             </p>
-            <button type="button" className="bo-btn primary" onClick={() => setCreating(true)}>
+            <Button className="bo-btn primary" onClick={() => setCreating(true)}>
               <Plus size={16} aria-hidden="true" /> Nouvelle demande
-            </button>
+            </Button>
             <ul className="bo-list support-list">
               {tickets?.length === 0 && <li className="note">Aucune demande pour l’instant.</li>}
               {tickets?.map((t) => (
                 <li key={t.id} className="bo-card">
-                  <button type="button" className="bo-card-head" onClick={() => setOpen(t.id)}>
+                  <Button className="bo-card-head" onClick={() => setOpen(t.id)}>
                     <span className="bo-card-title">
                       <b>{t.subject}</b>
                       {t.user_unread && <i className="bo-tag warn">Nouvelle réponse</i>}
@@ -109,7 +110,7 @@ function SupportPage() {
                     <i className={`bo-tag ${t.status === "resolved" ? "" : "warn"}`}>
                       {statusLabel(t.status)}
                     </i>
-                  </button>
+                  </Button>
                 </li>
               ))}
             </ul>
@@ -186,12 +187,12 @@ function NewTicket({
         onChange={(e) => setBody(e.target.value)}
       />
       <div className="bo-actions">
-        <button type="submit" className="bo-btn primary" disabled={busy}>
+        <Button type="submit" className="bo-btn primary" disabled={busy}>
           <Send size={16} aria-hidden="true" /> Envoyer
-        </button>
-        <button type="button" className="bo-btn" onClick={onCancel}>
+        </Button>
+        <Button className="bo-btn" onClick={onCancel}>
           Annuler
-        </button>
+        </Button>
       </div>
     </form>
   );
@@ -258,9 +259,9 @@ function Thread({
 
   return (
     <div className="bo-card bo-form">
-      <button type="button" className="bo-btn support-back" onClick={onBack}>
+      <Button className="bo-btn support-back" onClick={onBack}>
         <ArrowLeft size={16} aria-hidden="true" /> Mes demandes
-      </button>
+      </Button>
       <h2>{t.subject}</h2>
       <p className="note">
         {categoryLabel(t.category)} · {statusLabel(t.status)}
@@ -285,18 +286,17 @@ function Thread({
         onChange={(e) => setBody(e.target.value)}
       />
       <div className="bo-actions">
-        <button
-          type="button"
+        <Button
           className="bo-btn primary"
           disabled={busy || !body.trim()}
           onClick={() => void send()}
         >
           <Send size={16} aria-hidden="true" /> Envoyer
-        </button>
+        </Button>
         {t.status !== "resolved" && (
-          <button type="button" className="bo-btn" onClick={() => void close()}>
+          <Button className="bo-btn" onClick={() => void close()}>
             Mon problème est réglé
-          </button>
+          </Button>
         )}
       </div>
     </div>

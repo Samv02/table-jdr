@@ -201,7 +201,7 @@ export function TableEnvironment({ children }: { children: ReactNode }) {
           <p className="explore-hint">
             Glisse pour explorer · molette ou pincement pour zoomer · double-clic pour recentrer
           </p>
-          <Button variant="prototype" className="eye-restore" onClick={toggleClean}>
+          <Button className="eye-restore" onClick={toggleClean}>
             <Eye /> Afficher l’interface
           </Button>
         </>

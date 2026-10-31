@@ -37,4 +37,18 @@ export default tseslint.config(
     },
   },
   eslintPluginPrettier,
+  {
+    // Un seul bouton dans l'appli : src/components/ui/button.tsx
+    files: ["src/**/*.tsx"],
+    ignores: ["src/components/ui/button.tsx", "src/**/*.test.tsx"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "JSXOpeningElement[name.name='button']",
+          message: "Utilise le composant Button de @/components/ui/button.",
+        },
+      ],
+    },
+  },
 );

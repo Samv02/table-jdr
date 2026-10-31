@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useTable } from "@/lib/table-context";
 import { supabase } from "@/integrations/supabase/client";
 import { useIdentity } from "@/lib/active-character";
-import { hpMax, readStats, readWeapons, type Sheet } from "@/lib/sheet";
+import { hpMax, readStats, readWeapons, type Sheet, hpFill, hpLimit, hpShown } from "@/lib/sheet";
 import { useUniverse } from "@/lib/universe-context";
 import { Button } from "./ui/button";
 import { useNavigate } from "@tanstack/react-router";
@@ -112,13 +112,13 @@ export function GmTable() {
                 </div>
               </div>
               <div className="bar">
-                <progress max={max} value={state?.hp_current ?? 0} />
+                <progress max={1} value={hpFill(state?.hp_current ?? 0, max)} />
               </div>
               <dl>
                 <div>
                   <dt>{u.words.hp}</dt>
                   <dd>
-                    {state?.hp_current ?? "—"}/{max}
+                    {state ? hpShown(state.hp_current, max) : "—"}/{hpLimit(max)}
                   </dd>
                 </div>
                 {defense && (
@@ -147,7 +147,6 @@ export function GmTable() {
                 </p>
               )}
               <Button
-                variant="prototype"
                 className="btn"
                 onClick={() => {
                   id.setActive(r.id);
@@ -156,7 +155,7 @@ export function GmTable() {
               >
                 Ouvrir la fiche
               </Button>
-              <Button variant="prototype" className="btn red" onClick={() => void remove(r)}>
+              <Button className="btn red" onClick={() => void remove(r)}>
                 Supprimer la fiche
               </Button>
             </article>

@@ -48,7 +48,7 @@ function NewPassword() {
               required
             />
           </div>
-          <Button variant="prototype" type="submit" disabled={busy} className="auth-submit cut">
+          <Button type="submit" disabled={busy} className="auth-submit cut">
             {busy ? "ENREGISTREMENT…" : "ENREGISTRER"}
           </Button>
           {msg && (

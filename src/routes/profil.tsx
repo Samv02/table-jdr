@@ -182,7 +182,7 @@ function ProfilePage() {
                   {avatar ? <img src={avatar} alt="Avatar" /> : <UserRound size={32} />}
                 </div>
                 <div className="profile-upload">
-                  <Button variant="prototype" asChild className="btn profile-action">
+                  <Button asChild className="btn profile-action">
                     <label htmlFor="profile-avatar">
                       <Upload size={16} />
                       Changer l’avatar
@@ -210,7 +210,6 @@ function ProfilePage() {
                   onChange={(e) => setUsername(e.target.value)}
                 />
                 <Button
-                  variant="prototype"
                   className="btn y profile-save"
                   onClick={saveUsername}
                   aria-label="Enregistrer le pseudo"
@@ -230,7 +229,6 @@ function ProfilePage() {
               <div className="profile-swatches">
                 {NEON_COLORS.map((c) => (
                   <Button
-                    variant="prototype"
                     key={c.id}
                     onClick={() => setColor(c.id)}
                     className={`profile-swatch neon-${c.id}`}
@@ -292,7 +290,7 @@ function ProfilePage() {
               </div>
               <p className="note">Un problème, une question ? Écris-nous, la réponse arrive ici.</p>
               <div className="profile-account">
-                <Button variant="prototype" asChild className="btn profile-action">
+                <Button asChild className="btn profile-action">
                   <Link to="/support">
                     <LifeBuoy size={16} /> Mes demandes d’aide
                   </Link>
@@ -304,11 +302,11 @@ function ProfilePage() {
                 <h2>COMPTE</h2>
               </div>
               <div className="profile-account">
-                <Button variant="prototype" asChild className="btn profile-action">
+                <Button asChild className="btn profile-action">
                   <Link to="/mot-de-passe">Changer le mot de passe</Link>
                 </Button>
                 {!identity.isAdmin && (
-                  <Button variant="prototype" className="btn red" onClick={deleteMe}>
+                  <Button className="btn red" onClick={deleteMe}>
                     <Trash2 size={16} /> Supprimer mon compte
                   </Button>
                 )}

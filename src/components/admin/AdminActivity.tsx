@@ -31,6 +31,7 @@ import {
   type LogCategory,
 } from "@/lib/admin";
 import type { AdminRun } from "@/routes/admin";
+import { Button } from "@/components/ui/button";
 
 const VIEWS: { key: EventKind; label: string; icon: typeof Dices }[] = [
   { key: "roll", label: "Jets", icon: Dices },
@@ -128,9 +129,8 @@ export function AdminActivity({
     <>
       <div className="bo-views" role="tablist" aria-label="Type d’activité">
         {VIEWS.map(({ key, label, icon: Icon }) => (
-          <button
+          <Button
             key={key}
-            type="button"
             role="tab"
             aria-selected={kind === key}
             className={kind === key ? "on" : ""}
@@ -141,43 +141,40 @@ export function AdminActivity({
             }}
           >
             <Icon size={16} aria-hidden="true" /> {label}
-          </button>
+          </Button>
         ))}
       </div>
       {inJournal ? (
         <div className="bo-filters">
           {CATEGORIES.map((c) => (
-            <button
+            <Button
               key={c.key}
-              type="button"
               className={`bo-chip ${category === c.key ? "on" : ""}`}
               aria-pressed={category === c.key}
               onClick={() => setCategory(c.key)}
             >
               {c.label}
-            </button>
+            </Button>
           ))}
         </div>
       ) : (
         <div className="bo-filters" aria-label="Filtrer par équipe">
-          <button
-            type="button"
+          <Button
             className={`bo-chip ${teamId === "" ? "on" : ""}`}
             aria-pressed={teamId === ""}
             onClick={() => setTeamId("")}
           >
             Toutes les équipes
-          </button>
+          </Button>
           {teams.map((t) => (
-            <button
+            <Button
               key={t.id}
-              type="button"
               className={`bo-chip ${teamId === t.id ? "on" : ""}`}
               aria-pressed={teamId === t.id}
               onClick={() => setTeamId(t.id)}
             >
               {t.name} <small>{countFor(t.id)}</small>
-            </button>
+            </Button>
           ))}
         </div>
       )}
@@ -245,9 +242,9 @@ export function AdminActivity({
         </section>
       ))}
       {shown.length > limit && (
-        <button type="button" className="bo-btn bo-more" onClick={() => setLimit(limit + PAGE)}>
+        <Button className="bo-btn bo-more" onClick={() => setLimit(limit + PAGE)}>
           Afficher plus
-        </button>
+        </Button>
       )}
     </>
   );
@@ -306,8 +303,7 @@ function MessageRow({
         {flagged && e.reviewed && <i className="bo-tag">Vu</i>}
         <span className="bo-msg-tools">
           {flagged && !e.reviewed && (
-            <button
-              type="button"
+            <Button
               className="bo-btn bo-icon"
               aria-label={`Marquer vu le message de ${e.who}`}
               title="Marquer vu"
@@ -315,11 +311,10 @@ function MessageRow({
               onClick={onReview}
             >
               <Check size={14} aria-hidden="true" />
-            </button>
+            </Button>
           )}
           {flagged && e.senderId && (
-            <button
-              type="button"
+            <Button
               className="bo-btn bo-icon danger"
               aria-label={`Suspendre ${e.who}`}
               title="Suspendre l’auteur"
@@ -327,10 +322,9 @@ function MessageRow({
               onClick={onSuspend}
             >
               <Ban size={14} aria-hidden="true" />
-            </button>
+            </Button>
           )}
-          <button
-            type="button"
+          <Button
             className="bo-btn bo-icon"
             aria-label={`Supprimer le message de ${e.who}`}
             title="Supprimer le message"
@@ -338,7 +332,7 @@ function MessageRow({
             onClick={onDelete}
           >
             <Trash2 size={14} aria-hidden="true" />
-          </button>
+          </Button>
         </span>
       </div>
       <p className="bo-text">

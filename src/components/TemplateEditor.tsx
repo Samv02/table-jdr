@@ -119,7 +119,6 @@ export function TemplateEditor({
             }
           />
           <Button
-            variant="prototype"
             className="icon-btn cut-s"
             aria-label={`Retirer la compétence ${i + 1}`}
             onClick={() => patch({ skills: t.skills.filter((_, j) => j !== i) })}
@@ -130,7 +129,6 @@ export function TemplateEditor({
       ))}
       <div className="catalog-tools">
         <Button
-          variant="prototype"
           className="btn"
           disabled={!draft.rules.stats.length}
           onClick={() =>
@@ -145,7 +143,6 @@ export function TemplateEditor({
           Ajouter une compétence
         </Button>
         <Button
-          variant="prototype"
           className="btn"
           disabled={!draft.rules.skillLibrary.length}
           onClick={() => patch({ skills: draft.rules.skillLibrary })}

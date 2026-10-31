@@ -145,7 +145,6 @@ export function DicePanel({ fiche = false }: { fiche?: boolean }) {
   return (
     <>
       <Button
-        variant="prototype"
         aria-label="Ouvrir les dés"
         title={identity.isGm ? "Lancer · MJ" : `Lancer · ${charLabel(identity.active) ?? ""}`}
         className={`fab-desk ${fiche && !identity.isGm ? "player-fab" : ""}`}
@@ -165,7 +164,6 @@ export function DicePanel({ fiche = false }: { fiche?: boolean }) {
         <div className="sheet-heading">
           <h3>LANCEUR DE DÉS</h3>
           <Button
-            variant="prototype"
             className="icon-btn cut-s"
             aria-label="Fermer le lanceur"
             onClick={() => setOpen(false)}
@@ -185,7 +183,6 @@ export function DicePanel({ fiche = false }: { fiche?: boolean }) {
           <span className="live">EN DIRECT</span>
           <div className="drawer-actions">
             <Button
-              variant="prototype"
               className="icon-btn cut-s"
               aria-label={pinned ? "Désépingler" : "Épingler"}
               title={pinned ? "Désépingler" : "Épingler"}
@@ -194,12 +191,7 @@ export function DicePanel({ fiche = false }: { fiche?: boolean }) {
             >
               {pinned ? <PinOff /> : <Pin />}
             </Button>
-            <Button
-              variant="prototype"
-              className="icon-btn cut-s"
-              aria-label="Fermer le fil"
-              onClick={closeFeed}
-            >
+            <Button className="icon-btn cut-s" aria-label="Fermer le fil" onClick={closeFeed}>
               <X />
             </Button>
           </div>
@@ -208,7 +200,6 @@ export function DicePanel({ fiche = false }: { fiche?: boolean }) {
       </aside>
       {pinned && !desktop && (
         <Button
-          variant="prototype"
           className="mini-roll-feed"
           aria-label="Ouvrir le fil complet"
           onClick={() => setFeed(true)}
@@ -316,7 +307,6 @@ function Launcher() {
       <div className="dgrid">
         {DICE_SIDES.map((s) => (
           <Button
-            variant="prototype"
             key={s}
             className={`die cut-s ${!custom && sides === s ? "on" : ""}`}
             onClick={() => {
@@ -372,29 +362,17 @@ function Launcher() {
       <div className="srow">
         <div className="stepper">
           <label>NB</label>
-          <Button
-            variant="prototype"
-            aria-label="Moins de dés"
-            onClick={() => setCount((c) => Math.max(1, c - 1))}
-          >
+          <Button aria-label="Moins de dés" onClick={() => setCount((c) => Math.max(1, c - 1))}>
             −
           </Button>
           <b>{count}</b>
-          <Button
-            variant="prototype"
-            aria-label="Plus de dés"
-            onClick={() => setCount((c) => Math.min(10, c + 1))}
-          >
+          <Button aria-label="Plus de dés" onClick={() => setCount((c) => Math.min(10, c + 1))}>
             +
           </Button>
         </div>
         <div className="stepper">
           <label>MOD</label>
-          <Button
-            variant="prototype"
-            aria-label="Diminuer le modificateur"
-            onClick={() => setMod((m) => m - 1)}
-          >
+          <Button aria-label="Diminuer le modificateur" onClick={() => setMod((m) => m - 1)}>
             −
           </Button>
           <input
@@ -403,11 +381,7 @@ function Launcher() {
             value={mod}
             onChange={(e) => setMod(parseInt(e.target.value) || 0)}
           />
-          <Button
-            variant="prototype"
-            aria-label="Augmenter le modificateur"
-            onClick={() => setMod((m) => m + 1)}
-          >
+          <Button aria-label="Augmenter le modificateur" onClick={() => setMod((m) => m + 1)}>
             +
           </Button>
         </div>
@@ -428,7 +402,6 @@ function Launcher() {
         <span className="note">{validSides ? formula(count, sides, mod) : "—"}</span>
       </div>
       <Button
-        variant="prototype"
         className="go cut"
         disabled={busy || !canRoll || !validSides}
         aria-label="Lancer"

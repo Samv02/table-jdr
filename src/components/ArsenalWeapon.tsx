@@ -124,7 +124,6 @@ export function ArsenalWeapon({
         {canRoll ? (
           <>
             <Button
-              variant="prototype"
               className="act cut-s"
               onClick={() =>
                 onRoll(atk.count, atk.sides, atk.mod, `${W.attack} ${w.name}`, atk.target)
@@ -135,7 +134,6 @@ export function ArsenalWeapon({
             </Button>
             {dmg && (
               <Button
-                variant="prototype"
                 className="act dmg cut-s"
                 onClick={() => onRoll(dmg.count, dmg.sides, dmg.mod, `${W.damage} ${w.name}`)}
               >
@@ -191,7 +189,6 @@ export function ArsenalWeapon({
           </div>
           <div className="mag-acts">
             <Button
-              variant="prototype"
               className="fire cut-s"
               disabled={!canEdit || busy || a.mag < 1}
               onClick={() => fire(1)}
@@ -200,7 +197,6 @@ export function ArsenalWeapon({
             </Button>
             {auto && (
               <Button
-                variant="prototype"
                 className="fire cut-s"
                 disabled={!canEdit || busy || a.mag < 10}
                 onClick={() => fire(10)}
@@ -210,7 +206,6 @@ export function ArsenalWeapon({
             )}
             {canDouble(w) && (
               <Button
-                variant="prototype"
                 className="fire cut-s"
                 disabled={!canEdit || busy || a.mag < 2}
                 onClick={() => fire(2)}
@@ -219,7 +214,6 @@ export function ArsenalWeapon({
               </Button>
             )}
             <Button
-              variant="prototype"
               className={`btn y reload cut-s ${reloading ? "busy" : ""}`}
               disabled={!canEdit || busy || a.mag >= w.capacity || (a.spare === 0 && a.loose === 0)}
               onClick={refill}
@@ -239,7 +233,6 @@ export function ArsenalWeapon({
                 {label}{" "}
                 <span className="step">
                   <Button
-                    variant="prototype"
                     aria-label={`Diminuer ${label}`}
                     disabled={!canEdit || a[key] === 0}
                     onClick={() =>
@@ -266,7 +259,6 @@ export function ArsenalWeapon({
                     <b>{a[key]}</b>
                   )}
                   <Button
-                    variant="prototype"
                     aria-label={`Augmenter ${label}`}
                     disabled={!canEdit}
                     onClick={() => onAmmo((current) => ({ ...current, [key]: current[key] + 1 }))}
@@ -277,7 +269,6 @@ export function ArsenalWeapon({
               </span>
             ))}
             <Button
-              variant="prototype"
               className="btn"
               disabled={!canEdit || a.loose < w.capacity}
               title={`${w.capacity} ${W.rounds} en ${W.loose.toLowerCase()} → 1 ${W.spare.toLowerCase()} pleine`}

@@ -26,6 +26,7 @@ import { THEME_BOOT } from "@/lib/theme";
 import { useIdentity } from "@/lib/active-character";
 import { routeGuard } from "@/lib/team";
 import { AnnouncementBanner, MaintenanceGate } from "@/components/PlatformNotices";
+import { Button } from "@/components/ui/button";
 
 function NotFoundComponent() {
   return (
@@ -62,7 +63,7 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
           Un problème est survenu. Tu peux réessayer ou revenir à l’accueil.
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
-          <button
+          <Button
             onClick={() => {
               router.invalidate();
               reset();
@@ -70,7 +71,7 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
             className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
             Réessayer
-          </button>
+          </Button>
           <a
             href="/"
             className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"

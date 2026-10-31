@@ -1,4 +1,4 @@
-import { addSkills, hpAfter, hpShown, missingSkills } from "./sheet";
+import { addSkills, ammoOf, hpAfter, hpFill, hpLimit, hpShown, missingSkills } from "./sheet";
 import { describe, expect, it } from "vitest";
 import {
   ammoStatus,
@@ -11,7 +11,6 @@ import {
   readWeapons,
   reload,
   packMagazine,
-  seedAmmo,
   shoot,
   skillBase,
   weaponSkill,
@@ -166,12 +165,6 @@ describe("munitions", () => {
       { name: "C", ammo: "" },
     ],
   });
-  it("crée les entrées manquantes, clé = position de l'arme", () => {
-    const r = seedAmmo(weapons, {});
-    expect(r.changed).toBe(true);
-    expect(r.ammo).toEqual({ "0": { mag: 12, spare: 2, loose: 0 } });
-    expect(seedAmmo(weapons, r.ammo).changed).toBe(false);
-  });
   it("statut OK / BAS / VIDE", () => {
     expect(ammoStatus(12, 12)).toBe("OK");
     expect(ammoStatus(3, 12)).toBe("BAS");
@@ -247,5 +240,20 @@ describe("HP never depend on a computed maximum being known", () => {
     expect(hpAfter(16, 5, 0)).toBe(21);
     expect(hpAfter(0, 5, 0)).toBe(5);
     expect(hpAfter(16, -20, 0)).toBe(0);
+  });
+});
+
+describe("HP bars read the data and never fail on a missing maximum", () => {
+  it("fills the bar from the stored value", () => {
+    expect(hpFill(10, 20)).toBe(0.5);
+    expect(hpFill(25, 20)).toBe(1);
+    expect(hpFill(16, 0)).toBe(1);
+    expect(hpFill(0, 0)).toBe(0);
+    expect(hpLimit(0)).toBe("?");
+  });
+  it("reads a new weapon as full without storing anything", () => {
+    const stored = {};
+    expect(ammoOf(stored, 0, 12)).toEqual({ mag: 12, spare: 2, loose: 0 });
+    expect(stored).toEqual({});
   });
 });

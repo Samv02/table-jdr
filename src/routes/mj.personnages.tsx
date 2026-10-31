@@ -260,12 +260,7 @@ function GmCharacters() {
       <div className="wrap">
         <div className="gm-tabs">
           {["table", "personnages", "scenes", "musique", "univers"].map((t) => (
-            <Button
-              variant="prototype"
-              key={t}
-              className={tab === t ? "on" : ""}
-              onClick={() => setTab(t)}
-            >
+            <Button key={t} className={tab === t ? "on" : ""} onClick={() => setTab(t)}>
               {t === "personnages"
                 ? "Personnages"
                 : t === "scenes"
@@ -295,11 +290,7 @@ function GmCharacters() {
                 </div>
                 <p className="note">Scène en cours</p>
                 {table.activeScene && (
-                  <Button
-                    variant="prototype"
-                    className="scard live"
-                    onClick={() => setTab("scenes")}
-                  >
+                  <Button className="scard live" onClick={() => setTab("scenes")}>
                     <div className="thumb">
                       {table.activeScene.url && <img src={table.activeScene.url} alt="" />}
                     </div>
@@ -310,7 +301,7 @@ function GmCharacters() {
                   </Button>
                 )}
                 <p className="note">Musique</p>
-                <Button variant="prototype" className="qi on" onClick={() => setTab("musique")}>
+                <Button className="qi on" onClick={() => setTab("musique")}>
                   <div className={`eq ${table.music.is_playing ? "" : "paused"}`}>
                     <b />
                     <b />
@@ -329,7 +320,7 @@ function GmCharacters() {
               <div>
                 <h1 className="">PERSONNAGES</h1>
               </div>
-              <Button variant="prototype" className="btn" onClick={() => setShowImport((v) => !v)}>
+              <Button className="btn" onClick={() => setShowImport((v) => !v)}>
                 Importer un fichier
               </Button>
             </div>
@@ -351,12 +342,7 @@ function GmCharacters() {
                   rows={10}
                   className="field"
                 />
-                <Button
-                  variant="prototype"
-                  className={btn}
-                  onClick={doImport}
-                  disabled={!text.trim()}
-                >
+                <Button className={btn} onClick={doImport} disabled={!text.trim()}>
                   Importer
                 </Button>
               </div>
@@ -417,17 +403,10 @@ function GmCharacters() {
                   Départ : {tplSummary}. Tout se règle dans Univers → Fiche de départ.
                 </p>
                 <div className="char-actions">
-                  <Button
-                    variant="prototype"
-                    type="submit"
-                    className="btn y"
-                    disabled={!newName.trim()}
-                  >
+                  <Button type="submit" className="btn y" disabled={!newName.trim()}>
                     Créer et ouvrir la fiche
                   </Button>
                   <Button
-                    variant="prototype"
-                    type="button"
                     className="btn"
                     disabled={!newName.trim()}
                     onClick={() => void createCharacter(false)}
@@ -476,7 +455,6 @@ function GmCharacters() {
                       </select>
                       <span className="char-actions">
                         <Button
-                          variant="prototype"
                           className="btn y"
                           aria-label={`Ouvrir la fiche de ${r.handle || r.name}`}
                           onClick={() => openSheet(r.id)}
@@ -484,7 +462,6 @@ function GmCharacters() {
                           Ouvrir
                         </Button>
                         <Button
-                          variant="prototype"
                           className="icon-btn cut-s"
                           aria-label={`Exporter ${r.handle || r.name}`}
                           title="Exporter en fichier"
@@ -493,7 +470,6 @@ function GmCharacters() {
                           <Download />
                         </Button>
                         <Button
-                          variant="prototype"
                           className="icon-btn cut-s"
                           aria-label={`Supprimer ${r.handle || r.name}`}
                           title="Supprimer"
@@ -539,7 +515,6 @@ function GmCharacters() {
                     <option value="gm">MJ</option>
                   </select>
                   <Button
-                    variant="prototype"
                     className="btn red"
                     aria-label={`Retirer ${p.username ?? p.id.slice(0, 8)} de l’équipe`}
                     title={

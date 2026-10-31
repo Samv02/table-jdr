@@ -166,7 +166,7 @@ function AuthForm() {
           <Link to="/confidentialite">politique de confidentialité</Link>.
         </p>
       )}
-      <Button variant="prototype" type="submit" disabled={busy} className="auth-submit cut">
+      <Button type="submit" disabled={busy} className="auth-submit cut">
         <LogIn aria-hidden="true" />
         {busy ? SUBMIT[mode].busy : SUBMIT[mode].idle}
       </Button>
@@ -183,19 +183,11 @@ function AuthForm() {
       <div className="auth-switch">
         {mode === "login" ? (
           <>
-            {signupsOpen && (
-              <button type="button" onClick={() => switchMode("signup")}>
-                Créer un compte
-              </button>
-            )}
-            <button type="button" onClick={() => switchMode("reset")}>
-              Mot de passe oublié
-            </button>
+            {signupsOpen && <Button onClick={() => switchMode("signup")}>Créer un compte</Button>}
+            <Button onClick={() => switchMode("reset")}>Mot de passe oublié</Button>
           </>
         ) : (
-          <button type="button" onClick={() => switchMode("login")}>
-            J’ai déjà un compte
-          </button>
+          <Button onClick={() => switchMode("login")}>J’ai déjà un compte</Button>
         )}
       </div>
     </form>

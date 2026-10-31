@@ -221,6 +221,15 @@ export function hpAfter(hp: number, delta: number, max: number) {
   return max > 0 ? Math.min(max, next) : next;
 }
 
+/** Part de la barre remplie, entre 0 et 1. Sans maximum connu, les PV remplissent la barre. */
+export function hpFill(hp: number, max: number) {
+  const top = max > 0 ? max : Math.max(hp, 1);
+  return Math.max(0, Math.min(1, hp / top));
+}
+
+/** Maximum à afficher : « ? » tant qu'il est inconnu. */
+export const hpLimit = (max: number) => (max > 0 ? max : "?");
+
 export type HpStatus = "ok" | "blesse" | "mourant";
 
 /** État de santé. `wounded` = seuil « gravement blessé » (null : l'univers n'en a pas). */
@@ -269,22 +278,15 @@ export function shoot(a: AmmoEntry, n: number): AmmoEntry {
 }
 
 /**
- * Garantit une entrée de munitions par arme à balles, clé = position de l'arme
- * dans sheet.weapons ("0" = première arme). Crée { mag: capacité, spare: 2, loose: 0 }.
+ * Munitions d'une arme (clé = position dans sheet.weapons). Tant que le joueur n'a pas tiré,
+ * rien n'est enregistré : l'arme se lit comme neuve.
  */
-export function seedAmmo(
-  weapons: SheetWeapon[],
+export function ammoOf(
   ammo: Record<string, AmmoEntry>,
-): { ammo: Record<string, AmmoEntry>; changed: boolean } {
-  const out = { ...ammo };
-  let changed = false;
-  weapons.forEach((w, i) => {
-    if (w.capacity > 0 && !out[String(i)]) {
-      out[String(i)] = { mag: w.capacity, spare: 2, loose: 0 };
-      changed = true;
-    }
-  });
-  return { ammo: out, changed };
+  index: number,
+  capacity: number,
+): AmmoEntry {
+  return ammo[String(index)] ?? { mag: capacity, spare: 2, loose: 0 };
 }
 
 /** Note d'export : état des munitions rangé dans weapons[].note. */

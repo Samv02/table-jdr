@@ -112,7 +112,7 @@ export function CatalogManager() {
             </option>
           ))}
         </select>
-        <Button variant="prototype" className="btn y" onClick={() => setDraft({ ...NEW_ITEM })}>
+        <Button className="btn y" onClick={() => setDraft({ ...NEW_ITEM })}>
           <Plus size={16} /> Nouvel objet
         </Button>
       </div>
@@ -329,7 +329,6 @@ export function CatalogManager() {
                       />
                     )}
                     <Button
-                      variant="prototype"
                       className="icon-btn cut-s"
                       aria-label={`Retirer l’effet ${i + 1}`}
                       onClick={() =>
@@ -341,7 +340,6 @@ export function CatalogManager() {
                   </div>
                 ))}
                 <Button
-                  variant="prototype"
                   className="btn"
                   onClick={() =>
                     patchData({
@@ -364,10 +362,10 @@ export function CatalogManager() {
             Visible en boutique (décoché : caché, seul le MJ peut le donner)
           </label>
           <div className="catalog-tools">
-            <Button variant="prototype" className="btn y" onClick={() => void save()}>
+            <Button className="btn y" onClick={() => void save()}>
               Enregistrer l’objet
             </Button>
-            <Button variant="prototype" className="btn" onClick={() => setDraft(null)}>
+            <Button className="btn" onClick={() => setDraft(null)}>
               Fermer
             </Button>
           </div>
@@ -396,7 +394,6 @@ export function CatalogManager() {
               {item.price} {u.words.moneySymbol}
             </span>
             <Button
-              variant="prototype"
               className="icon-btn cut-s"
               title={item.in_shop ? "Cacher" : "Montrer en boutique"}
               aria-label={`${item.in_shop ? "Cacher" : "Montrer"} ${item.name}`}
@@ -405,7 +402,6 @@ export function CatalogManager() {
               {item.in_shop ? <Eye /> : <EyeOff />}
             </Button>
             <Button
-              variant="prototype"
               className="icon-btn cut-s"
               title="Dupliquer"
               aria-label={`Dupliquer ${item.name}`}
@@ -414,7 +410,6 @@ export function CatalogManager() {
               <Copy />
             </Button>
             <Button
-              variant="prototype"
               className="icon-btn cut-s"
               title="Modifier"
               aria-label={`Modifier ${item.name}`}
@@ -423,7 +418,6 @@ export function CatalogManager() {
               <Pencil />
             </Button>
             <Button
-              variant="prototype"
               className="icon-btn cut-s"
               title="Supprimer"
               aria-label={`Supprimer ${item.name}`}

@@ -93,7 +93,6 @@ export function AppHeader() {
         <div className="hud-actions">
           {id.teamId && (
             <Button
-              variant="prototype"
               className="icon-btn cut-s"
               title="Fil des jets"
               aria-label="Fil des jets"
@@ -107,7 +106,6 @@ export function AppHeader() {
             </Button>
           )}
           <Button
-            variant="prototype"
             className="icon-btn cut-s"
             title="Masquer l’interface"
             aria-label="Masquer l’interface"
@@ -174,16 +172,11 @@ export function AppHeader() {
         </nav>
         <div className="nav-actions">
           {id.isVisitor && (
-            <Button
-              variant="prototype"
-              className="btn y visit-exit"
-              onClick={() => void openTeam(null, "/admin")}
-            >
+            <Button className="btn y visit-exit" onClick={() => void openTeam(null, "/admin")}>
               Retour au back office
             </Button>
           )}
           <Button
-            variant="prototype"
             className="icon-btn cut-s"
             title="Déconnexion"
             aria-label="Déconnexion"

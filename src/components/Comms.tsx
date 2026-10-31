@@ -272,8 +272,7 @@ export function Comms() {
   return (
     <>
       {/* Bouton flottant en bas à gauche, fixe à l'écran (pendant du bouton de dés en bas à droite) */}
-      <button
-        type="button"
+      <Button
         className={`comms-fab ${total > 0 ? "ping" : ""} ${open ? "hide" : ""}`}
         aria-label={`${W.messaging}${total ? ` (${total} non lu${total > 1 ? "s" : ""})` : ""}`}
         title={W.messaging}
@@ -285,17 +284,12 @@ export function Comms() {
         <MessagesSquare />
         <span className="comms-fab-label">{W.messaging.toUpperCase()}</span>
         {total > 0 && <span className="badge">{total}</span>}
-      </button>
+      </Button>
       <div className={`scrim comms-scrim ${open ? "on" : ""}`} onClick={() => setOpen(false)} />
       <aside className={`comms ${open ? "open" : ""}`} inert={!open} aria-label={W.messaging}>
         <header className="comms-head">
           {view !== "list" && (
-            <Button
-              variant="prototype"
-              className="icon-btn cut-s"
-              aria-label="Retour"
-              onClick={() => setView("list")}
-            >
+            <Button className="icon-btn cut-s" aria-label="Retour" onClick={() => setView("list")}>
               <ArrowLeft size={18} />
             </Button>
           )}
@@ -323,12 +317,7 @@ export function Comms() {
               </>
             )}
           </div>
-          <Button
-            variant="prototype"
-            className="icon-btn cut-s"
-            aria-label="Fermer"
-            onClick={() => setOpen(false)}
-          >
+          <Button className="icon-btn cut-s" aria-label="Fermer" onClick={() => setOpen(false)}>
             <X size={18} />
           </Button>
         </header>
@@ -337,11 +326,7 @@ export function Comms() {
         {view === "list" && (
           <div className="comms-list">
             {id.isGm && (
-              <Button
-                variant="prototype"
-                className="conv perms-entry cut-s"
-                onClick={() => setView("perms")}
-              >
+              <Button className="conv perms-entry cut-s" onClick={() => setView("perms")}>
                 <Radio size={18} />
                 <span className="conv-txt">
                   <b>Autoriser les {W.privateCalls.toLowerCase()}</b>
@@ -428,13 +413,13 @@ export function Comms() {
                           <b>{mine ? "Toi" : m.sender_name}</b>
                           <span>{hhmm(m.created_at)}</span>
                           {id.isGm && (
-                            <button
+                            <Button
                               className="msg-del"
                               aria-label="Supprimer ce message"
                               onClick={() => void remove(m)}
                             >
                               <Trash2 size={12} />
-                            </button>
+                            </Button>
                           )}
                         </div>
                         <p>{m.body}</p>
@@ -485,7 +470,7 @@ export function Comms() {
                   }}
                 />
                 <Button
-                  variant="prototype"
+                  type="submit"
                   className="btn y send cut-s"
                   aria-label="Envoyer"
                   disabled={!draft.trim() || sending}
@@ -527,7 +512,6 @@ export function Comms() {
                   </div>
                   <div className="perms-global">
                     <Button
-                      variant="prototype"
                       className="btn"
                       disabled={links.length === total}
                       onClick={() => void setAllLinks(true)}
@@ -535,7 +519,6 @@ export function Comms() {
                       Tout ouvrir
                     </Button>
                     <Button
-                      variant="prototype"
                       className="btn red"
                       disabled={links.length === 0}
                       onClick={() => void setAllLinks(false)}
@@ -576,7 +559,6 @@ export function Comms() {
                     </span>
                     <span className="pnode-all">
                       <Button
-                        variant="prototype"
                         className="mini"
                         title={`${p.handle} peut joindre tout le monde`}
                         disabled={linked.length === others.length}
@@ -589,7 +571,6 @@ export function Comms() {
                         Tous
                       </Button>
                       <Button
-                        variant="prototype"
                         className="mini"
                         title={`Isoler ${p.handle}`}
                         disabled={!linked.length}
@@ -606,8 +587,7 @@ export function Comms() {
                     {others.map((q) => {
                       const on = isLinked(links, p.character_id, q.character_id);
                       return (
-                        <button
-                          type="button"
+                        <Button
                           key={q.character_id}
                           className={`pchip ${on ? "on" : ""}`}
                           aria-pressed={on}
@@ -620,7 +600,7 @@ export function Comms() {
                         >
                           {on ? <Radio size={13} /> : <Lock size={12} />}
                           {q.handle}
-                        </button>
+                        </Button>
                       );
                     })}
                   </div>
@@ -671,7 +651,6 @@ function ConvRow({
   const Icon = KIND_ICON[c.kind];
   return (
     <Button
-      variant="prototype"
       className={`conv cut-s k-${c.kind} ${c.allowed ? "" : "off"} ${unread ? "has-unread" : ""}`}
       onClick={onOpen}
     >

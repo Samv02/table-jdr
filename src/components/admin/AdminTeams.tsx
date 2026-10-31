@@ -17,6 +17,7 @@ import {
 import { filterTeams, formatDay, formatMoment, plural, type TeamFilter } from "@/lib/admin";
 import { openTeam } from "@/lib/team";
 import type { AdminRun } from "@/routes/admin";
+import { Button } from "@/components/ui/button";
 
 const FILTERS: { key: TeamFilter; label: string }[] = [
   { key: "all", label: "Toutes" },
@@ -60,9 +61,9 @@ export function AdminTeams({
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        <button type="button" className="bo-btn primary" onClick={() => setAdding((v) => !v)}>
+        <Button className="bo-btn primary" onClick={() => setAdding((v) => !v)}>
           <Plus size={16} aria-hidden="true" /> Nouvelle équipe
-        </button>
+        </Button>
       </div>
       {adding && (
         <form
@@ -99,22 +100,21 @@ export function AdminTeams({
               </option>
             ))}
           </select>
-          <button type="submit" className="bo-btn primary" disabled={busy}>
+          <Button type="submit" className="bo-btn primary" disabled={busy}>
             Créer l’équipe
-          </button>
+          </Button>
         </form>
       )}
       <div className="bo-filters">
         {FILTERS.map((f) => (
-          <button
+          <Button
             key={f.key}
-            type="button"
             className={`bo-chip ${filter === f.key ? "on" : ""}`}
             aria-pressed={filter === f.key}
             onClick={() => setFilter(f.key)}
           >
             {f.label}
-          </button>
+          </Button>
         ))}
         <span className="bo-muted">
           {shown.length} sur {teams.length}
@@ -124,8 +124,7 @@ export function AdminTeams({
         {shown.length === 0 && <li className="bo-muted">Aucune équipe.</li>}
         {shown.map((t) => (
           <li key={t.id} className="bo-card">
-            <button
-              type="button"
+            <Button
               className="bo-card-head"
               aria-expanded={open === t.id}
               onClick={() => setOpen(open === t.id ? null : t.id)}
@@ -140,7 +139,7 @@ export function AdminTeams({
               </span>
               <code className="bo-card-side">{t.join_code}</code>
               <ChevronDown size={18} aria-hidden="true" />
-            </button>
+            </Button>
             {open === t.id && (
               <TeamDetail
                 key={t.name}
@@ -235,9 +234,9 @@ function TeamDetail({
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
-        <button type="submit" className="bo-btn" disabled={busy || name.trim() === t.name}>
+        <Button type="submit" className="bo-btn" disabled={busy || name.trim() === t.name}>
           Renommer
-        </button>
+        </Button>
       </form>
 
       <h3>Membres</h3>
@@ -266,8 +265,7 @@ function TeamDetail({
               <option value="player">Joueur</option>
               <option value="gm">MJ</option>
             </select>
-            <button
-              type="button"
+            <Button
               className="bo-btn"
               title="Retirer de l’équipe"
               aria-label={`Retirer ${m.username ?? "ce membre"}`}
@@ -277,7 +275,7 @@ function TeamDetail({
               }
             >
               <UserMinus size={16} aria-hidden="true" />
-            </button>
+            </Button>
           </li>
         ))}
       </ul>
@@ -296,8 +294,7 @@ function TeamDetail({
               </option>
             ))}
           </select>
-          <button
-            type="button"
+          <Button
             className="bo-btn"
             disabled={busy || !userId}
             onClick={() =>
@@ -308,7 +305,7 @@ function TeamDetail({
             }
           >
             <Plus size={16} aria-hidden="true" /> Ajouter
-          </button>
+          </Button>
         </div>
       )}
 
@@ -336,8 +333,7 @@ function TeamDetail({
                 </option>
               ))}
             </select>
-            <button
-              type="button"
+            <Button
               className="bo-btn danger"
               title="Supprimer la fiche"
               aria-label={`Supprimer la fiche ${c.name}`}
@@ -345,15 +341,14 @@ function TeamDetail({
               onClick={() => void askDeleteCharacter(c.id, c.name)}
             >
               <Trash2 size={16} aria-hidden="true" />
-            </button>
+            </Button>
           </li>
         ))}
       </ul>
 
       <h3>Actions</h3>
       <div className="bo-actions">
-        <button
-          type="button"
+        <Button
           className="bo-btn"
           disabled={busy}
           title="Intervenir dans l’équipe avec les droits du MJ"
@@ -363,39 +358,19 @@ function TeamDetail({
           }}
         >
           <LogIn size={16} aria-hidden="true" /> Ouvrir comme MJ
-        </button>
-        <button
-          type="button"
-          className="bo-btn"
-          disabled={busy}
-          onClick={() => void askRegenerate()}
-        >
+        </Button>
+        <Button className="bo-btn" disabled={busy} onClick={() => void askRegenerate()}>
           <RefreshCw size={16} aria-hidden="true" /> Changer le code
-        </button>
-        <button
-          type="button"
-          className="bo-btn"
-          disabled={busy}
-          onClick={() => void askClear("rolls")}
-        >
+        </Button>
+        <Button className="bo-btn" disabled={busy} onClick={() => void askClear("rolls")}>
           <Eraser size={16} aria-hidden="true" /> Vider les jets
-        </button>
-        <button
-          type="button"
-          className="bo-btn"
-          disabled={busy}
-          onClick={() => void askClear("messages")}
-        >
+        </Button>
+        <Button className="bo-btn" disabled={busy} onClick={() => void askClear("messages")}>
           <Eraser size={16} aria-hidden="true" /> Vider les messages
-        </button>
-        <button
-          type="button"
-          className="bo-btn danger"
-          disabled={busy}
-          onClick={() => void askDeleteTeam()}
-        >
+        </Button>
+        <Button className="bo-btn danger" disabled={busy} onClick={() => void askDeleteTeam()}>
           <Trash2 size={16} aria-hidden="true" /> Supprimer l’équipe
-        </button>
+        </Button>
       </div>
     </div>
   );

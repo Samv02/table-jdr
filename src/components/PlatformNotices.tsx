@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Info, LogOut, TriangleAlert, Wrench, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useIdentity } from "@/lib/active-character";
+import { Button } from "@/components/ui/button";
 
 const DISMISSED_KEY = "table:announcements-closed";
 type Announcement = { id: string; body: string; level: string };
@@ -32,8 +33,7 @@ export function MaintenanceGate({ children }: { children: ReactNode }) {
       <Wrench size={32} aria-hidden="true" />
       <h1>Maintenance en cours</h1>
       <p>{message || "L’application revient très vite. Merci de ta patience."}</p>
-      <button
-        type="button"
+      <Button
         className="bo-btn"
         onClick={async () => {
           await supabase.auth.signOut();
@@ -41,7 +41,7 @@ export function MaintenanceGate({ children }: { children: ReactNode }) {
         }}
       >
         <LogOut size={16} aria-hidden="true" /> Déconnexion
-      </button>
+      </Button>
     </main>
   );
 }
@@ -88,8 +88,7 @@ export function AnnouncementBanner() {
             <Info size={16} aria-hidden="true" />
           )}
           <span>{a.body}</span>
-          <button
-            type="button"
+          <Button
             aria-label="Fermer l’annonce"
             onClick={() => {
               const next = [...dismissed, a.id];
@@ -102,7 +101,7 @@ export function AnnouncementBanner() {
             }}
           >
             <X size={16} aria-hidden="true" />
-          </button>
+          </Button>
         </p>
       ))}
     </div>

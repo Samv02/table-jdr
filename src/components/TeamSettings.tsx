@@ -75,7 +75,6 @@ export function TeamSettings() {
       <div className="team-code-row">
         <code className="team-code">{code ?? "…"}</code>
         <Button
-          variant="prototype"
           className="icon-btn cut-s"
           title="Copier le code"
           aria-label="Copier le code"
@@ -84,7 +83,6 @@ export function TeamSettings() {
           {copied ? <Check /> : <Copy />}
         </Button>
         <Button
-          variant="prototype"
           className="icon-btn cut-s"
           title="Changer le code"
           aria-label="Changer le code"
@@ -107,11 +105,11 @@ export function TeamSettings() {
           value={shownName}
           onChange={(e) => setName(e.target.value)}
         />
-        <Button variant="prototype" className="btn y" disabled={shownName.trim().length < 2}>
+        <Button type="submit" className="btn y" disabled={shownName.trim().length < 2}>
           Renommer
         </Button>
       </form>
-      <Button variant="prototype" className="btn red team-delete" onClick={() => void remove()}>
+      <Button className="btn red team-delete" onClick={() => void remove()}>
         <Trash2 size={16} /> Supprimer l’équipe
       </Button>
     </section>

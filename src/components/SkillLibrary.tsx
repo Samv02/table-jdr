@@ -26,12 +26,7 @@ export function SkillPicker({
 
   return (
     <div className="skill-picker">
-      <Button
-        variant="prototype"
-        className="btn y"
-        aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
-      >
+      <Button className="btn y" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
         <Library size={15} /> Bibliothèque ({missing.length})
       </Button>
       {open && (
@@ -48,12 +43,7 @@ export function SkillPicker({
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
-                <Button
-                  variant="prototype"
-                  className="btn"
-                  disabled={!shown.length}
-                  onClick={() => onAdd(shown)}
-                >
+                <Button className="btn" disabled={!shown.length} onClick={() => onAdd(shown)}>
                   Tout ajouter ({shown.length})
                 </Button>
               </div>
@@ -63,18 +53,14 @@ export function SkillPicker({
                   const base = skillBaseFor(u, stats[s.stat] ?? 0, s.level, stats);
                   return (
                     <li key={s.name}>
-                      <button
-                        type="button"
-                        aria-label={`Ajouter ${s.name}`}
-                        onClick={() => onAdd([s])}
-                      >
+                      <Button aria-label={`Ajouter ${s.name}`} onClick={() => onAdd([s])}>
                         <span>
                           <b>{s.name}</b>
                           <small>{statFor(stat)}</small>
                         </span>
                         <em>{base}</em>
                         <Plus size={15} aria-hidden="true" />
-                      </button>
+                      </Button>
                     </li>
                   );
                 })}
@@ -126,7 +112,6 @@ export function SkillBulkAdd({
           ))}
         </select>
         <Button
-          variant="prototype"
           className="btn y"
           disabled={!names.length}
           onClick={() => {

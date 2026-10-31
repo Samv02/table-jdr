@@ -101,7 +101,6 @@ export function SceneManager() {
         {table.scenes.map((s, i) => (
           <article key={s.id} className="scene-entry">
             <Button
-              variant="prototype"
               className={`scard ${table.activeScene?.id === s.id ? "live" : ""}`}
               onClick={() => activate(s)}
               aria-label={`Activer ${s.name}`}
@@ -114,7 +113,6 @@ export function SceneManager() {
             </Button>
             <div className="scene-tools">
               <Button
-                variant="prototype"
                 className="icon-btn cut-s"
                 aria-label="Déplacer à gauche"
                 disabled={i === 0}
@@ -123,7 +121,6 @@ export function SceneManager() {
                 <ArrowLeft />
               </Button>
               <Button
-                variant="prototype"
                 className="icon-btn cut-s"
                 aria-label="Déplacer à droite"
                 disabled={i === table.scenes.length - 1}
@@ -132,7 +129,6 @@ export function SceneManager() {
                 <ArrowRight />
               </Button>
               <Button
-                variant="prototype"
                 className="icon-btn cut-s"
                 aria-label={`Renommer ${s.name}`}
                 onClick={() => {
@@ -146,7 +142,6 @@ export function SceneManager() {
                 <Pencil />
               </Button>
               <Button
-                variant="prototype"
                 className="icon-btn cut-s"
                 aria-label={`Supprimer ${s.name}`}
                 onClick={() => remove(s)}
@@ -157,7 +152,6 @@ export function SceneManager() {
           </article>
         ))}
         <Button
-          variant="prototype"
           className="scard upload cut-s"
           onClick={() => {
             setEditing(null);
@@ -193,15 +187,10 @@ export function SceneManager() {
             onChange={(e) => setFile(e.target.files?.[0] ?? null)}
           />
           <div className="row-btns">
-            <Button
-              variant="prototype"
-              className="btn y"
-              onClick={save}
-              disabled={busy || !name.trim()}
-            >
+            <Button className="btn y" onClick={save} disabled={busy || !name.trim()}>
               Enregistrer
             </Button>
-            <Button variant="prototype" className="btn" onClick={() => setAdding(false)}>
+            <Button className="btn" onClick={() => setAdding(false)}>
               Annuler
             </Button>
           </div>

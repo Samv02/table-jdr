@@ -37,6 +37,8 @@ import { rollDice } from "@/lib/dice.functions";
 import {
   newSkillName,
   hpAfter,
+  hpFill,
+  hpLimit,
   hpShown,
   addSkills,
   ammoNote,
@@ -46,7 +48,7 @@ import {
   readSkills,
   readStats,
   readWeapons,
-  seedAmmo,
+  ammoOf,
   skillBase,
   statKey,
   statLabel,
@@ -235,21 +237,7 @@ function Sheet({ charId, isGm, userId }: { charId: string; isGm: boolean; userId
   const wounded = woundedFor(u, max, stats, sheet);
   const deathSave = deathSaveFor(u, stats, sheet);
 
-  // Crée automatiquement les entrées de munitions manquantes (clé = position de l'arme).
-  // (seulement si l'utilisateur a le droit d'écrire : sinon la base refuserait).
   const mayWrite = isGm || (!!ch && ch.owner_id === userId && ch.players_can_edit);
-  // PV au-dessus du maximum (ex. le MJ a baissé CORPS ou VOL) : ramenés au maximum
-  useEffect(() => {
-    if (!st || !ch || max <= 0 || st.hp_current <= max || !mayWrite) return;
-    void saveState({ hp_current: max });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [st?.hp_current, max, mayWrite]);
-  useEffect(() => {
-    if (!st || !weapons.length || !mayWrite || !u.modules.ammo) return;
-    const r = seedAmmo(weapons, st.ammo);
-    if (r.changed) saveState({ ammo: r.ammo });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [st === null, weapons, mayWrite, u.modules.ammo]);
 
   // MJ : autoriser / bloquer les modifications du joueur sur cette fiche.
   async function setPlayersCanEdit(value: boolean) {
@@ -427,12 +415,12 @@ function Sheet({ charId, isGm, userId }: { charId: string; isGm: boolean; userId
   const lockedForPlayer = !isGm && ch.owner_id === userId && !ch.players_can_edit;
   // Jets depuis la fiche : uniquement si le personnage appartient à l'utilisateur connecté.
   const canRoll = sheetCanRoll(ch.owner_id, userId, isGm);
-  const status = hpStatus(st.hp_current, wounded);
+  const status = hpStatus(hpShown(st.hp_current, max), wounded);
   const updateAmmo = (index: number, update: (current: AmmoEntry) => AmmoEntry) => {
     const current = stateRef.current?.ammo ?? st.ammo;
     const weapon = weapons[index];
     if (!weapon) return;
-    const entry = current[String(index)] ?? { mag: weapon.capacity, spare: 2, loose: 0 };
+    const entry = ammoOf(current, index, weapon.capacity);
     void saveState({ ammo: { ...current, [String(index)]: update(entry) } });
   };
   const setInv = (inv: InventoryItem[]) => saveState({ inventory: inv });
@@ -492,7 +480,6 @@ function Sheet({ charId, isGm, userId }: { charId: string; isGm: boolean; userId
           <div className="banner cut-s">
             Consultation MJ — dés désactivés
             <Button
-              variant="prototype"
               className={`btn lock-toggle ${ch.players_can_edit ? "open" : ""}`}
               aria-pressed={ch.players_can_edit}
               onClick={() => void setPlayersCanEdit(!ch.players_can_edit)}
@@ -520,7 +507,6 @@ function Sheet({ charId, isGm, userId }: { charId: string; isGm: boolean; userId
         <div className="row-btns edit-controls">
           {isGm && (
             <Button
-              variant="prototype"
               className="btn y"
               disabled={saving}
               onClick={() => {
@@ -535,7 +521,6 @@ function Sheet({ charId, isGm, userId }: { charId: string; isGm: boolean; userId
             </Button>
           )}
           <Button
-            variant="prototype"
             className="btn"
             onClick={exportJson}
             title="Exporter JSON"
@@ -585,7 +570,7 @@ function Sheet({ charId, isGm, userId }: { charId: string; isGm: boolean; userId
               <div className="hp-top">
                 <div className="hp-num">
                   {hpShown(st.hp_current, max)}
-                  <small> / {max}</small>
+                  <small> / {hpLimit(max)}</small>
                 </div>
                 <span
                   className={`status ${status === "ok" ? "ok" : status === "blesse" ? "warn" : "bad"}`}
@@ -598,7 +583,7 @@ function Sheet({ charId, isGm, userId }: { charId: string; isGm: boolean; userId
                 {Array.from({ length: 15 }, (_, i) => (
                   <i
                     key={i}
-                    className={i < Math.ceil((Math.max(0, st.hp_current) / max) * 15) ? "" : "off"}
+                    className={i < Math.ceil(hpFill(st.hp_current, max) * 15) ? "" : "off"}
                   />
                 ))}
               </div>
@@ -629,7 +614,6 @@ function Sheet({ charId, isGm, userId }: { charId: string; isGm: boolean; userId
               <div className="row-btns">
                 {[-5, -1, 1, 5].map((delta) => (
                   <Button
-                    variant="prototype"
                     className={`btn ${delta < 0 ? "red" : ""}`}
                     key={delta}
                     disabled={!canEdit}
@@ -653,7 +637,6 @@ function Sheet({ charId, isGm, userId }: { charId: string; isGm: boolean; userId
                   onChange={(e) => setDamage(Math.max(0, Number(e.target.value)))}
                 />
                 <Button
-                  variant="prototype"
                   className="btn red"
                   disabled={!canEdit}
                   onClick={() => saveState({ hp_current: hpAfter(st.hp_current, -damage, max) })}
@@ -661,7 +644,6 @@ function Sheet({ charId, isGm, userId }: { charId: string; isGm: boolean; userId
                   Encaisser
                 </Button>
                 <Button
-                  variant="prototype"
                   className="btn"
                   disabled={!canEdit || max <= 0}
                   onClick={() => saveState({ hp_current: max })}
@@ -690,7 +672,7 @@ function Sheet({ charId, isGm, userId }: { charId: string; isGm: boolean; userId
                     <Gauge
                       key={g.key}
                       gauge={g}
-                      current={num(sheet, g.key)}
+                      current={hpShown(num(sheet, g.key), gaugeMax(u, g, stats, sheet))}
                       max={gaugeMax(u, g, stats, sheet)}
                       edit={edit}
                       onSave={(patch) => saveSheet(patch)}
@@ -753,7 +735,6 @@ function Sheet({ charId, isGm, userId }: { charId: string; isGm: boolean; userId
                   return (
                     <div key={i}>
                       <Button
-                        variant="prototype"
                         className={`skill ${top.has(i) ? "top" : ""}`}
                         aria-disabled={!canRoll}
                         tabIndex={canRoll ? 0 : -1}
@@ -846,7 +827,6 @@ function Sheet({ charId, isGm, userId }: { charId: string; isGm: boolean; userId
                             }
                           />
                           <Button
-                            variant="prototype"
                             className="btn red"
                             aria-label={`Supprimer ${sk.name}`}
                             onClick={async () => {
@@ -894,7 +874,6 @@ function Sheet({ charId, isGm, userId }: { charId: string; isGm: boolean; userId
               )}
               {edit && (
                 <Button
-                  variant="prototype"
                   className="btn y"
                   onClick={() =>
                     saveSheet({
@@ -920,7 +899,7 @@ function Sheet({ charId, isGm, userId }: { charId: string; isGm: boolean; userId
                 <ArsenalWeapon
                   key={i}
                   weapon={w}
-                  ammo={st.ammo[String(i)] ?? { mag: w.capacity, spare: 2, loose: 0 }}
+                  ammo={ammoOf(st.ammo, i, w.capacity)}
                   attack={weaponAttack(w, skills, stats, u)}
                   autoAttack={weaponAttack(w, skills, stats, u, true)}
                   damage={weaponDamage(w, stats, u)}
@@ -961,7 +940,6 @@ function Sheet({ charId, isGm, userId }: { charId: string; isGm: boolean; userId
                         </label>
                       ))}
                       <Button
-                        variant="prototype"
                         className="btn red"
                         onClick={async () => {
                           if (
@@ -988,7 +966,6 @@ function Sheet({ charId, isGm, userId }: { charId: string; isGm: boolean; userId
               ))}
               {edit && (
                 <Button
-                  variant="prototype"
                   className="btn y"
                   onClick={() =>
                     saveSheet({
@@ -1033,7 +1010,6 @@ function Sheet({ charId, isGm, userId }: { charId: string; isGm: boolean; userId
                 <div className="row-btns">
                   {[-100, -10, 10, 100].map((delta) => (
                     <Button
-                      variant="prototype"
                       className="btn"
                       key={delta}
                       disabled={!canEdit}
@@ -1055,7 +1031,6 @@ function Sheet({ charId, isGm, userId }: { charId: string; isGm: boolean; userId
                     onChange={(e) => setAmount(Math.max(0, Number(e.target.value)))}
                   />
                   <Button
-                    variant="prototype"
                     className="btn y"
                     disabled={!canEdit}
                     onClick={() => saveState({ eddies: st.eddies + amount })}
@@ -1063,7 +1038,6 @@ function Sheet({ charId, isGm, userId }: { charId: string; isGm: boolean; userId
                     Gagner
                   </Button>
                   <Button
-                    variant="prototype"
                     className="btn red"
                     disabled={!canEdit}
                     onClick={() => saveState({ eddies: Math.max(0, st.eddies - amount) })}
@@ -1087,7 +1061,6 @@ function Sheet({ charId, isGm, userId }: { charId: string; isGm: boolean; userId
                     </span>
                     {it.usable && it.item_id && (
                       <Button
-                        variant="prototype"
                         className="btn y item-use"
                         disabled={!canEdit || using}
                         onClick={() => void activateItem(it.item_id as string)}
@@ -1096,7 +1069,6 @@ function Sheet({ charId, isGm, userId }: { charId: string; isGm: boolean; userId
                       </Button>
                     )}
                     <Button
-                      variant="prototype"
                       disabled={!canEdit}
                       onClick={() =>
                         setInv(
@@ -1110,7 +1082,6 @@ function Sheet({ charId, isGm, userId }: { charId: string; isGm: boolean; userId
                     </Button>
                     <span className="q">{it.qty}</span>
                     <Button
-                      variant="prototype"
                       disabled={!canEdit}
                       onClick={() =>
                         setInv(st.inventory.map((x, j) => (j === i ? { ...x, qty: x.qty + 1 } : x)))
@@ -1119,7 +1090,6 @@ function Sheet({ charId, isGm, userId }: { charId: string; isGm: boolean; userId
                       +
                     </Button>
                     <Button
-                      variant="prototype"
                       className="x"
                       aria-label={`Supprimer ${it.name}`}
                       disabled={!canEdit}
@@ -1158,7 +1128,7 @@ function Sheet({ charId, isGm, userId }: { charId: string; isGm: boolean; userId
                     onChange={(e) => setNewItem(e.target.value)}
                     placeholder="Nouvel objet"
                   />
-                  <Button variant="prototype" className="btn y">
+                  <Button type="submit" className="btn y">
                     Ajouter
                   </Button>
                 </form>
@@ -1182,7 +1152,6 @@ function Sheet({ charId, isGm, userId }: { charId: string; isGm: boolean; userId
             t.id === "dice" ? (
               <div className="fab-slot" key={t.id}>
                 <Button
-                  variant="prototype"
                   className="fab"
                   aria-label="Ouvrir les dés"
                   onClick={() => window.dispatchEvent(new Event("dice:open"))}
@@ -1191,12 +1160,7 @@ function Sheet({ charId, isGm, userId }: { charId: string; isGm: boolean; userId
                 </Button>
               </div>
             ) : (
-              <Button
-                variant="prototype"
-                key={t.id}
-                className={tab === t.id ? "on" : ""}
-                onClick={() => setTab(t.id)}
-              >
+              <Button key={t.id} className={tab === t.id ? "on" : ""} onClick={() => setTab(t.id)}>
                 {t.id === "jets" ? <DieIcon /> : <t.icon />}
                 {t.label}
               </Button>

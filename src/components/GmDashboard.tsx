@@ -37,7 +37,10 @@ import {
   reload,
   shoot,
   packMagazine,
+  ammoOf,
   hpAfter,
+  hpFill,
+  hpLimit,
   hpShown,
 } from "@/lib/sheet";
 import { orderedSkills, shortSkillName, topSkillIndexes } from "@/lib/skill-presentation";
@@ -413,7 +416,6 @@ export function GmDashboard() {
           const alerts = dashboardAlerts(r, u);
           return (
             <Button
-              variant="prototype"
               key={r.id}
               className={`dashboard-member ${selected === r.id ? "on" : ""}`}
               aria-label={`Afficher ${r.handle || r.name}`}
@@ -437,9 +439,9 @@ export function GmDashboard() {
               </div>
               <div className="dashboard-member-name">
                 <b>{r.handle || r.name}</b>
-                <progress max={max} value={state?.hp_current ?? 0} />
+                <progress max={1} value={hpFill(state?.hp_current ?? 0, max)} />
                 <small>
-                  {state ? hpShown(state.hp_current, max) : "—"}/{max} {u.words.hp}
+                  {state ? hpShown(state.hp_current, max) : "—"}/{hpLimit(max)} {u.words.hp}
                 </small>
               </div>
               <span className="dashboard-alerts">
@@ -462,7 +464,6 @@ export function GmDashboard() {
         <div className="dashboard-sections">
           {QUICK_VIEWS.map((v) => (
             <Button
-              variant="prototype"
               className={`btn ${isQuickView(prefs, v.sections) ? "on" : ""}`}
               key={v.key}
               aria-pressed={isQuickView(prefs, v.sections)}
@@ -473,7 +474,6 @@ export function GmDashboard() {
           ))}
           {prefs.views.map((v) => (
             <Button
-              variant="prototype"
               className={`btn ${isSavedView(prefs, v) ? "on" : ""}`}
               key={v.id}
               aria-pressed={isSavedView(prefs, v)}
@@ -483,7 +483,6 @@ export function GmDashboard() {
             </Button>
           ))}
           <Button
-            variant="prototype"
             className={`btn ${organizing ? "on" : ""}`}
             aria-expanded={organizing}
             onClick={() => setOrganizing((v) => !v)}
@@ -491,7 +490,6 @@ export function GmDashboard() {
             <SlidersHorizontal size={15} /> Personnaliser
           </Button>
           <Button
-            variant="prototype"
             className={`btn ${layoutMode ? "on" : ""}`}
             aria-pressed={layoutMode}
             onClick={() => setLayoutMode((v) => !v)}
@@ -501,7 +499,6 @@ export function GmDashboard() {
         </div>
         <div className="dashboard-locks">
           <Button
-            variant="prototype"
             className="btn"
             disabled={!rows.some((r) => !r.players_can_edit)}
             onClick={() =>
@@ -515,7 +512,6 @@ export function GmDashboard() {
             Tout autoriser
           </Button>
           <Button
-            variant="prototype"
             className="btn red"
             disabled={!rows.some((r) => r.players_can_edit)}
             onClick={() =>
@@ -685,8 +681,7 @@ function SectionTitle({ name, tools }: { name: string; tools: SectionTools | nul
   return (
     <h3 className={tools ? "with-grip" : ""}>
       {tools && (
-        <button
-          type="button"
+        <Button
           className="grip"
           aria-label={`Déplacer la section ${name}`}
           title="Glisse, ou utilise les flèches du clavier"
@@ -699,18 +694,17 @@ function SectionTitle({ name, tools }: { name: string; tools: SectionTools | nul
           }}
         >
           <GripVertical size={14} aria-hidden="true" />
-        </button>
+        </Button>
       )}
       {name}
       {tools && (
-        <button
-          type="button"
+        <Button
           className="grip-close"
           aria-label={`Masquer la section ${name}`}
           onClick={() => tools.hideSection(name)}
         >
           <X size={13} aria-hidden="true" />
-        </button>
+        </Button>
       )}
     </h3>
   );
@@ -745,16 +739,15 @@ function DashboardColumn({
   const s = r.character_state;
   const member = table.party.find((p) => p.character_id === r.id);
   const online = table.online.has(r.id);
-  const ammo = (i: number, w: { capacity: number }) =>
-    s?.ammo[String(i)] ?? { mag: w.capacity, spare: 2, loose: 0 };
+  const ammo = (i: number, w: { capacity: number }) => ammoOf(s?.ammo ?? {}, i, w.capacity);
   const updateAmmo = (i: number, w: { capacity: number }, fn: (a: AmmoEntry) => AmmoEntry) =>
     update((current) => ({
       ammo: {
         ...current.ammo,
-        [String(i)]: fn(current.ammo[String(i)] ?? { mag: w.capacity, spare: 2, loose: 0 }),
+        [String(i)]: fn(ammoOf(current.ammo, i, w.capacity)),
       },
     }));
-  const status = hpStatus(s?.hp_current ?? 0, woundedFor(u, max, stats, r.sheet));
+  const status = hpStatus(hpShown(s?.hp_current ?? 0, max), woundedFor(u, max, stats, r.sheet));
   const firstInfo = u.rules.infoFields[0];
   return (
     <article
@@ -765,8 +758,7 @@ function DashboardColumn({
     >
       {frame && (
         <div className="window-bar">
-          <button
-            type="button"
+          <Button
             className="grip"
             aria-label={`Déplacer ${r.handle || r.name}`}
             title="Glisse, ou utilise les flèches du clavier"
@@ -780,20 +772,18 @@ function DashboardColumn({
           >
             <GripVertical size={16} aria-hidden="true" />
             <span>{r.handle || r.name}</span>
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
             className="grip-close"
             aria-label={`Masquer ${r.handle || r.name}`}
             onClick={frame.hide}
           >
             <X size={14} aria-hidden="true" />
-          </button>
+          </Button>
         </div>
       )}
       {frame && prefs.columns > 1 && (
-        <button
-          type="button"
+        <Button
           className="resize-handle"
           role="slider"
           aria-label={`Largeur de ${r.handle || r.name}`}
@@ -827,7 +817,6 @@ function DashboardColumn({
           </small>
         </div>
         <Button
-          variant="prototype"
           className="btn"
           aria-label={`Ouvrir ${r.handle || r.name}`}
           onClick={() => {
@@ -839,7 +828,6 @@ function DashboardColumn({
           <ArrowRight size={14} />
         </Button>
         <Button
-          variant="prototype"
           className={`btn lock-toggle ${r.players_can_edit ? "open" : ""}`}
           aria-pressed={r.players_can_edit}
           aria-label={`${r.players_can_edit ? "Verrouiller" : "Autoriser"} les modifications de ${r.handle || r.name}`}
@@ -868,7 +856,7 @@ function DashboardColumn({
         <div className="dashboard-hp">
           <b>
             {s ? hpShown(s.hp_current, max) : "—"}
-            <small> / {max}</small>
+            <small> / {hpLimit(max)}</small>
           </b>
           <span
             className={`status ${status === "ok" ? "ok" : status === "blesse" ? "warn" : "bad"}`}
@@ -881,14 +869,13 @@ function DashboardColumn({
           {Array.from({ length: 15 }, (_, i) => (
             <i
               key={i}
-              className={i < Math.ceil((Math.max(0, s?.hp_current ?? 0) / max) * 15) ? "" : "off"}
+              className={i < Math.ceil(hpFill(s?.hp_current ?? 0, max) * 15) ? "" : "off"}
             />
           ))}
         </div>
         <div className="dashboard-actions">
           {[-5, -1, 1, 5].map((d) => (
             <Button
-              variant="prototype"
               className={`btn ${d < 0 ? "red" : ""}`}
               key={d}
               disabled={!s}
@@ -924,7 +911,7 @@ function DashboardColumn({
             value={damage}
             onChange={(e) => setDamage(e.target.value)}
           />
-          <Button variant="prototype" className="btn red" disabled={!s}>
+          <Button type="submit" className="btn red" disabled={!s}>
             Encaisser
           </Button>
         </form>
@@ -1051,7 +1038,6 @@ function DashboardColumn({
                       </span>
                       <span className="dw-actions">
                         <Button
-                          variant="prototype"
                           className="dw-btn fire"
                           title={`${W.fire} : −1`}
                           aria-label={`Tirer avec ${w.name}`}
@@ -1061,7 +1047,6 @@ function DashboardColumn({
                           −1
                         </Button>
                         <Button
-                          variant="prototype"
                           className="dw-btn"
                           title={W.reload}
                           aria-label={`${W.reload} ${w.name}`}
@@ -1071,7 +1056,6 @@ function DashboardColumn({
                           <RotateCw size={14} />
                         </Button>
                         <Button
-                          variant="prototype"
                           className="dw-btn"
                           title={`+1 (${W.spare})`}
                           aria-label={`+1 ${W.spare} ${w.name}`}
@@ -1087,7 +1071,6 @@ function DashboardColumn({
                         </Button>
                         {a.loose >= w.capacity && (
                           <Button
-                            variant="prototype"
                             className="dw-btn"
                             title={`${W.loose} → ${W.spare}`}
                             aria-label={`${W.loose} vers ${W.spare} ${w.name}`}
@@ -1122,7 +1105,6 @@ function DashboardColumn({
               {s?.eddies ?? "—"} {W.moneySymbol}
             </b>
             <Button
-              variant="prototype"
               className="btn"
               disabled={!s}
               onClick={() => update((current) => ({ eddies: Math.max(0, current.eddies - 10) }))}
@@ -1130,7 +1112,6 @@ function DashboardColumn({
               −10
             </Button>
             <Button
-              variant="prototype"
               className="btn"
               disabled={!s}
               onClick={() => update((current) => ({ eddies: current.eddies + 10 }))}
@@ -1152,7 +1133,6 @@ function DashboardColumn({
             />
             {([-1, 1] as const).map((sign) => (
               <Button
-                variant="prototype"
                 className={`btn ${sign < 0 ? "red" : "y"}`}
                 key={sign}
                 disabled={!s || Number(amount) <= 0}
@@ -1173,7 +1153,6 @@ function DashboardColumn({
             <div key={i}>
               <span>{it.name}</span>
               <Button
-                variant="prototype"
                 className="icon-btn"
                 aria-label={`Diminuer ${it.name}`}
                 onClick={() =>
@@ -1188,7 +1167,6 @@ function DashboardColumn({
               </Button>
               <b>{it.qty}</b>
               <Button
-                variant="prototype"
                 className="icon-btn"
                 aria-label={`Augmenter ${it.name}`}
                 onClick={() =>
@@ -1202,7 +1180,6 @@ function DashboardColumn({
                 +
               </Button>
               <Button
-                variant="prototype"
                 className="icon-btn"
                 aria-label={`Supprimer ${it.name}`}
                 onClick={async () => {
@@ -1237,7 +1214,7 @@ function DashboardColumn({
             onChange={(e) => setItem(e.target.value)}
           />
           <Button
-            variant="prototype"
+            type="submit"
             className="btn y"
             aria-label={`Ajouter un objet ${r.handle || r.name}`}
             disabled={!s}

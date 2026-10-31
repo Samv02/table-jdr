@@ -105,11 +105,10 @@ function TeamsPage() {
                   </p>
                 </div>
                 <div className="admin-actions">
-                  <Button variant="prototype" className="btn y" onClick={() => void open(t)}>
+                  <Button className="btn y" onClick={() => void open(t)}>
                     <LogIn size={16} /> Ouvrir
                   </Button>
                   <Button
-                    variant="prototype"
                     className="btn"
                     title="Quitter l’équipe"
                     aria-label={`Quitter l’équipe ${t.name}`}
@@ -142,7 +141,7 @@ function TeamsPage() {
               value={code}
               onChange={(e) => setCode(e.target.value)}
             />
-            <Button variant="prototype" className="btn y" disabled={busy || !code.trim()}>
+            <Button type="submit" className="btn y" disabled={busy || !code.trim()}>
               <LogIn size={16} /> Rejoindre
             </Button>
           </form>
@@ -163,7 +162,7 @@ function TeamsPage() {
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
-            <Button variant="prototype" className="btn y" disabled={busy || name.trim().length < 2}>
+            <Button type="submit" className="btn y" disabled={busy || name.trim().length < 2}>
               <Plus size={16} /> Créer
             </Button>
           </form>

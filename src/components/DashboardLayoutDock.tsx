@@ -7,6 +7,7 @@ import {
   type DashboardRow,
   type LayoutPreset,
 } from "@/lib/dashboard";
+import { Button } from "@/components/ui/button";
 
 /** Miniature fidèle : autant de cases que de fiches, avec leurs largeurs. */
 function LayoutThumb({ preset, count }: { preset: LayoutPreset; count: number }) {
@@ -58,8 +59,7 @@ export function DashboardLayoutDock({
     <aside className="layout-dock" aria-label="Disposition du tableau de bord">
       <div className="layout-gallery" role="radiogroup" aria-label="Dispositions">
         {LAYOUT_PRESETS.map((preset) => (
-          <button
-            type="button"
+          <Button
             key={preset.key}
             role="radio"
             aria-checked={isLayout(prefs, preset, ids)}
@@ -75,15 +75,14 @@ export function DashboardLayoutDock({
           >
             <LayoutThumb preset={preset} count={ids.length} />
             <span>{preset.label}</span>
-          </button>
+          </Button>
         ))}
       </div>
 
       <div className="layout-side">
         <div className="layout-density" role="radiogroup" aria-label="Densité">
           {(["comfort", "compact"] as const).map((density) => (
-            <button
-              type="button"
+            <Button
               key={density}
               role="radio"
               aria-checked={prefs.density === density}
@@ -91,19 +90,19 @@ export function DashboardLayoutDock({
               onClick={() => onChange({ ...prefs, density })}
             >
               {density === "comfort" ? "Confort" : "Compact"}
-            </button>
+            </Button>
           ))}
         </div>
         <div className="layout-actions">
-          <button type="button" disabled={!canUndo} title="Ctrl+Z" onClick={onUndo}>
+          <Button disabled={!canUndo} title="Ctrl+Z" onClick={onUndo}>
             <Undo2 size={16} aria-hidden="true" /> Annuler
-          </button>
-          <button type="button" onClick={onReset}>
+          </Button>
+          <Button onClick={onReset}>
             <RotateCcw size={16} aria-hidden="true" /> Réinitialiser
-          </button>
-          <button type="button" className="done" onClick={onClose}>
+          </Button>
+          <Button className="done" onClick={onClose}>
             <Check size={16} aria-hidden="true" /> Terminé
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -111,8 +110,7 @@ export function DashboardLayoutDock({
         <div className="layout-tray">
           <span>Masqués</span>
           {hiddenSections.map((s) => (
-            <button
-              type="button"
+            <Button
               key={s.key}
               aria-label={`Réafficher la section ${s.key}`}
               onClick={() =>
@@ -125,11 +123,10 @@ export function DashboardLayoutDock({
               }
             >
               <Eye size={13} aria-hidden="true" /> {s.key}
-            </button>
+            </Button>
           ))}
           {hiddenRows.map((r) => (
-            <button
-              type="button"
+            <Button
               key={r.id}
               aria-label={`Réafficher ${r.handle || r.name}`}
               onClick={() =>
@@ -140,7 +137,7 @@ export function DashboardLayoutDock({
               }
             >
               <Eye size={13} aria-hidden="true" /> {r.handle || r.name}
-            </button>
+            </Button>
           ))}
         </div>
       )}

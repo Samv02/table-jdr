@@ -180,8 +180,7 @@ export function UniverseEditor() {
         </p>
         <div className="uni-preset-list">
           {PRESETS.map((p) => (
-            <button
-              type="button"
+            <Button
               key={p.id}
               className={`uni-preset ${draft.preset === p.id ? "on" : ""}`}
               onClick={() => void applyPreset(p.id)}
@@ -201,7 +200,7 @@ export function UniverseEditor() {
               </span>
               <b>{p.label}</b>
               <small>{p.description}</small>
-            </button>
+            </Button>
           ))}
         </div>
       </section>
@@ -305,8 +304,7 @@ export function UniverseEditor() {
         </label>
         <div className="visual-choices" role="radiogroup" aria-label="Visuel de la santé">
           {hpVisualsFor(draft.preset).map((v) => (
-            <button
-              type="button"
+            <Button
               key={v.key}
               role="radio"
               aria-checked={draft.theme.hpVisual === v.key}
@@ -318,14 +316,13 @@ export function UniverseEditor() {
               </span>
               <b>{v.label}</b>
               {v.recommended && <small>Conseillé</small>}
-            </button>
+            </Button>
           ))}
         </div>
         <h3 className="uni-sub">Coins des cadres</h3>
         <div className="visual-choices small" role="radiogroup" aria-label="Coins des cadres">
           {CORNERS.map((c) => (
-            <button
-              type="button"
+            <Button
               key={c.key}
               role="radio"
               aria-checked={draft.theme.corners === c.key}
@@ -334,7 +331,7 @@ export function UniverseEditor() {
             >
               <span className={`corner-sample corner-${c.key}`} />
               <b>{c.label}</b>
-            </button>
+            </Button>
           ))}
         </div>
         <h3 className="uni-sub">Ambiance animée du fond</h3>
@@ -344,8 +341,7 @@ export function UniverseEditor() {
           aria-label="Ambiance animée du fond"
         >
           {ATMOSPHERES.map(({ key, label, icon: Icon }) => (
-            <button
-              type="button"
+            <Button
               key={key}
               role="radio"
               aria-checked={draft.theme.atmosphere === key}
@@ -356,7 +352,7 @@ export function UniverseEditor() {
                 <Icon size={26} aria-hidden="true" />
               </span>
               <b>{label}</b>
-            </button>
+            </Button>
           ))}
         </div>
         <h3 className="uni-sub">Style</h3>
@@ -845,7 +841,6 @@ export function UniverseEditor() {
         </span>
         <span className="uni-actions">
           <Button
-            variant="prototype"
             className="btn"
             title="Exporter l'univers (fichier)"
             aria-label="Exporter"
@@ -854,7 +849,6 @@ export function UniverseEditor() {
             <Download size={16} />
           </Button>
           <Button
-            variant="prototype"
             className="btn"
             title="Importer un univers (fichier)"
             aria-label="Importer"
@@ -873,16 +867,10 @@ export function UniverseEditor() {
               e.target.value = "";
             }}
           />
-          <Button
-            variant="prototype"
-            className="btn"
-            disabled={!dirty || busy}
-            onClick={() => setDraft(saved)}
-          >
+          <Button className="btn" disabled={!dirty || busy} onClick={() => setDraft(saved)}>
             <RotateCcw size={15} /> Annuler
           </Button>
           <Button
-            variant="prototype"
             className="btn y"
             disabled={!dirty || busy || hasErrors}
             onClick={() => void submit()}
@@ -1094,8 +1082,7 @@ function Seg<T extends string>({
       <span>{label}</span>
       <div className="uni-seg" role="radiogroup" aria-label={label}>
         {options.map(([v, l]) => (
-          <button
-            type="button"
+          <Button
             key={v}
             role="radio"
             aria-checked={value === v}
@@ -1103,7 +1090,7 @@ function Seg<T extends string>({
             onClick={() => onChange(v)}
           >
             {l}
-          </button>
+          </Button>
         ))}
       </div>
     </div>
@@ -1119,8 +1106,7 @@ function Toggle({
   onChange: (v: boolean) => void;
 }) {
   return (
-    <button
-      type="button"
+    <Button
       role="switch"
       aria-checked={value}
       className={`uni-toggle ${value ? "on" : ""}`}
@@ -1128,7 +1114,7 @@ function Toggle({
     >
       <i aria-hidden />
       <span>{label}</span>
-    </button>
+    </Button>
   );
 }
 function CritSelect({
@@ -1218,37 +1204,30 @@ function ListEditor<T>({
         <div className="uni-row" key={i}>
           {render(item, (p) => onChange(items.map((x, j) => (j === i ? { ...x, ...p } : x))), i)}
           <span className="uni-row-acts">
-            <button
-              type="button"
-              aria-label="Monter"
-              disabled={i === 0}
-              onClick={() => move(i, -1)}
-            >
+            <Button aria-label="Monter" disabled={i === 0} onClick={() => move(i, -1)}>
               <ArrowUp size={14} />
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
               aria-label="Descendre"
               disabled={i === items.length - 1}
               onClick={() => move(i, 1)}
             >
               <ArrowDown size={14} />
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
               aria-label="Retirer"
               className="del"
               onClick={() => onChange(items.filter((_, j) => j !== i))}
             >
               <Trash2 size={14} />
-            </button>
+            </Button>
           </span>
         </div>
       ))}
       {items.length < max && (
-        <button type="button" className="uni-add" onClick={() => onChange([...items, make(items)])}>
+        <Button className="uni-add" onClick={() => onChange([...items, make(items)])}>
           <Plus size={14} /> Ajouter
-        </button>
+        </Button>
       )}
     </div>
   );

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ArrowDownRight, ArrowRight, ArrowUpRight, CheckCircle2 } from "lucide-react";
 import type { AdminDay, AdminOverview } from "@/lib/admin.functions";
 import { buildTodo, percent, plural, trend, type TodoItem } from "@/lib/admin";
+import { Button } from "@/components/ui/button";
 
 type Kpi = { label: string; value: string | number; hint?: string; change?: number | null };
 
@@ -86,11 +87,11 @@ export function AdminDashboard({
           <ul className="bo-todo">
             {todo.map((t) => (
               <li key={t.key}>
-                <button type="button" onClick={() => go(t.go)}>
+                <Button onClick={() => go(t.go)}>
                   <b>{t.count}</b>
                   <span>{t.label}</span>
                   <ArrowRight size={16} aria-hidden="true" />
-                </button>
+                </Button>
               </li>
             ))}
           </ul>
@@ -189,9 +190,8 @@ function DayChart({
       </figcaption>
       <div className="bo-bars" onPointerLeave={() => setHover(null)}>
         {days.map((d, i) => (
-          <button
+          <Button
             key={d.day}
-            type="button"
             aria-label={`${shortDay(d.day)} : ${d[field]}`}
             onPointerEnter={() => setHover(i)}
             onFocus={() => setHover(i)}
@@ -201,7 +201,7 @@ function DayChart({
               className={d[field] === 0 ? "zero" : ""}
               style={{ height: `${(d[field] / peak) * 100}%` }}
             />
-          </button>
+          </Button>
         ))}
       </div>
       <div className="bo-axis" aria-hidden="true">

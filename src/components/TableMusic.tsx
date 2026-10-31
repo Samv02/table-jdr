@@ -721,7 +721,6 @@ export function TableMusic({ children }: { children: ReactNode }) {
               {!enabled ? (
                 collapsed && (
                   <Button
-                    variant="prototype"
                     className="icon-btn mw-enable-mini"
                     aria-label="Activer le son"
                     title="Activer le son"
@@ -733,7 +732,6 @@ export function TableMusic({ children }: { children: ReactNode }) {
                 )
               ) : (
                 <Button
-                  variant="prototype"
                   className={`icon-btn ${muted ? "off" : ""}`}
                   aria-label={muted ? "Rétablir le son" : "Couper le son chez moi"}
                   title={muted ? "Rétablir le son" : "Couper le son chez moi"}
@@ -743,7 +741,6 @@ export function TableMusic({ children }: { children: ReactNode }) {
                 </Button>
               )}
               <Button
-                variant="prototype"
                 className="icon-btn"
                 aria-label={collapsed ? "Agrandir le lecteur" : "Réduire le lecteur"}
                 title={collapsed ? "Agrandir" : "Réduire"}
@@ -760,7 +757,6 @@ export function TableMusic({ children }: { children: ReactNode }) {
                 <InlineError message={err} onClear={() => setErr(null)} />
                 {!enabled ? (
                   <Button
-                    variant="prototype"
                     className="btn y mw-enable"
                     aria-label="Activer le son"
                     disabled={!ready || failed}
@@ -1112,7 +1108,6 @@ export function MusicManager() {
         </div>
         <div className="mx-transport">
           <Button
-            variant="prototype"
             className="mx-t small"
             title="−10 s (←)"
             aria-label="Reculer de 10 secondes"
@@ -1122,7 +1117,6 @@ export function MusicManager() {
             <RotateCcw />
           </Button>
           <Button
-            variant="prototype"
             className="mx-t"
             title="Morceau précédent (P)"
             aria-label="Précédent"
@@ -1135,7 +1129,6 @@ export function MusicManager() {
             <SkipBack />
           </Button>
           <Button
-            variant="prototype"
             className="mx-t play"
             title="Lecture / pause (Espace)"
             aria-label={m.is_playing ? "Pause" : "Lecture"}
@@ -1145,7 +1138,6 @@ export function MusicManager() {
             {m.is_playing ? <Pause /> : <Play />}
           </Button>
           <Button
-            variant="prototype"
             className="mx-t"
             title="Morceau suivant (N)"
             aria-label="Suivant"
@@ -1158,7 +1150,6 @@ export function MusicManager() {
             <SkipForward />
           </Button>
           <Button
-            variant="prototype"
             className="mx-t small"
             title="+10 s (→)"
             aria-label="Avancer de 10 secondes"
@@ -1199,7 +1190,6 @@ export function MusicManager() {
         </div>
         <div className="mx-quick">
           <Button
-            variant="prototype"
             className={`mx-q ${m.duck ? "on duck" : ""}`}
             title={`Baisse la musique à ${Math.round(DUCK_RATIO * 100)} % pendant que tu parles (V)`}
             aria-pressed={!!m.duck}
@@ -1210,7 +1200,6 @@ export function MusicManager() {
             {m.duck ? "Voix : ON" : "Voix"}
           </Button>
           <Button
-            variant="prototype"
             className="mx-q"
             title="Baisse doucement puis met en pause"
             disabled={ctx.busy || !m.is_playing}
@@ -1220,7 +1209,6 @@ export function MusicManager() {
             Fondu & stop
           </Button>
           <Button
-            variant="prototype"
             className="mx-q red"
             title="Coupe immédiatement"
             disabled={!m.is_playing}
@@ -1235,8 +1223,7 @@ export function MusicManager() {
           <h5>À la fin du morceau</h5>
           <div className="mx-seg" role="radiogroup" aria-label="À la fin du morceau">
             {END_MODES.map(({ loop: l, label, hint, Icon }) => (
-              <button
-                type="button"
+              <Button
                 key={l}
                 role="radio"
                 aria-checked={loop === l}
@@ -1246,7 +1233,7 @@ export function MusicManager() {
               >
                 <Icon size={15} />
                 {label}
-              </button>
+              </Button>
             ))}
           </div>
           <label
@@ -1266,8 +1253,7 @@ export function MusicManager() {
           <h5>Transition entre morceaux</h5>
           <div className="mx-seg" role="radiogroup" aria-label="Transition">
             {FADES.map((s) => (
-              <button
-                type="button"
+              <Button
                 key={s}
                 role="radio"
                 aria-checked={cs === s}
@@ -1275,7 +1261,7 @@ export function MusicManager() {
                 onClick={() => void write({ ...m, crossfade_sec: s })}
               >
                 {s ? `Fondu ${s} s` : "Coupe nette"}
-              </button>
+              </Button>
             ))}
           </div>
         </div>
@@ -1297,8 +1283,7 @@ export function MusicManager() {
             const n = count(tag);
             const live = context === tag && m.is_playing;
             return (
-              <button
-                type="button"
+              <Button
                 key={tag}
                 className={`mx-tile ${live ? "live" : ""} ${n ? "" : "empty"}`}
                 style={{ "--h": TAG_HUE[tag] } as CSSProperties}
@@ -1315,11 +1300,10 @@ export function MusicManager() {
                 <small>
                   {live ? "EN COURS" : n ? `${n} morceau${n > 1 ? "x" : ""}` : "+ ajouter"}
                 </small>
-              </button>
+              </Button>
             );
           })}
-          <button
-            type="button"
+          <Button
             className={`mx-tile all ${context === "*" && m.is_playing ? "live" : ""}`}
             style={{ "--h": "var(--text)" } as CSSProperties}
             disabled={!queue.length || ctx.busy}
@@ -1331,7 +1315,7 @@ export function MusicManager() {
             <small>
               {queue.length} morceau{queue.length > 1 ? "x" : ""}
             </small>
-          </button>
+          </Button>
         </div>
       </section>
 
@@ -1353,8 +1337,7 @@ export function MusicManager() {
               ? [{ v: "", l: "Sans ambiance", n: queue.filter((t) => !t.tag).length }]
               : []),
           ].map((f) => (
-            <button
-              type="button"
+            <Button
               key={f.v || "none"}
               className={filter === f.v ? "on" : ""}
               onClick={() => setFilter(f.v)}
@@ -1362,7 +1345,7 @@ export function MusicManager() {
             >
               {f.l}
               <em>{f.n}</em>
-            </button>
+            </Button>
           ))}
           <label className="mx-search">
             <Search size={14} />
@@ -1382,8 +1365,7 @@ export function MusicManager() {
                 key={`${t.video_id}:${i}`}
                 className={`mx-track ${playing ? "on" : ""} ${t.broken ? "broken" : ""}`}
               >
-                <button
-                  type="button"
+                <Button
                   className="mx-thumb"
                   title={t.broken ? "Vidéo indisponible" : "Jouer maintenant"}
                   disabled={t.broken || ctx.busy}
@@ -1402,7 +1384,7 @@ export function MusicManager() {
                       <Play size={16} />
                     )}
                   </span>
-                </button>
+                </Button>
                 <div className="mx-tt">
                   <b title={t.title}>{t.title || t.video_id}</b>
                   <small>
@@ -1432,7 +1414,6 @@ export function MusicManager() {
                 </select>
                 <div className="mx-acts">
                   <Button
-                    variant="prototype"
                     className={`mx-a ${queued ? "on" : ""}`}
                     title={
                       queued ? "Annuler « à la suite »" : "Jouer juste après le morceau en cours"
@@ -1444,7 +1425,6 @@ export function MusicManager() {
                     <CornerDownRight size={15} />
                   </Button>
                   <Button
-                    variant="prototype"
                     className="mx-a del"
                     title={playing ? "Morceau en cours" : "Retirer de la bibliothèque"}
                     aria-label={`Retirer ${t.title}`}
@@ -1497,19 +1477,17 @@ export function MusicManager() {
           <div className="mx-addtags">
             <span>Ambiance :</span>
             {["", ...MUSIC_TAGS].map((tag) => (
-              <button
-                type="button"
+              <Button
                 key={tag || "none"}
                 className={addTag === tag ? "on" : ""}
                 style={{ "--h": TAG_HUE[tag] ?? "var(--mute)" } as CSSProperties}
                 onClick={() => setAddTag(tag)}
               >
                 {tag || "Aucune"}
-              </button>
+              </Button>
             ))}
           </div>
           <Button
-            variant="prototype"
             className="btn y mx-addbtn"
             disabled={!links.trim() || adding}
             onClick={() => void add()}

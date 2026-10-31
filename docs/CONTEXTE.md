@@ -58,7 +58,7 @@ Ouvre-le dès qu'une demande touche une partie existante, pour ne pas défaire u
    - Le joueur crée, renomme, retire et active ses éléments sans jamais dépasser la capacité.
    - Un élément créé par le joueur reste « en attente MJ » tant que son coût n'est pas fixé.
    - Tout cela est vérifié par un trigger en base.
-8. **PV** : jamais au-dessus du maximum. Ils sont corrigés automatiquement si le max baisse.
+8. **PV** : jamais affichés au-dessus du maximum, ni soignés au-delà. Si le max baisse, l'écran plafonne et la prochaine action enregistre. Ouvrir une fiche n'écrit jamais rien en base.
 9. **Suppressions** : toujours confirmées avec `confirmAction()`.
 
 ---
