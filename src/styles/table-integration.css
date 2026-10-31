@@ -181,7 +181,7 @@ body.clean .mini-roll-feed {
   color: var(--green);
 }
 .fx-tag.crit {
-  color: #000;
+  color: var(--bg);
   background: var(--green);
 }
 .fx-calc {
@@ -1671,7 +1671,7 @@ body:has(.sheet.open) .scene-title {
   justify-content: center;
   gap: 6px;
   border-color: color-mix(in srgb, var(--red) 55%, transparent) !important;
-  color: color-mix(in srgb, var(--red) 55%, #fff) !important;
+  color: color-mix(in srgb, var(--red) 55%, var(--text)) !important;
   background: color-mix(in srgb, var(--red) 8%, transparent) !important;
 }
 .lock-toggle.open {
@@ -1693,7 +1693,7 @@ body:has(.sheet.open) .scene-title {
 .lock-banner {
   border-color: color-mix(in srgb, var(--red) 45%, transparent) !important;
   background: color-mix(in srgb, var(--red) 8%, transparent) !important;
-  color: color-mix(in srgb, var(--red) 55%, #fff) !important;
+  color: color-mix(in srgb, var(--red) 55%, var(--text)) !important;
 }
 .dashboard-locks {
   display: flex;
@@ -1770,7 +1770,7 @@ body:has(.sheet.open) .scene-title {
   background: color-mix(in srgb, var(--panel) 82%, transparent);
   backdrop-filter: blur(12px);
   border: 1px solid color-mix(in srgb, var(--violet) 35%, transparent);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 10px 30px color-mix(in srgb, var(--ink) 45%, transparent);
   transition:
     opacity 0.3s,
     width 0.2s;
@@ -1785,7 +1785,7 @@ body:has(.sheet.open) .scene-title {
 .music-widget.dragging {
   transition: none;
   box-shadow:
-    0 14px 40px rgba(0, 0, 0, 0.6),
+    0 14px 40px color-mix(in srgb, var(--ink) 60%, transparent),
     0 0 0 1px var(--violet);
 }
 .mw-head {
@@ -1812,7 +1812,7 @@ body:has(.sheet.open) .scene-title {
   min-width: 0;
   font-family: var(--mono);
   font-size: 11px;
-  color: color-mix(in srgb, var(--violet) 45%, #fff);
+  color: color-mix(in srgb, var(--violet) 45%, var(--text));
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1988,7 +1988,7 @@ body:has(.sheet.open) .scene-title {
   border: 1px solid var(--line);
   border-bottom-width: 2px;
   color: var(--text);
-  background: rgba(255, 255, 255, 0.04);
+  background: color-mix(in srgb, var(--text) 4%, transparent);
 }
 .moods {
   display: flex;
@@ -2018,7 +2018,7 @@ body:has(.sheet.open) .scene-title {
 main h1,
 main h2,
 main .ph h2 {
-  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.85);
+  text-shadow: 0 1px 8px color-mix(in srgb, var(--ink) 85%, transparent);
 }
 
 /* ===== Groupe et onglets centrés sur le même axe (ordinateur) ===== */
@@ -2151,9 +2151,9 @@ body.clean #scene.explorable.grabbing {
   font-size: 0.66rem;
   letter-spacing: 0.06em;
   color: var(--text);
-  background: rgba(0, 0, 0, 0.5);
+  background: color-mix(in srgb, var(--ink) 50%, transparent);
   backdrop-filter: blur(6px);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid color-mix(in srgb, var(--text) 15%, transparent);
   pointer-events: none;
   animation: hint-out 5s ease forwards;
 }
@@ -2180,7 +2180,7 @@ body.clean #scene.explorable.grabbing {
   font-family: var(--mono);
   font-size: 0.82rem;
   color: var(--text);
-  background: rgba(0, 0, 0, 0.45);
+  background: color-mix(in srgb, var(--ink) 45%, transparent);
   border: 1px solid var(--line);
 }
 .notes-area:focus {
@@ -2196,7 +2196,7 @@ body.clean #scene.explorable.grabbing {
   line-height: 1.55;
   padding: 12px;
   min-height: 80px;
-  background: rgba(0, 0, 0, 0.35);
+  background: color-mix(in srgb, var(--ink) 35%, transparent);
   border: 1px dashed var(--line);
 }
 .notes-read .note {
@@ -2258,7 +2258,7 @@ body.clean #scene.explorable.grabbing {
   background: color-mix(in srgb, var(--panel) 95%, transparent);
   backdrop-filter: blur(16px);
   border-right: 1px solid var(--line);
-  box-shadow: 20px 0 40px rgba(0, 0, 0, 0.45);
+  box-shadow: 20px 0 40px color-mix(in srgb, var(--ink) 45%, transparent);
 }
 .comms.open {
   transform: none;
@@ -2347,7 +2347,7 @@ body.clean #scene.explorable.grabbing {
   padding: 10px;
   text-align: left;
   border: 1px solid var(--line2);
-  background: rgba(255, 255, 255, 0.025);
+  background: color-mix(in srgb, var(--text) 2.5%, transparent);
   color: var(--text);
   position: relative;
 }
@@ -2376,7 +2376,7 @@ body.clean #scene.explorable.grabbing {
   overflow: hidden;
   border: 1px solid currentColor;
   color: var(--cyan);
-  background: rgba(0, 0, 0, 0.4);
+  background: color-mix(in srgb, var(--ink) 40%, transparent);
 }
 .conv.k-all .conv-av {
   color: var(--yellow);
@@ -2491,7 +2491,7 @@ body.clean #scene.explorable.grabbing {
   border: 1px solid var(--c);
   color: var(--c);
   font-size: 0.6rem;
-  background: rgba(0, 0, 0, 0.5);
+  background: color-mix(in srgb, var(--ink) 50%, transparent);
 }
 .msg-av img {
   width: 100%;
@@ -2570,7 +2570,7 @@ body.clean #scene.explorable.grabbing {
   max-height: 140px;
   padding: 9px 10px;
   line-height: 1.4;
-  background: rgba(0, 0, 0, 0.45);
+  background: color-mix(in srgb, var(--ink) 45%, transparent);
 }
 .composer .send {
   height: 44px;
@@ -2593,7 +2593,7 @@ body.clean #scene.explorable.grabbing {
   padding: 10px 12px;
   border: 1px solid var(--line2);
   cursor: pointer;
-  background: rgba(255, 255, 255, 0.02);
+  background: color-mix(in srgb, var(--text) 2%, transparent);
 }
 .perms .pair em {
   font-style: normal;
@@ -2716,14 +2716,14 @@ body:has(.sheet.open) .comms-fab {
   .comms-fab .badge {
     position: static;
     margin-left: 2px;
-    box-shadow: 0 0 0 2px #000;
+    box-shadow: 0 0 0 2px var(--bg);
   }
   .comms-fab.ping {
     animation: none;
     background: linear-gradient(
       90deg,
       var(--cyan) 0 70%,
-      color-mix(in srgb, var(--pink) 60%, #fff)
+      color-mix(in srgb, var(--pink) 60%, var(--text))
     );
   }
 }
@@ -2861,7 +2861,7 @@ body:has(.sheet.open) .comms-fab {
   padding: 10px 10px 9px;
   border: 1px solid var(--line2);
   border-left: 3px solid var(--line);
-  background: rgba(255, 255, 255, 0.02);
+  background: color-mix(in srgb, var(--text) 2%, transparent);
 }
 .dw.gun {
   border-left-color: color-mix(in srgb, var(--yellow) 65%, transparent);
@@ -2914,7 +2914,7 @@ body:has(.sheet.open) .comms-fab {
   border: 1px solid;
 }
 .dw-chip.dmg {
-  color: color-mix(in srgb, var(--pink) 60%, #fff);
+  color: color-mix(in srgb, var(--pink) 60%, var(--text));
   border-color: color-mix(in srgb, var(--pink) 45%, transparent);
   background: color-mix(in srgb, var(--pink) 8%, transparent);
 }
@@ -2962,7 +2962,7 @@ body:has(.sheet.open) .comms-fab {
   gap: 3px;
   align-items: flex-end;
   padding: 5px 6px;
-  background: rgba(0, 0, 0, 0.4);
+  background: color-mix(in srgb, var(--ink) 40%, transparent);
   border: 1px solid var(--line2);
 }
 .dw-rounds i {
@@ -3071,7 +3071,7 @@ body:has(.sheet.open) .comms-fab {
   display: inline-grid;
   place-items: center;
   border: 1px solid var(--line);
-  background: rgba(0, 0, 0, 0.35);
+  background: color-mix(in srgb, var(--ink) 35%, transparent);
   color: var(--text);
   font-family: var(--mono);
   font-size: 0.68rem;
@@ -3083,12 +3083,12 @@ body:has(.sheet.open) .comms-fab {
   color: var(--cyan);
 }
 .dw-btn.fire {
-  color: color-mix(in srgb, var(--red) 55%, #fff);
+  color: color-mix(in srgb, var(--red) 55%, var(--text));
   border-color: color-mix(in srgb, var(--red) 50%, transparent);
 }
 .dw-btn.fire:hover:not(:disabled) {
   background: var(--red);
-  color: #fff;
+  color: var(--text);
   border-color: var(--red);
 }
 .dw-btn:disabled {
@@ -3147,7 +3147,7 @@ body:has(.sheet.open) .comms-fab {
   padding: 10px 12px;
   border: 1px solid var(--line2);
   border-left: 3px solid var(--c);
-  background: rgba(255, 255, 255, 0.02);
+  background: color-mix(in srgb, var(--text) 2%, transparent);
 }
 .pnode.isolated {
   border-left-color: var(--dim);
@@ -3168,7 +3168,7 @@ body:has(.sheet.open) .comms-fab {
   border: 1px solid var(--c);
   color: var(--c);
   font-size: 0.65rem;
-  background: rgba(0, 0, 0, 0.45);
+  background: color-mix(in srgb, var(--ink) 45%, transparent);
 }
 .pnode-av img {
   width: 100%;
@@ -3207,7 +3207,7 @@ body:has(.sheet.open) .comms-fab {
   font-family: var(--mono);
   font-size: 0.6rem;
   border: 1px solid var(--line2);
-  background: rgba(0, 0, 0, 0.3);
+  background: color-mix(in srgb, var(--ink) 30%, transparent);
   color: var(--mute);
   cursor: pointer;
 }
@@ -3252,7 +3252,7 @@ body:has(.sheet.open) .comms-fab {
 }
 .pchip.on:hover {
   border-color: var(--red);
-  color: color-mix(in srgb, var(--red) 55%, #fff);
+  color: color-mix(in srgb, var(--red) 55%, var(--text));
   background: color-mix(in srgb, var(--red) 8%, transparent);
   box-shadow: none;
 }
@@ -3427,7 +3427,7 @@ body:has(.sheet.open) .comms-fab {
   box-shadow: 0 0 24px color-mix(in srgb, var(--violet) 50%, transparent);
 }
 .mx-t.play:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--violet) 65%, #fff);
+  background: color-mix(in srgb, var(--violet) 65%, var(--text));
   color: var(--ink);
 }
 .mx-t:disabled {
@@ -3471,7 +3471,7 @@ body:has(.sheet.open) .comms-fab {
   justify-content: center;
   gap: 6px;
   border: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.03);
+  background: color-mix(in srgb, var(--text) 3%, transparent);
   color: var(--text);
   font-weight: 600;
   font-size: 0.8rem;
@@ -3482,18 +3482,18 @@ body:has(.sheet.open) .comms-fab {
   color: var(--cyan);
 }
 .mx-q.red {
-  color: color-mix(in srgb, var(--red) 55%, #fff);
+  color: color-mix(in srgb, var(--red) 55%, var(--text));
   border-color: color-mix(in srgb, var(--red) 45%, transparent);
 }
 .mx-q.red:hover:not(:disabled) {
   background: var(--red);
-  color: #fff;
+  color: var(--text);
   border-color: var(--red);
 }
 .mx-q.duck {
   background: var(--pink);
   border-color: var(--pink);
-  color: #fff;
+  color: var(--text);
   box-shadow: 0 0 14px color-mix(in srgb, var(--pink) 45%, transparent);
 }
 .mx-q:disabled {
@@ -3542,11 +3542,11 @@ body:has(.sheet.open) .comms-fab {
 }
 .mx-seg button:hover {
   color: var(--text);
-  background: rgba(255, 255, 255, 0.03);
+  background: color-mix(in srgb, var(--text) 3%, transparent);
 }
 .mx-seg button.on {
   background: color-mix(in srgb, var(--violet) 18%, transparent);
-  color: color-mix(in srgb, var(--violet) 35%, #fff);
+  color: color-mix(in srgb, var(--violet) 35%, var(--text));
   box-shadow: inset 0 -2px 0 var(--violet);
 }
 .mx-toggle {
@@ -3736,7 +3736,7 @@ body:has(.sheet.open) .comms-fab {
   align-items: center;
   padding: 6px;
   border: 1px solid var(--line2);
-  background: rgba(255, 255, 255, 0.02);
+  background: color-mix(in srgb, var(--text) 2%, transparent);
 }
 .mx-track:hover {
   border-color: var(--line);
@@ -3868,7 +3868,7 @@ body:has(.sheet.open) .comms-fab {
   resize: vertical;
   padding: 8px 10px;
   line-height: 1.4;
-  background: rgba(0, 0, 0, 0.45);
+  background: color-mix(in srgb, var(--ink) 45%, transparent);
 }
 .mx-addtags {
   display: flex;
@@ -4075,7 +4075,7 @@ body:has(.sheet.open) .comms-fab {
   position: relative;
   padding: 9px 10px 10px 12px;
   border: 1px solid var(--line2);
-  background: rgba(255, 255, 255, 0.02);
+  background: color-mix(in srgb, var(--text) 2%, transparent);
   transition:
     border-color 0.2s,
     background 0.2s;
@@ -4317,7 +4317,7 @@ input.prog-name {
   box-shadow:
     0 0 0 1px color-mix(in srgb, var(--red) 12%, transparent),
     0 0 40px color-mix(in srgb, var(--red) 18%, transparent),
-    0 20px 60px rgba(0, 0, 0, 0.6);
+    0 20px 60px color-mix(in srgb, var(--ink) 60%, transparent);
   animation: confirm-pop 0.16s cubic-bezier(0.2, 0.9, 0.3, 1.2);
 }
 .confirm-head {
@@ -4632,11 +4632,11 @@ body.atmo-ash .atmo {
 body.atmo-stars .atmo {
   opacity: 0.8;
   background-image:
-    radial-gradient(1px 1px at 10% 20%, #fff, transparent),
-    radial-gradient(1px 1px at 30% 65%, color-mix(in srgb, var(--cyan) 60%, #fff), transparent),
-    radial-gradient(1.5px 1.5px at 55% 35%, #fff, transparent),
-    radial-gradient(1px 1px at 75% 80%, color-mix(in srgb, var(--violet) 60%, #fff), transparent),
-    radial-gradient(1px 1px at 90% 12%, #fff, transparent);
+    radial-gradient(1px 1px at 10% 20%, var(--text), transparent),
+    radial-gradient(1px 1px at 30% 65%, color-mix(in srgb, var(--cyan) 60%, var(--text)), transparent),
+    radial-gradient(1.5px 1.5px at 55% 35%, var(--text), transparent),
+    radial-gradient(1px 1px at 75% 80%, color-mix(in srgb, var(--violet) 60%, var(--text)), transparent),
+    radial-gradient(1px 1px at 90% 12%, var(--text), transparent);
   background-size: 260px 260px;
   animation: atmo-twinkle 5s ease-in-out infinite alternate;
 }
@@ -4697,12 +4697,12 @@ body.clean .atmo {
 
 /* ---------- Jets « sous la base » ---------- */
 .fx-tag.verdict.ok {
-  color: #000;
+  color: var(--bg);
   background: var(--green);
 }
 .fx-tag.verdict.ko {
-  color: #fff;
-  background: color-mix(in srgb, var(--red) 80%, #000);
+  color: var(--text);
+  background: color-mix(in srgb, var(--red) 80%, var(--ink));
 }
 .fx.done .fx-tag.verdict {
   opacity: 1;
@@ -5175,7 +5175,7 @@ body.clean .atmo {
   border-radius: 12px;
   background: color-mix(in srgb, var(--panel) 92%, transparent);
   backdrop-filter: blur(10px);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 12px 40px color-mix(in srgb, var(--ink) 50%, transparent);
 }
 .uni-bar.dirty {
   border-color: color-mix(in srgb, var(--yellow) 60%, transparent);
@@ -6766,7 +6766,7 @@ code.bo-card-side {
   border: 1px solid var(--cyan);
   background: var(--panel);
   box-shadow:
-    0 24px 60px rgba(0, 0, 0, 0.55),
+    0 24px 60px color-mix(in srgb, var(--ink) 55%, transparent),
     0 0 0 1px color-mix(in srgb, var(--cyan) 40%, transparent);
   will-change: transform;
 }
@@ -6808,7 +6808,7 @@ body.is-resizing * {
 }
 .dashboard-rail.editing .dashboard-column:hover {
   border-color: var(--cyan);
-  box-shadow: 0 10px 34px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 10px 34px color-mix(in srgb, var(--ink) 40%, transparent);
 }
 .dashboard-rail.editing .dashboard-section {
   position: relative;
@@ -6892,7 +6892,7 @@ body.is-resizing .resize-handle::after {
   border-radius: 16px;
   background: color-mix(in srgb, var(--panel) 97%, var(--bg));
   backdrop-filter: blur(20px) saturate(1.4);
-  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
+  box-shadow: 0 24px 70px color-mix(in srgb, var(--ink) 55%, transparent);
   animation: dock-in 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 @keyframes dock-in {
@@ -7065,7 +7065,7 @@ body.is-resizing .layout-dock {
   overflow: hidden;
   border-left: 1px solid color-mix(in srgb, var(--cyan) 40%, transparent);
   background: color-mix(in srgb, var(--panel) 98%, var(--bg));
-  box-shadow: -18px 0 50px rgba(0, 0, 0, 0.45);
+  box-shadow: -18px 0 50px color-mix(in srgb, var(--ink) 45%, transparent);
   animation: customize-in 0.26s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 @keyframes customize-in {
@@ -7279,7 +7279,7 @@ body.is-resizing .layout-dock {
     border-top: 1px solid color-mix(in srgb, var(--cyan) 40%, transparent);
     border-left: 0;
     border-radius: 16px 16px 0 0;
-    box-shadow: 0 -18px 50px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 -18px 50px color-mix(in srgb, var(--ink) 50%, transparent);
     animation-name: customize-up;
   }
   @keyframes customize-up {

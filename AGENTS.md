@@ -16,7 +16,7 @@
 - Fixed-sheet edits also use a serialized queue and a revision-guarded character ref; the editing confirmation waits for queued writes so realtime reads cannot discard pending edits.
 - Weapon eligibility, attack bases and derived damage are centralized in weapon-rules and shared by sheet controls and rule tests to prevent divergent calculations.
 - ArsenalWeapon owns transient shot/reload animations only; ammo updates use functional callbacks into the fiche controller so persistence and realtime remain mounted and rapid counters read current optimistic state.
-- Table presentation uses an immutable uploaded reference stylesheet plus a separate application adapter stylesheet; every button goes through components/ui/button (eslint forbids a raw <button>); its look comes only from these stylesheets, and it submits a form only with type="submit".
+- Table presentation uses a reference stylesheet, changed only to fix a real bug, plus a separate application adapter stylesheet; write only backdrop-filter, because the -webkit- pair is lost when the CSS is compiled; every button goes through components/ui/button (eslint forbids a raw <button>); its look comes only from these stylesheets, and it submits a form only with type="submit".
 - Skill ordering and top-base ranking live in a browser-safe presentation module shared with tests; JSON object key order never determines display order.
 - Editable skill titles use an optional title override preserved by sheet readers/writers; keep canonical names stable so weapon matching and skill ordering survive presentation edits.
 - DicePanel receives roll:start before the request and roll:new after the authenticated result; animation-only random digits never determine or persist dice outcomes.

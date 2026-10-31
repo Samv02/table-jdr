@@ -171,7 +171,6 @@ body.clean #ui {
 .glass {
   background: var(--glass);
   backdrop-filter: blur(14px) saturate(1.3);
-  -webkit-backdrop-filter: blur(14px) saturate(1.3);
 }
 
 /* HUD */
@@ -187,7 +186,6 @@ body.clean #ui {
   );
   border-bottom: 1px solid var(--line);
   backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
 }
 .brand {
   display: flex;
@@ -475,7 +473,6 @@ main {
   position: relative;
   background: var(--glass);
   backdrop-filter: blur(14px) saturate(1.3);
-  -webkit-backdrop-filter: blur(14px) saturate(1.3);
   border: 1px solid var(--line2);
   padding: 16px;
   margin-bottom: 14px;
@@ -1450,7 +1447,6 @@ body.gm-home .fab-desk {
   transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
   background: color-mix(in srgb, var(--panel) 94%, transparent);
   backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
   border-left: 1px solid var(--line);
   display: flex;
   flex-direction: column;
