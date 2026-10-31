@@ -36,7 +36,7 @@ export const Route = createFileRoute("/admin")({
 const TABS = [
   { key: "vue", label: "Vue globale", icon: Gauge },
   { key: "support", label: "Support", icon: LifeBuoy },
-  { key: "equipes", label: "Équipes", icon: UsersRound },
+  { key: "equipes", label: "Tables", icon: UsersRound },
   { key: "comptes", label: "Comptes", icon: Users },
   { key: "activite", label: "Activité", icon: Activity },
   { key: "pilotage", label: "Pilotage", icon: SlidersHorizontal },

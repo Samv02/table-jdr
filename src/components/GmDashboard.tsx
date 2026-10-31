@@ -71,6 +71,7 @@ import {
   readPrefs,
   type DashboardPrefs,
 } from "@/lib/dashboard";
+import { SetupGuide } from "@/components/SetupGuide";
 
 export function GmDashboard() {
   const identity = useIdentity();
@@ -197,7 +198,7 @@ export function GmDashboard() {
     const { data, error } = await supabase
       .from("characters")
       .select(
-        "id,name,handle,sheet,players_can_edit,character_state(hp_current,eddies,ammo,inventory)",
+        "id,name,handle,owner_id,sheet,players_can_edit,character_state(hp_current,eddies,ammo,inventory)",
       )
       .order("name");
     if (error) {
@@ -392,22 +393,18 @@ export function GmDashboard() {
     >
       <div className="dashboard-heading">
         <div>
-          <small>{u.words.tableName.toUpperCase()} · TABLE MJ</small>
-          <h1>Tableau de bord</h1>
+          <small>{u.words.tableName.toUpperCase()}</small>
+          <h1>Partie</h1>
         </div>
         <span className="tag">
           {rows.filter((r) => table.online.has(r.id)).length}/{rows.length} EN LIGNE
         </span>
-        <Link
-          to="/mj/personnages"
-          search={{ tab: "personnages" }}
-          className="dashboard-new"
-          aria-label="Nouveau personnage"
-        >
+        <Link to="/mj/personnages" className="dashboard-new" aria-label="Nouveau personnage">
           <UserPlus size={15} aria-hidden="true" /> Nouveau personnage
         </Link>
       </div>
       <InlineError message={err} onClear={() => setErr(null)} />
+      <SetupGuide sheets={rows.length} assigned={rows.filter((r) => r.owner_id).length} />
       <div className="dashboard-summary" aria-label="Personnages du groupe">
         {filtered.map((r) => {
           const state = r.character_state;

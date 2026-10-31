@@ -139,7 +139,7 @@ Ouvre-le dès qu'une demande touche une partie existante, pour ne pas défaire u
   - dossiers ;
   - import de plusieurs images.
 - [ ] **Armes** : deviner la capacité et la compétence à partir du nom.
-- [ ] **Tableau de bord MJ** :
+- [ ] **Partie (ex-tableau de bord MJ)** :
   - une section « Notes » pour lire les bloc-notes des joueurs ;
   - une vue compacte des emplacements de chaque joueur.
 - [ ] **Support** : prévenir l'utilisateur par e-mail d'une réponse (besoin du service d'envoi).

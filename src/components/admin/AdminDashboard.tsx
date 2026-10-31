@@ -32,19 +32,19 @@ export function AdminDashboard({
           change: trend(s.newAccounts7d, s.newAccountsPrev7d),
         },
         {
-          label: "Dans une équipe",
+          label: "Dans une table",
           value: `${percent(s.accounts - s.noTeam, s.accounts)} %`,
-          hint: `${s.noTeam} sans équipe`,
+          hint: `${s.noTeam} sans table`,
         },
       ],
     },
     {
-      title: "Équipes et jeu",
+      title: "Tables et jeu",
       items: [
         {
-          label: "Équipes actives",
+          label: "Tables actives",
           value: s.activeTeams7d,
-          hint: `sur ${plural(s.teams, "équipe")}, 7 derniers jours`,
+          hint: `sur ${plural(s.teams, "table")}, 7 derniers jours`,
         },
         { label: "Fiches", value: s.characters, hint: `${s.orphanCharacters} sans joueur` },
         { label: "Jets sur 7 jours", value: s.rolls7d, change: trend(s.rolls7d, s.rollsPrev7d) },
@@ -116,7 +116,7 @@ export function AdminDashboard({
         </div>
       </section>
       <section>
-        <h2 className="bo-section">Équipes les plus actives (7 jours)</h2>
+        <h2 className="bo-section">Tables les plus actives (7 jours)</h2>
         {ranked.length === 0 ? (
           <p className="bo-muted">Aucune activité sur 7 jours.</p>
         ) : (

@@ -763,6 +763,7 @@ export type Database = {
         Row: {
           dashboard: Json;
           joined_at: string;
+          last_opened_at: string | null;
           role: string;
           team_id: string;
           user_id: string;
@@ -770,6 +771,7 @@ export type Database = {
         Insert: {
           dashboard?: Json;
           joined_at?: string;
+          last_opened_at?: string | null;
           role?: string;
           team_id: string;
           user_id: string;
@@ -777,6 +779,7 @@ export type Database = {
         Update: {
           dashboard?: Json;
           joined_at?: string;
+          last_opened_at?: string | null;
           role?: string;
           team_id?: string;
           user_id?: string;
@@ -804,6 +807,7 @@ export type Database = {
           id: string;
           join_code: string;
           name: string;
+          next_session: string | null;
           owner_id: string | null;
         };
         Insert: {
@@ -811,6 +815,7 @@ export type Database = {
           id?: string;
           join_code: string;
           name: string;
+          next_session?: string | null;
           owner_id?: string | null;
         };
         Update: {
@@ -818,6 +823,7 @@ export type Database = {
           id?: string;
           join_code?: string;
           name?: string;
+          next_session?: string | null;
           owner_id?: string | null;
         };
         Relationships: [
@@ -907,14 +913,20 @@ export type Database = {
       join_team: { Args: { _code: string }; Returns: string };
       leave_team: { Args: { _team: string }; Returns: undefined };
       mark_ticket_read: { Args: { _ticket: string }; Returns: undefined };
-      my_teams: {
+      my_hub: {
         Args: never;
         Returns: {
-          active: boolean;
+          characters: string[];
           id: string;
+          last_activity: string;
+          last_opened_at: string;
           members: number;
           name: string;
+          next_session: string;
           role: string;
+          scene: string;
+          sheets: number;
+          universe: Json;
         }[];
       };
       new_join_code: { Args: never; Returns: string };
@@ -932,6 +944,7 @@ export type Database = {
         Returns: undefined;
       };
       save_dashboard_prefs: { Args: { _prefs: Json }; Returns: undefined };
+      set_next_session: { Args: { _at: string }; Returns: undefined };
       set_table_music: { Args: { payload: Json }; Returns: Json };
       set_user_role: {
         Args: { _role: string; _user: string };

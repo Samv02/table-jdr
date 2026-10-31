@@ -111,7 +111,7 @@ function FichePage() {
     return (
       <Centered>
         {id.isGm
-          ? "Choisis un personnage dans le sélecteur en haut."
+          ? "Ouvre une fiche depuis l’onglet Personnages."
           : "Aucun personnage assigné, demande au MJ."}
       </Centered>
     );

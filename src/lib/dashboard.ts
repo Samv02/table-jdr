@@ -12,6 +12,7 @@ export type DashboardState = {
 export type DashboardRow = {
   id: string;
   name: string;
+  owner_id?: string | null;
   handle: string | null;
   sheet: Sheet;
   players_can_edit: boolean;

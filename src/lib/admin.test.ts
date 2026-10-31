@@ -195,14 +195,14 @@ describe("routeGuard", () => {
   });
   it("sends a member without an open team to the team choice", () => {
     const free = { ...nobody, userId: "u" };
-    expect(routeGuard("/mj/tableau", free)).toBe("/equipes");
-    expect(routeGuard("/admin", free)).toBe("/equipes");
-    expect(routeGuard("/equipes", free)).toBeNull();
+    expect(routeGuard("/mj/tableau", free)).toBe("/tables");
+    expect(routeGuard("/admin", free)).toBe("/tables");
+    expect(routeGuard("/tables", free)).toBeNull();
   });
   it("lets the GM and the admin in", () => {
     expect(routeGuard("/mj/tableau", gm)).toBeNull();
     expect(routeGuard("/admin", admin)).toBeNull();
-    expect(routeGuard("/equipes", admin)).toBe("/admin");
+    expect(routeGuard("/tables", admin)).toBe("/admin");
     expect(routeGuard("/mj/tableau", admin)).toBe("/admin");
     expect(routeGuard("/mj/tableau", { ...admin, teamId: "t", isGm: true })).toBeNull();
   });
@@ -212,7 +212,7 @@ describe("needsTeam", () => {
   it("only applies to game pages", () => {
     expect(needsTeam("/fiche")).toBe(true);
     expect(needsTeam("/mj/tableau")).toBe(true);
-    expect(needsTeam("/equipes")).toBe(false);
+    expect(needsTeam("/tables")).toBe(false);
     expect(needsTeam("/admin")).toBe(false);
     expect(needsTeam("/profil")).toBe(false);
   });

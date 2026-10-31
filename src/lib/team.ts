@@ -15,7 +15,7 @@ export async function openTeam(teamId: string | null, to: string): Promise<strin
 export const needsTeam = (pathname: string) => pathname === "/fiche" || pathname.startsWith("/mj");
 
 /** Pages publiques : tout le reste demande d'être connecté. */
-const PUBLIC_PAGES = ["/", "/confidentialite", "/mot-de-passe"];
+const PUBLIC_PAGES = ["/", "/confidentialite", "/mot-de-passe", "/rejoindre"];
 
 /**
  * Où envoyer un compte qui n'a rien à faire sur cette page ; null s'il peut y rester.
@@ -30,16 +30,16 @@ export function routeGuard(
     isGm: boolean;
     isAdmin: boolean;
   },
-): "/" | "/equipes" | "/fiche" | "/admin" | null {
+): "/" | "/tables" | "/fiche" | "/admin" | null {
   if (!id.ready) return null;
   if (!id.userId) return PUBLIC_PAGES.includes(pathname) ? null : "/";
-  if (pathname.startsWith("/admin")) return id.isAdmin ? null : id.teamId ? "/fiche" : "/equipes";
+  if (pathname.startsWith("/admin")) return id.isAdmin ? null : id.teamId ? "/fiche" : "/tables";
   // L'admin ne joue pas : hors équipe, son espace est le back office
   if (id.isAdmin && !id.teamId)
-    return needsTeam(pathname) || pathname === "/equipes" || pathname === "/profil"
+    return needsTeam(pathname) || pathname === "/tables" || pathname === "/profil"
       ? "/admin"
       : null;
-  if (needsTeam(pathname) && !id.teamId) return "/equipes";
+  if (needsTeam(pathname) && !id.teamId) return "/tables";
   if (pathname.startsWith("/mj") && !id.isGm) return "/fiche";
   return null;
 }

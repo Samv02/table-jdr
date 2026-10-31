@@ -23,8 +23,8 @@ function Privacy() {
         </p>
         <h2>Qui peut le voir</h2>
         <ul>
-          <li>Les membres de ton équipe voient ton pseudo, ton avatar et tes jets publics.</li>
-          <li>Le MJ de ton équipe voit tes fiches, ton bloc-notes et tes messages.</li>
+          <li>Les membres de ton table voient ton pseudo, ton avatar et tes jets publics.</li>
+          <li>Le MJ de ton table voit tes fiches, ton bloc-notes et tes messages.</li>
           <li>
             L’administrateur du site peut accéder à tout, y compris aux fiches, bloc-notes et
             messages privés, et voit ton e-mail, pour gérer les comptes et assurer le bon
@@ -40,7 +40,7 @@ function Privacy() {
         <h2>Tes droits</h2>
         <p>
           Tu peux modifier tes informations dans ton profil et supprimer ton compte à tout moment
-          depuis cette même page. Tes fiches restent alors dans leur équipe, sans joueur, et ton
+          depuis cette même page. Tes fiches restent alors dans leur table, sans joueur, et ton
           profil, tes avatars et tes jets sont supprimés.
         </p>
         <p className="note">

@@ -79,7 +79,7 @@ export function AdminSupport({ onChanged }: { onChanged: () => void }) {
       <div className="bo-row">
         <input
           className="bo-input"
-          placeholder="Chercher un sujet, un utilisateur, une équipe"
+          placeholder="Chercher un sujet, un utilisateur, une table"
           aria-label="Chercher un ticket"
           value={search}
           onChange={(e) => setSearch(e.target.value)}

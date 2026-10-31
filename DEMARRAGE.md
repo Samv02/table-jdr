@@ -96,17 +96,17 @@ update public.profiles set role = 'gm'
 ```
 
 Ensuite, dans l'appli avec le compte MJ :
-1. **MJ → Univers** : choisis un modèle (Neutre, Fantasy, Grimdark, Horreur 1920 ou Cyberpunk), ajuste-le, puis **Enregistrer pour la table**.
-2. **MJ → Table** : « Créer une fiche vierge » (ou « Importer un JSON ») pour chaque personnage, et choisis son joueur.
+1. **Univers** : choisis un modèle (Neutre, Fantasy, Grimdark, Horreur 1920 ou Cyberpunk), ajuste-le, puis **Enregistrer pour la table**.
+2. **Personnages** : crée une fiche (ou importe un fichier) pour chaque personnage, et choisis son joueur.
 3. **Fiche → Mode édition** : remplis caractéristiques, compétences, armes…
-4. **Tableau de bord** : déverrouille les fiches quand les joueurs peuvent modifier leurs PV, leur argent ou leur inventaire.
+4. **Partie** : déverrouille les fiches quand les joueurs peuvent modifier leurs PV, leur argent ou leur inventaire.
 
 L'hébergement de l'appli elle-même sera ajouté ici au moment de la mise en ligne.
 
 ## Bon à savoir
 
 - **Changer de caractéristiques en cours de campagne** : les valeurs déjà saisies restent rangées sous l'ancien code. Garde les mêmes codes, ou corrige les fiches en Mode édition.
-- **Réutiliser un univers** : dans MJ → Univers, le bouton ⬇ exporte un fichier, le bouton ⬆ l'importe dans une autre copie du projet.
+- **Réutiliser un univers** : dans Univers, le bouton ⬇ exporte un fichier, le bouton ⬆ l'importe dans une autre copie du projet.
 - **Côté base**, certains noms internes restent hérités (`eddies` = argent, `programs` = emplacements, `holo_links` = échanges autorisés). Ils ne sont jamais affichés aux joueurs.
 
 ## Ça ne marche pas ?

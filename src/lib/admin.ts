@@ -54,7 +54,7 @@ export function logCategory(action: string): Exclude<LogCategory, "all"> {
   if (/ticket|support/i.test(action)) return "support";
   if (/fiche/i.test(action)) return "fiches";
   if (/réglage|annonce|modération/i.test(action)) return "reglages";
-  if (/équipe|code|membre|rôle|jets vidés|messages vidés|message supprimé/i.test(action))
+  if (/table|code|membre|rôle|jets vidés|messages vidés|message supprimé/i.test(action))
     return "equipes";
   return "comptes";
 }
@@ -131,13 +131,13 @@ export function buildTodo({ stats: s }: Pick<AdminOverview, "stats">): TodoItem[
     { key: "open", label: "Tickets sans réponse", count: s.ticketsOpen, go: { tab: "support" } },
     {
       key: "noGm",
-      label: "Équipes sans MJ",
+      label: "Tables sans MJ",
       count: s.noGmTeams,
       go: { tab: "equipes", filter: "noGm" },
     },
     {
       key: "empty",
-      label: "Équipes vides",
+      label: "Tables vides",
       count: s.emptyTeams,
       go: { tab: "equipes", filter: "empty" },
     },
@@ -149,7 +149,7 @@ export function buildTodo({ stats: s }: Pick<AdminOverview, "stats">): TodoItem[
     },
     {
       key: "noTeam",
-      label: "Comptes sans équipe",
+      label: "Comptes sans table",
       count: s.noTeam,
       go: { tab: "comptes", filter: "noTeam" },
     },

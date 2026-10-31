@@ -12,13 +12,18 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as ConfidentialiteRouteImport } from './routes/confidentialite'
-import { Route as EquipesRouteImport } from './routes/equipes'
 import { Route as FicheRouteImport } from './routes/fiche'
 import { Route as MotDePasseRouteImport } from './routes/mot-de-passe'
 import { Route as ProfilRouteImport } from './routes/profil'
+import { Route as RejoindreRouteImport } from './routes/rejoindre'
 import { Route as SupportRouteImport } from './routes/support'
+import { Route as TablesRouteImport } from './routes/tables'
+import { Route as MjJoueursRouteImport } from './routes/mj.joueurs'
+import { Route as MjMusiqueRouteImport } from './routes/mj.musique'
 import { Route as MjPersonnagesRouteImport } from './routes/mj.personnages'
+import { Route as MjScenesRouteImport } from './routes/mj.scenes'
 import { Route as MjTableauRouteImport } from './routes/mj.tableau'
+import { Route as MjUniversRouteImport } from './routes/mj.univers'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -33,11 +38,6 @@ const AdminRoute = AdminRouteImport.update({
 const ConfidentialiteRoute = ConfidentialiteRouteImport.update({
   id: '/confidentialite',
   path: '/confidentialite',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const EquipesRoute = EquipesRouteImport.update({
-  id: '/equipes',
-  path: '/equipes',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FicheRoute = FicheRouteImport.update({
@@ -55,9 +55,29 @@ const ProfilRoute = ProfilRouteImport.update({
   path: '/profil',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RejoindreRoute = RejoindreRouteImport.update({
+  id: '/rejoindre',
+  path: '/rejoindre',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SupportRoute = SupportRouteImport.update({
   id: '/support',
   path: '/support',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TablesRoute = TablesRouteImport.update({
+  id: '/tables',
+  path: '/tables',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MjJoueursRoute = MjJoueursRouteImport.update({
+  id: '/mj/joueurs',
+  path: '/mj/joueurs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MjMusiqueRoute = MjMusiqueRouteImport.update({
+  id: '/mj/musique',
+  path: '/mj/musique',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MjPersonnagesRoute = MjPersonnagesRouteImport.update({
@@ -65,9 +85,19 @@ const MjPersonnagesRoute = MjPersonnagesRouteImport.update({
   path: '/mj/personnages',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MjScenesRoute = MjScenesRouteImport.update({
+  id: '/mj/scenes',
+  path: '/mj/scenes',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MjTableauRoute = MjTableauRouteImport.update({
   id: '/mj/tableau',
   path: '/mj/tableau',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MjUniversRoute = MjUniversRouteImport.update({
+  id: '/mj/univers',
+  path: '/mj/univers',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -75,38 +105,53 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/confidentialite': typeof ConfidentialiteRoute
-  '/equipes': typeof EquipesRoute
   '/fiche': typeof FicheRoute
   '/mot-de-passe': typeof MotDePasseRoute
   '/profil': typeof ProfilRoute
+  '/rejoindre': typeof RejoindreRoute
   '/support': typeof SupportRoute
+  '/tables': typeof TablesRoute
+  '/mj/joueurs': typeof MjJoueursRoute
+  '/mj/musique': typeof MjMusiqueRoute
   '/mj/personnages': typeof MjPersonnagesRoute
+  '/mj/scenes': typeof MjScenesRoute
   '/mj/tableau': typeof MjTableauRoute
+  '/mj/univers': typeof MjUniversRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/confidentialite': typeof ConfidentialiteRoute
-  '/equipes': typeof EquipesRoute
   '/fiche': typeof FicheRoute
   '/mot-de-passe': typeof MotDePasseRoute
   '/profil': typeof ProfilRoute
+  '/rejoindre': typeof RejoindreRoute
   '/support': typeof SupportRoute
+  '/tables': typeof TablesRoute
+  '/mj/joueurs': typeof MjJoueursRoute
+  '/mj/musique': typeof MjMusiqueRoute
   '/mj/personnages': typeof MjPersonnagesRoute
+  '/mj/scenes': typeof MjScenesRoute
   '/mj/tableau': typeof MjTableauRoute
+  '/mj/univers': typeof MjUniversRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/confidentialite': typeof ConfidentialiteRoute
-  '/equipes': typeof EquipesRoute
   '/fiche': typeof FicheRoute
   '/mot-de-passe': typeof MotDePasseRoute
   '/profil': typeof ProfilRoute
+  '/rejoindre': typeof RejoindreRoute
   '/support': typeof SupportRoute
+  '/tables': typeof TablesRoute
+  '/mj/joueurs': typeof MjJoueursRoute
+  '/mj/musique': typeof MjMusiqueRoute
   '/mj/personnages': typeof MjPersonnagesRoute
+  '/mj/scenes': typeof MjScenesRoute
   '/mj/tableau': typeof MjTableauRoute
+  '/mj/univers': typeof MjUniversRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -114,50 +159,70 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/confidentialite'
-    | '/equipes'
     | '/fiche'
     | '/mot-de-passe'
     | '/profil'
+    | '/rejoindre'
     | '/support'
+    | '/tables'
+    | '/mj/joueurs'
+    | '/mj/musique'
     | '/mj/personnages'
+    | '/mj/scenes'
     | '/mj/tableau'
+    | '/mj/univers'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/admin'
     | '/confidentialite'
-    | '/equipes'
     | '/fiche'
     | '/mot-de-passe'
     | '/profil'
+    | '/rejoindre'
     | '/support'
+    | '/tables'
+    | '/mj/joueurs'
+    | '/mj/musique'
     | '/mj/personnages'
+    | '/mj/scenes'
     | '/mj/tableau'
+    | '/mj/univers'
   id:
     | '__root__'
     | '/'
     | '/admin'
     | '/confidentialite'
-    | '/equipes'
     | '/fiche'
     | '/mot-de-passe'
     | '/profil'
+    | '/rejoindre'
     | '/support'
+    | '/tables'
+    | '/mj/joueurs'
+    | '/mj/musique'
     | '/mj/personnages'
+    | '/mj/scenes'
     | '/mj/tableau'
+    | '/mj/univers'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
   ConfidentialiteRoute: typeof ConfidentialiteRoute
-  EquipesRoute: typeof EquipesRoute
   FicheRoute: typeof FicheRoute
   MotDePasseRoute: typeof MotDePasseRoute
   ProfilRoute: typeof ProfilRoute
+  RejoindreRoute: typeof RejoindreRoute
   SupportRoute: typeof SupportRoute
+  TablesRoute: typeof TablesRoute
+  MjJoueursRoute: typeof MjJoueursRoute
+  MjMusiqueRoute: typeof MjMusiqueRoute
   MjPersonnagesRoute: typeof MjPersonnagesRoute
+  MjScenesRoute: typeof MjScenesRoute
   MjTableauRoute: typeof MjTableauRoute
+  MjUniversRoute: typeof MjUniversRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -183,13 +248,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ConfidentialiteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/equipes': {
-      id: '/equipes'
-      path: '/equipes'
-      fullPath: '/equipes'
-      preLoaderRoute: typeof EquipesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/fiche': {
       id: '/fiche'
       path: '/fiche'
@@ -211,11 +269,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProfilRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/rejoindre': {
+      id: '/rejoindre'
+      path: '/rejoindre'
+      fullPath: '/rejoindre'
+      preLoaderRoute: typeof RejoindreRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/support': {
       id: '/support'
       path: '/support'
       fullPath: '/support'
       preLoaderRoute: typeof SupportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tables': {
+      id: '/tables'
+      path: '/tables'
+      fullPath: '/tables'
+      preLoaderRoute: typeof TablesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mj/joueurs': {
+      id: '/mj/joueurs'
+      path: '/mj/joueurs'
+      fullPath: '/mj/joueurs'
+      preLoaderRoute: typeof MjJoueursRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mj/musique': {
+      id: '/mj/musique'
+      path: '/mj/musique'
+      fullPath: '/mj/musique'
+      preLoaderRoute: typeof MjMusiqueRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/mj/personnages': {
@@ -225,11 +311,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MjPersonnagesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/mj/scenes': {
+      id: '/mj/scenes'
+      path: '/mj/scenes'
+      fullPath: '/mj/scenes'
+      preLoaderRoute: typeof MjScenesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/mj/tableau': {
       id: '/mj/tableau'
       path: '/mj/tableau'
       fullPath: '/mj/tableau'
       preLoaderRoute: typeof MjTableauRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mj/univers': {
+      id: '/mj/univers'
+      path: '/mj/univers'
+      fullPath: '/mj/univers'
+      preLoaderRoute: typeof MjUniversRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -239,13 +339,18 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
   ConfidentialiteRoute: ConfidentialiteRoute,
-  EquipesRoute: EquipesRoute,
   FicheRoute: FicheRoute,
   MotDePasseRoute: MotDePasseRoute,
   ProfilRoute: ProfilRoute,
+  RejoindreRoute: RejoindreRoute,
   SupportRoute: SupportRoute,
+  TablesRoute: TablesRoute,
+  MjJoueursRoute: MjJoueursRoute,
+  MjMusiqueRoute: MjMusiqueRoute,
   MjPersonnagesRoute: MjPersonnagesRoute,
+  MjScenesRoute: MjScenesRoute,
   MjTableauRoute: MjTableauRoute,
+  MjUniversRoute: MjUniversRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

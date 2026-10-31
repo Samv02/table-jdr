@@ -58,7 +58,7 @@ export function AdminControl({
     downloadFile(
       "comptes.csv",
       toCsv([
-        ["Pseudo", "E-mail", "Inscription", "Dernière connexion", "État", "Équipes"],
+        ["Pseudo", "E-mail", "Inscription", "Dernière connexion", "État", "Tables"],
         ...data.accounts.map((a) => [
           a.username,
           a.email,
@@ -75,7 +75,7 @@ export function AdminControl({
     downloadFile(
       "equipes.csv",
       toCsv([
-        ["Équipe", "Code", "Créée le", "Membres", "Fiches", "Jets 7 j", "Messages 7 j"],
+        ["Table", "Code", "Créée le", "Membres", "Fiches", "Jets 7 j", "Messages 7 j"],
         ...data.teams.map((t) => [
           t.name,
           t.join_code,
@@ -97,7 +97,7 @@ export function AdminControl({
         <div className="bo-card bo-switches">
           <Switch
             label="Mode maintenance"
-            hint="Coupe l’accès aux équipes pour tout le monde, sauf toi."
+            hint="Coupe l’accès aux tables pour tout le monde, sauf toi."
             checked={settings.maintenance}
             onChange={(maintenance) => setSettings({ ...settings, maintenance })}
           />
@@ -118,18 +118,18 @@ export function AdminControl({
             onChange={(signups_open) => setSettings({ ...settings, signups_open })}
           />
           <Switch
-            label="Création d’équipes ouverte"
+            label="Création de tables ouverte"
             checked={settings.team_creation_open}
             onChange={(team_creation_open) => setSettings({ ...settings, team_creation_open })}
           />
           <Switch
-            label="Rejoindre une équipe ouvert"
+            label="Rejoindre une table ouvert"
             hint="Fermé : les codes d’invitation ne marchent plus."
             checked={settings.joins_open}
             onChange={(joins_open) => setSettings({ ...settings, joins_open })}
           />
           <label className="bo-field">
-            Équipes maximum par compte
+            Tables maximum par compte
             <input
               className="bo-input"
               type="number"
@@ -318,7 +318,7 @@ export function AdminControl({
             <Download size={16} aria-hidden="true" /> Comptes (CSV)
           </Button>
           <Button className="bo-btn" onClick={exportTeams}>
-            <Download size={16} aria-hidden="true" /> Équipes (CSV)
+            <Download size={16} aria-hidden="true" /> Tables (CSV)
           </Button>
         </div>
       </section>

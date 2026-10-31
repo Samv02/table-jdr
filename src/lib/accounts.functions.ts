@@ -34,7 +34,7 @@ async function purgeTeam(teamId: string) {
   const paths = (scenes ?? []).map((s) => s.image_path);
   if (paths.length) await supabaseAdmin.storage.from("scenes").remove(paths);
   const { error } = await supabaseAdmin.from("teams").delete().eq("id", teamId);
-  if (error) throw new Error("Suppression de l’équipe impossible.");
+  if (error) throw new Error("Suppression de la table impossible.");
 }
 
 export const deleteAccount = createServerFn({ method: "POST" })
@@ -91,7 +91,7 @@ export const deleteTeam = createServerFn({ method: "POST" })
     await purgeTeam(data.teamId);
     if (isAdmin === true) {
       const { logAdmin } = await import("./admin-log.server");
-      await logAdmin(context.userId, "Équipe supprimée", team?.name ?? data.teamId);
+      await logAdmin(context.userId, "Table supprimée", team?.name ?? data.teamId);
     }
     return { deletedTeamId: data.teamId };
   });

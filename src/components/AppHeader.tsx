@@ -1,5 +1,18 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { Eye, List, LogOut, UserRound } from "lucide-react";
+import {
+  Clapperboard,
+  Eye,
+  Gauge,
+  Globe2,
+  IdCard,
+  LayoutGrid,
+  List,
+  LogOut,
+  Music2,
+  ScrollText,
+  UserRound,
+  Users,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { charLabel, useIdentity } from "@/lib/active-character";
@@ -9,6 +22,46 @@ import { hudParty } from "@/lib/dashboard";
 import { usePinnedFeed } from "@/lib/pinned-feed";
 import { useWords } from "@/lib/universe-context";
 import { openTeam } from "@/lib/team";
+import { activeTab, GM_TABS, OUTSIDE_TABS, type TableTabIcon } from "@/lib/navigation";
+
+const TAB_ICONS: Record<TableTabIcon, typeof Gauge> = {
+  partie: Gauge,
+  scenes: Clapperboard,
+  musique: Music2,
+  personnages: IdCard,
+  joueurs: Users,
+  univers: Globe2,
+};
+
+/** Hors de toute table : pas de groupe ni de dés, seulement le compte. */
+function AccountBar() {
+  const navigate = useNavigate();
+  return (
+    <header className="account-bar">
+      <Link to="/tables" className="account-brand">
+        <LayoutGrid size={17} aria-hidden="true" /> Table JDR
+      </Link>
+      <nav aria-label="Navigation du compte">
+        {OUTSIDE_TABS.map((tab) => (
+          <Link key={tab.to} to={tab.to} activeProps={{ className: "active" }}>
+            {tab.label}
+          </Link>
+        ))}
+      </nav>
+      <Button
+        className="icon-btn cut-s"
+        title="Déconnexion"
+        aria-label="Déconnexion"
+        onClick={async () => {
+          await supabase.auth.signOut();
+          await navigate({ to: "/", replace: true });
+        }}
+      >
+        <LogOut />
+      </Button>
+    </header>
+  );
+}
 export function AppHeader() {
   const id = useIdentity();
   const table = useTable();
@@ -58,17 +111,23 @@ export function AppHeader() {
       window.removeEventListener("roll:received", rolled);
     };
   }, [id.userId, pinned]);
-  // L'admin hors équipe n'est pas à une table : aucun élément de jeu pour lui
+  // L'admin hors table a son back office
   if (!id.ready || !id.userId || (id.isAdmin && !id.teamId)) return null;
+  if (!id.teamId) return <AccountBar />;
+  const current = activeTab(pathname, id.isGm);
+  // Le joueur change de personnage ; le MJ change de fiche seulement quand il en lit une
+  const showPicker = id.isGm
+    ? pathname === "/fiche" && id.characters.length > 0
+    : id.characters.length > 1;
   return (
     <>
       <header className="hud">
-        <Link to={id.teamId ? "/fiche" : id.isAdmin ? "/admin" : "/equipes"} className="brand">
+        <Link to={id.isGm ? "/mj/tableau" : "/fiche"} className="brand">
           <b>{(id.teamName ?? W.tableName).toUpperCase()}</b>
           <small>{table.activeScene?.name ?? W.tagline.toUpperCase()}</small>
         </Link>
         <div className="party">
-          {hudParty(id.teamId ? table.party : []).map((p) => (
+          {hudParty(table.party).map((p) => (
             <div
               className={`member ${!id.isGm && p.character_id === id.active?.id ? "me" : ""}`}
               key={p.character_id}
@@ -91,20 +150,18 @@ export function AppHeader() {
           ))}
         </div>
         <div className="hud-actions">
-          {id.teamId && (
-            <Button
-              className="icon-btn cut-s"
-              title="Fil des jets"
-              aria-label="Fil des jets"
-              onClick={() => {
-                setUnread(0);
-                window.dispatchEvent(new Event("dice:feed"));
-              }}
-            >
-              <List />
-              {!pinned && unread > 0 && <span className="badge">{unread}</span>}
-            </Button>
-          )}
+          <Button
+            className="icon-btn cut-s"
+            title="Fil des jets"
+            aria-label="Fil des jets"
+            onClick={() => {
+              setUnread(0);
+              window.dispatchEvent(new Event("dice:feed"));
+            }}
+          >
+            <List />
+            {!pinned && unread > 0 && <span className="badge">{unread}</span>}
+          </Button>
           <Button
             className="icon-btn cut-s"
             title="Masquer l’interface"
@@ -115,78 +172,69 @@ export function AppHeader() {
           </Button>
         </div>
       </header>
-      <div className="table-navigation">
-        <Link
-          to="/profil"
-          className={`nav-profile ${pathname === "/support" ? "active" : ""}`}
-          activeProps={{ className: "active" }}
+      <div className={`table-navigation ${id.isGm ? "" : "solo"}`}>
+        <Button
+          className="nav-exit"
+          title="Quitter cette table et revenir à toutes tes parties"
+          onClick={() => void openTeam(null, id.isVisitor ? "/admin" : "/tables")}
         >
-          <UserRound size={14} aria-hidden="true" />
-          Profil
-          {supportUnread && <span className="nav-dot" aria-label="Nouvelle réponse du support" />}
-        </Link>
-        <span className="active-identity">
-          {id.isVisitor
-            ? "ADMIN EN VISITE"
-            : !id.teamId
-              ? id.isAdmin
-                ? "ADMIN"
-                : "Aucune équipe ouverte"
-              : id.isGm
-                ? "MJ"
-                : (charLabel(id.active) ?? "Aucun personnage assigné, demande au MJ")}
-        </span>
-        {id.characters.length > (id.isGm ? 0 : 1) && (
-          <select
-            aria-label="Personnage actif"
-            value={id.active?.id ?? ""}
-            onChange={(e) => id.setActive(e.target.value || null)}
-          >
-            {id.isGm && <option value="">{id.isVisitor ? "Admin" : "MJ"}</option>}
-            {id.characters.map((c) => (
-              <option key={c.id} value={c.id}>
-                {charLabel(c)}
-              </option>
-            ))}
-          </select>
-        )}
-        <nav>
-          {id.isGm && (
-            <Link to="/mj/tableau" activeProps={{ className: "active" }}>
-              Tableau de bord
-            </Link>
-          )}
-          {id.teamId && (
-            <Link to="/fiche" activeProps={{ className: "active" }}>
-              {id.isGm ? "Fiche" : "Ma fiche"}
-            </Link>
-          )}
-          <Link to="/equipes" activeProps={{ className: "active" }}>
-            Équipes
-          </Link>
-          {id.isGm && (
-            <Link to="/mj/personnages" activeProps={{ className: "active" }}>
-              MJ
-            </Link>
+          <LayoutGrid size={15} aria-hidden="true" />
+          <span>{id.isVisitor ? "Back office" : "Mes tables"}</span>
+        </Button>
+        <nav aria-label="Navigation de la table">
+          {id.isGm ? (
+            GM_TABS.map((group) => (
+              <div className="nav-group" key={group[0]?.to}>
+                {group.map((tab) => {
+                  const Icon = TAB_ICONS[tab.icon];
+                  return (
+                    <Link
+                      key={tab.to}
+                      to={tab.to}
+                      className={current === tab.to ? "active" : ""}
+                      aria-current={current === tab.to ? "page" : undefined}
+                    >
+                      <Icon size={15} aria-hidden="true" />
+                      <span>{tab.label}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            ))
+          ) : (
+            <div className="nav-group">
+              <Link to="/fiche" activeProps={{ className: "active" }}>
+                <ScrollText size={15} aria-hidden="true" />
+                <span>Ma fiche</span>
+              </Link>
+            </div>
           )}
         </nav>
         <div className="nav-actions">
-          {id.isVisitor && (
-            <Button className="btn y visit-exit" onClick={() => void openTeam(null, "/admin")}>
-              Retour au back office
-            </Button>
+          {showPicker && (
+            <select
+              aria-label={id.isGm ? "Fiche affichée" : "Personnage actif"}
+              value={id.active?.id ?? ""}
+              onChange={(e) => id.setActive(e.target.value || null)}
+            >
+              {id.isGm && <option value="">Choisir une fiche</option>}
+              {id.characters.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {charLabel(c)}
+                </option>
+              ))}
+            </select>
           )}
-          <Button
-            className="icon-btn cut-s"
-            title="Déconnexion"
-            aria-label="Déconnexion"
-            onClick={async () => {
-              await supabase.auth.signOut();
-              navigate({ to: "/", replace: true });
-            }}
+          <Link
+            to="/profil"
+            className="nav-account"
+            title="Mon compte"
+            aria-label="Mon compte"
+            activeProps={{ className: "active" }}
           >
-            <LogOut />
-          </Button>
+            <UserRound size={16} aria-hidden="true" />
+            {supportUnread && <span className="nav-dot" aria-label="Nouvelle réponse du support" />}
+          </Link>
         </div>
       </div>
     </>

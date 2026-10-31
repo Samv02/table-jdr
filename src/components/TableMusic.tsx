@@ -785,7 +785,7 @@ export function TableMusic({ children }: { children: ReactNode }) {
                 )}
                 <p className="mw-note">
                   {id.isGm
-                    ? "Ton écoute seulement. Le pilotage se fait dans MJ → Musique."
+                    ? "Ton écoute seulement. Le pilotage se fait dans l’onglet Musique."
                     : "Musique pilotée par le MJ. Ce réglage ne change le son que chez toi."}
                 </p>
               </div>

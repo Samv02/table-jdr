@@ -35,7 +35,7 @@ describe("UniverseEditor preview", () => {
   it("stays on the draft instead of switching the preview off and on", async () => {
     const { container } = render(
       <Harness>
-        <UniverseEditor />
+        <UniverseEditor page={undefined} onPage={() => undefined} />
       </Harness>,
     );
     const preset = [...container.querySelectorAll<HTMLButtonElement>(".uni-preset")].find(

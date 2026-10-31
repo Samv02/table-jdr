@@ -26,7 +26,7 @@ export const rollDice = createServerFn({ method: "POST" })
       supabase.from("profiles").select("username").eq("id", userId).maybeSingle(),
       supabase.rpc("get_team_context").maybeSingle(),
     ]);
-    if (!team?.id) throw new Error("Entre d’abord dans une équipe.");
+    if (!team?.id) throw new Error("Entre d’abord dans une table.");
     const isMember = team.role !== null;
     const isGm = team.role === "gm" || team.is_admin;
 

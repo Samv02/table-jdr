@@ -17,7 +17,7 @@ export const ITEM_KINDS = [
   { key: "weapon", label: "Arme" },
   { key: "consumable", label: "Consommable" },
   { key: "power", label: "Pouvoir" },
-  { key: "gear", label: "Équipement" },
+  { key: "gear", label: "Tablement" },
 ] as const;
 export type ItemKind = (typeof ITEM_KINDS)[number]["key"];
 

@@ -472,7 +472,7 @@ export const adminCreateTeam = createServerFn({ method: "POST" })
     if (data.gmId) {
       await admin.from("team_members").insert({ team_id: team.id, user_id: data.gmId, role: "gm" });
     }
-    await logAdmin(context.userId, "Équipe créée", data.name);
+    await logAdmin(context.userId, "Table créée", data.name);
     return { id: team.id };
   });
 
@@ -488,7 +488,7 @@ export const adminRenameTeam = createServerFn({ method: "POST" })
     const { admin, logAdmin } = await requireAdmin(context.supabase);
     const { error } = await admin.from("teams").update({ name: data.name }).eq("id", data.teamId);
     if (error) throw new Error("Renommage impossible.");
-    await logAdmin(context.userId, "Équipe renommée", data.name);
+    await logAdmin(context.userId, "Table renommée", data.name);
     return { ok: true };
   });
 
@@ -546,7 +546,7 @@ export const adminSetMember = createServerFn({ method: "POST" })
         .maybeSingle(),
     ]);
     if (otherGms === 0 && current?.role === "gm" && data.role === "player")
-      throw new Error("L’équipe doit garder au moins un MJ.");
+      throw new Error("La table doit garder au moins un MJ.");
     // Une équipe sans MJ reçoit le sien avec son premier membre ajouté
     const role = otherGms === 0 && !current ? "gm" : data.role;
     const { error } = await admin

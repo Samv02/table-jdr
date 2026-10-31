@@ -56,13 +56,13 @@ export function AdminTeams({
       <div className="bo-row">
         <input
           className="bo-input"
-          placeholder="Chercher une équipe, un code, un membre"
-          aria-label="Chercher une équipe"
+          placeholder="Chercher une table, un code, un membre"
+          aria-label="Chercher une table"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
         <Button className="bo-btn primary" onClick={() => setAdding((v) => !v)}>
-          <Plus size={16} aria-hidden="true" /> Nouvelle équipe
+          <Plus size={16} aria-hidden="true" /> Nouvelle table
         </Button>
       </div>
       {adding && (
@@ -75,13 +75,13 @@ export function AdminTeams({
               setName("");
               setGmId("");
               setAdding(false);
-            }, `Équipe ${name} créée.`);
+            }, `Table ${name} créée.`);
           }}
         >
           <input
             className="bo-input"
-            placeholder="Nom de l’équipe"
-            aria-label="Nom de la nouvelle équipe"
+            placeholder="Nom de la table"
+            aria-label="Nom de la nouvelle table"
             maxLength={40}
             required
             value={name}
@@ -89,7 +89,7 @@ export function AdminTeams({
           />
           <select
             className="bo-input"
-            aria-label="MJ de la nouvelle équipe"
+            aria-label="MJ de la nouvelle table"
             value={gmId}
             onChange={(e) => setGmId(e.target.value)}
           >
@@ -101,7 +101,7 @@ export function AdminTeams({
             ))}
           </select>
           <Button type="submit" className="bo-btn primary" disabled={busy}>
-            Créer l’équipe
+            Créer la table
           </Button>
         </form>
       )}
@@ -121,7 +121,7 @@ export function AdminTeams({
         </span>
       </div>
       <ul className="bo-list">
-        {shown.length === 0 && <li className="bo-muted">Aucune équipe.</li>}
+        {shown.length === 0 && <li className="bo-muted">Aucune table.</li>}
         {shown.map((t) => (
           <li key={t.id} className="bo-card">
             <Button
@@ -184,7 +184,7 @@ function TeamDetail({
   async function askRegenerate() {
     const ok = await confirmAction({
       title: "Changer le code d’invitation ?",
-      message: "L’ancien code ne marchera plus. Les membres restent dans l’équipe.",
+      message: "L’ancien code ne marchera plus. Les membres restent dans la table.",
       confirmLabel: "Changer le code",
     });
     if (ok) await run(() => regenerate({ data: { teamId: t.id } }));
@@ -207,9 +207,9 @@ function TeamDetail({
   }
   async function askDeleteTeam() {
     const ok = await confirmAction({
-      title: `Supprimer l’équipe « ${t.name} » ?`,
+      title: `Supprimer la table « ${t.name} » ?`,
       message: `Ses ${t.characters.length} fiches, ses scènes, ses jets et ses messages seront supprimés. Les comptes des membres sont conservés. Action irréversible.`,
-      confirmLabel: "Supprimer l’équipe",
+      confirmLabel: "Supprimer la table",
     });
     if (ok) await run(() => removeTeam({ data: { teamId: t.id } }));
   }
@@ -224,12 +224,12 @@ function TeamDetail({
         className="bo-row"
         onSubmit={(e) => {
           e.preventDefault();
-          void run(() => rename({ data: { teamId: t.id, name } }), "Équipe renommée.");
+          void run(() => rename({ data: { teamId: t.id, name } }), "Table renommée.");
         }}
       >
         <input
           className="bo-input"
-          aria-label="Nom de l’équipe"
+          aria-label="Nom de la table"
           maxLength={40}
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -267,7 +267,7 @@ function TeamDetail({
             </select>
             <Button
               className="bo-btn"
-              title="Retirer de l’équipe"
+              title="Retirer de la table"
               aria-label={`Retirer ${m.username ?? "ce membre"}`}
               disabled={busy}
               onClick={() =>
@@ -351,7 +351,7 @@ function TeamDetail({
         <Button
           className="bo-btn"
           disabled={busy}
-          title="Intervenir dans l’équipe avec les droits du MJ"
+          title="Intervenir dans la table avec les droits du MJ"
           onClick={async () => {
             const error = await openTeam(t.id, "/mj/tableau");
             if (error) onError(error);
@@ -369,7 +369,7 @@ function TeamDetail({
           <Eraser size={16} aria-hidden="true" /> Vider les messages
         </Button>
         <Button className="bo-btn danger" disabled={busy} onClick={() => void askDeleteTeam()}>
-          <Trash2 size={16} aria-hidden="true" /> Supprimer l’équipe
+          <Trash2 size={16} aria-hidden="true" /> Supprimer la table
         </Button>
       </div>
     </div>

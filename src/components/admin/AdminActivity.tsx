@@ -47,7 +47,7 @@ const PERIODS = [
 const CATEGORIES: { key: LogCategory; label: string }[] = [
   { key: "all", label: "Tout" },
   { key: "comptes", label: "Comptes" },
-  { key: "equipes", label: "Équipes" },
+  { key: "equipes", label: "Tables" },
   { key: "fiches", label: "Fiches" },
   { key: "support", label: "Support" },
   { key: "reglages", label: "Réglages" },
@@ -118,7 +118,7 @@ export function AdminActivity({
     if (!userId) return;
     const ok = await confirmAction({
       title: `Suspendre « ${e.who} » ?`,
-      message: "Plus aucun accès aux équipes jusqu’à sa réactivation. Rien n’est supprimé.",
+      message: "Plus aucun accès aux tables jusqu’à sa réactivation. Rien n’est supprimé.",
       confirmLabel: "Suspendre",
     });
     if (ok)
@@ -158,13 +158,13 @@ export function AdminActivity({
           ))}
         </div>
       ) : (
-        <div className="bo-filters" aria-label="Filtrer par équipe">
+        <div className="bo-filters" aria-label="Filtrer par table">
           <Button
             className={`bo-chip ${teamId === "" ? "on" : ""}`}
             aria-pressed={teamId === ""}
             onClick={() => setTeamId("")}
           >
-            Toutes les équipes
+            Toutes les tables
           </Button>
           {teams.map((t) => (
             <Button
@@ -352,7 +352,7 @@ function MessageRow({
 
 const CATEGORY_LABEL = {
   comptes: "Compte",
-  equipes: "Équipe",
+  equipes: "Table",
   fiches: "Fiche",
   support: "Support",
   reglages: "Réglage",

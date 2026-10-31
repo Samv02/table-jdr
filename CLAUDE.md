@@ -26,6 +26,8 @@ Comptes de test (mot de passe `table1234`) : `mj@table.local` (MJ), `joueur1@tab
 - **Back office** (`/admin`, `src/components/admin/`) : espace séparé, sans aucun élément de jeu. Toutes ses actions passent par `src/lib/admin.functions.ts` (vérifie `is_platform_admin`, utilise la clé de service) et sont tracées dans `admin_log`. Un admin sans équipe ouverte est renvoyé vers `/admin`. Maintenance, ouvertures et limites sont dans `platform_settings` et vérifiées en base.
 - **Support** : tickets dans `support_tickets` et `support_messages` ; l'utilisateur n'écrit que par `open_ticket` et `reply_ticket`, les notes internes (`internal`) lui restent invisibles par RLS.
 - Boutons : toujours le composant `Button` (`src/components/ui/button.tsx`), l'apparence vient de ses classes. ESLint refuse un `<button>` brut.
+- **Plan de l'appli** (`src/lib/navigation.ts`) : deux espaces. Hors table : hub `/tables` (porte d'entrée après connexion), `/profil`, `/support`. À la table, le MJ a Partie, Scènes, Musique, puis Personnages, Joueurs, Univers ; le joueur a sa fiche. Revenir au hub referme la table (`openTeam(null, "/tables")`). Pour l'utilisateur, on dit toujours « table », jamais « équipe » (`team` reste le nom dans le code et la base).
+- Univers : une page par sujet, décrite dans `src/lib/universe-pages.ts`. Un nouveau réglage y déclare sa page, sa valeur et ses mots-clés de recherche.
 - Styles : `src/styles/table-base.css` + `src/styles/table-integration.css`, uniquement avec les variables du thème.
 
 ## Règles du projet (à respecter)

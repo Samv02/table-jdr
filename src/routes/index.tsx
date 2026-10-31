@@ -3,7 +3,6 @@ import { useEffect, useState, type FormEvent } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { loginDestination } from "@/lib/dashboard";
 import { LogIn } from "lucide-react";
 import { useWords } from "@/lib/universe-context";
 import { authMessage } from "@/lib/team";
@@ -35,11 +34,8 @@ function Index() {
       .maybeSingle()
       .then(({ data, error }) => {
         if (disposed || error) return;
-        const to = data?.id
-          ? loginDestination(data.role === "gm" || data.is_admin)
-          : data?.is_admin
-            ? ("/admin" as const)
-            : ("/equipes" as const);
+        // Le hub est la porte d'entrée de tout le monde ; l'admin hors table a son back office
+        const to = data?.is_admin && !data.id ? ("/admin" as const) : ("/tables" as const);
         void navigate({ to, replace: true });
       });
     return () => {

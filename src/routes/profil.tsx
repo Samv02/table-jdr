@@ -1,4 +1,3 @@
-import { useWords } from "@/lib/universe-context";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useState } from "react";
@@ -10,16 +9,7 @@ import { deleteMyAccount } from "@/lib/accounts.functions";
 import { Button } from "@/components/ui/button";
 import { InlineError } from "@/components/InlineError";
 import { confirmAction } from "@/components/ConfirmDialog";
-import {
-  ArrowUpRight,
-  Check,
-  LifeBuoy,
-  Save,
-  Trash2,
-  Upload,
-  UserRound,
-  Users,
-} from "lucide-react";
+import { Check, LifeBuoy, LogOut, Save, Trash2, Upload, UserRound } from "lucide-react";
 
 export const Route = createFileRoute("/profil")({
   ssr: false,
@@ -27,12 +17,12 @@ export const Route = createFileRoute("/profil")({
     meta: [
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { title: "Mon profil" },
-      { name: "description", content: "Pseudo, avatar, couleur et personnages de ton compte." },
-      { property: "og:title", content: "Mon profil" },
+      { title: "Mon compte" },
+      { name: "description", content: "Pseudo, avatar, couleur et sécurité de ton compte." },
+      { property: "og:title", content: "Mon compte" },
       {
         property: "og:description",
-        content: "Pseudo, avatar, couleur et personnages de ton compte.",
+        content: "Pseudo, avatar, couleur et sécurité de ton compte.",
       },
     ],
   }),
@@ -47,12 +37,10 @@ type Me = {
 };
 
 function ProfilePage() {
-  const W = useWords();
   const identity = useIdentity();
   const removeMe = useServerFn(deleteMyAccount);
   const [me, setMe] = useState<Me | null | "none">(null);
   const [avatar, setAvatar] = useState<string | null>(null);
-  const [chars, setChars] = useState<{ id: string; name: string; handle: string | null }[]>([]);
   const [username, setUsername] = useState("");
   const [saveError, setSaveError] = useState<string | null>(null);
   const [supportUnread, setSupportUnread] = useState(0);
@@ -74,12 +62,6 @@ function ProfilePage() {
         .createSignedUrl(p.avatar_url, 3600);
       setAvatar(s?.signedUrl ?? null);
     } else setAvatar(null);
-    const { data: c } = await supabase
-      .from("characters")
-      .select("id,name,handle")
-      .eq("owner_id", u.user.id)
-      .order("name");
-    setChars(c ?? []);
     const { count } = await supabase
       .from("support_tickets")
       .select("id", { count: "exact", head: true })
@@ -145,7 +127,7 @@ function ProfilePage() {
     const ok = await confirmAction({
       title: "Supprimer mon compte ?",
       message:
-        "Ton profil, tes avatars et tes jets seront supprimés, ainsi que les équipes où tu es seul. Tes fiches restent dans leur équipe, sans joueur. Action irréversible.",
+        "Ton profil, tes avatars et tes jets seront supprimés, ainsi que les tables où tu es seul. Tes fiches restent dans leur table, sans joueur. Action irréversible.",
       confirmLabel: "Supprimer mon compte",
     });
     if (!ok) return;
@@ -163,12 +145,8 @@ function ProfilePage() {
       <div className="profile-content">
         <header className="profile-heading">
           <div>
-            <p className="profile-eyebrow">{W.tableName.toUpperCase()} / COMPTE</p>
-            <h1>MON PROFIL</h1>
+            <h1>Mon compte</h1>
           </div>
-          <span className="profile-role">
-            {identity.isVisitor ? "ADMIN" : identity.isGm ? "MJ" : "JOUEUR"}
-          </span>
         </header>
 
         <div className="profile-layout">
@@ -249,39 +227,7 @@ function ProfilePage() {
           <div className="profile-details">
             <section className="profile-section">
               <div className="ph">
-                <h2>MES PERSONNAGES</h2>
-                <span className="tag">{chars.length}</span>
-              </div>
-              {chars.length === 0 ? (
-                <div className="profile-empty">
-                  <Users size={24} />
-                  <p>Aucun personnage pour l’instant.</p>
-                </div>
-              ) : (
-                <ul className="profile-characters">
-                  {chars.map((c) => (
-                    <li key={c.id}>
-                      <Link
-                        to="/fiche"
-                        onClick={() => {
-                          localStorage.setItem("activeCharacterId", c.id);
-                          window.dispatchEvent(new Event("active-character:changed"));
-                        }}
-                      >
-                        <span>
-                          <b>{c.handle || c.name}</b>
-                          {c.handle && <small>{c.name}</small>}
-                        </span>
-                        <ArrowUpRight size={18} />
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
-            <section className="profile-section">
-              <div className="ph">
-                <h2>SUPPORT</h2>
+                <h2>AIDE</h2>
                 {supportUnread > 0 && (
                   <span className="tag">
                     {supportUnread} {supportUnread > 1 ? "réponses" : "réponse"}
@@ -292,7 +238,7 @@ function ProfilePage() {
               <div className="profile-account">
                 <Button asChild className="btn profile-action">
                   <Link to="/support">
-                    <LifeBuoy size={16} /> Mes demandes d’aide
+                    <LifeBuoy size={16} /> Mes demandes
                   </Link>
                 </Button>
               </div>
@@ -304,6 +250,15 @@ function ProfilePage() {
               <div className="profile-account">
                 <Button asChild className="btn profile-action">
                   <Link to="/mot-de-passe">Changer le mot de passe</Link>
+                </Button>
+                <Button
+                  className="btn"
+                  onClick={async () => {
+                    await supabase.auth.signOut();
+                    window.location.assign("/");
+                  }}
+                >
+                  <LogOut size={16} /> Déconnexion
                 </Button>
                 {!identity.isAdmin && (
                   <Button className="btn red" onClick={deleteMe}>

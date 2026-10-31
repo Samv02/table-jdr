@@ -39,7 +39,7 @@ const FILTERS: { key: AccountFilter; label: string }[] = [
   { key: "all", label: "Tous" },
   { key: "suspended", label: "Suspendus" },
   { key: "admin", label: "Admins" },
-  { key: "noTeam", label: "Sans équipe" },
+  { key: "noTeam", label: "Sans table" },
   { key: "neverSignedIn", label: "Jamais connectés" },
 ];
 
@@ -74,7 +74,7 @@ export function AdminAccounts({
       <div className="bo-row">
         <input
           className="bo-input"
-          placeholder="Chercher un pseudo, un e-mail, une équipe"
+          placeholder="Chercher un pseudo, un e-mail, une table"
           aria-label="Chercher un compte"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -161,7 +161,7 @@ export function AdminAccounts({
                 <small>{a.email}</small>
               </span>
               <small className="bo-card-side">
-                {a.teams.map((t) => t.name).join(", ") || "Aucune équipe"}
+                {a.teams.map((t) => t.name).join(", ") || "Aucune table"}
               </small>
               <ChevronDown size={18} aria-hidden="true" />
             </Button>
@@ -216,7 +216,7 @@ function AccountDetail({
     if (a.suspended) return run(() => suspend({ data: { userId: a.id, suspended: false } }));
     const ok = await confirmAction({
       title: `Suspendre « ${name} » ?`,
-      message: "Plus aucun accès aux équipes jusqu’à sa réactivation. Rien n’est supprimé.",
+      message: "Plus aucun accès aux tables jusqu’à sa réactivation. Rien n’est supprimé.",
       confirmLabel: "Suspendre",
     });
     if (ok) await run(() => suspend({ data: { userId: a.id, suspended: true } }));
@@ -226,7 +226,7 @@ function AccountDetail({
       title: a.admin ? `Retirer l’accès admin de « ${name} » ?` : `Rendre « ${name} » admin ?`,
       message: a.admin
         ? "Ce compte n’aura plus accès au back office."
-        : "Ce compte verra tous les comptes, toutes les équipes, et tous les messages privés.",
+        : "Ce compte verra tous les comptes, toutes les tables, et tous les messages privés.",
       confirmLabel: a.admin ? "Retirer l’accès" : "Donner l’accès admin",
     });
     if (ok) await run(() => setAdmin({ data: { userId: a.id, admin: !a.admin } }));
@@ -235,7 +235,7 @@ function AccountDetail({
     const ok = await confirmAction({
       title: `Supprimer le compte « ${name} » ?`,
       message:
-        "Son accès, son profil, ses avatars et ses jets seront supprimés. Ses fiches restent dans leur équipe, sans joueur. Action irréversible.",
+        "Son accès, son profil, ses avatars et ses jets seront supprimés. Ses fiches restent dans leur table, sans joueur. Action irréversible.",
       confirmLabel: "Supprimer le compte",
     });
     if (ok) await run(() => remove({ data: { userId: a.id } }));
@@ -299,8 +299,8 @@ function AccountDetail({
         </Button>
       </div>
 
-      <h3>Équipes</h3>
-      {a.teams.length === 0 && <p className="bo-muted">Aucune équipe.</p>}
+      <h3>Tables</h3>
+      {a.teams.length === 0 && <p className="bo-muted">Aucune table.</p>}
       <ul className="bo-rows">
         {a.teams.map((t) => (
           <li key={t.id}>
@@ -323,7 +323,7 @@ function AccountDetail({
             </select>
             <Button
               className="bo-btn"
-              title="Retirer de l’équipe"
+              title="Retirer de la table"
               aria-label={`Retirer de ${t.name}`}
               disabled={busy}
               onClick={() =>
@@ -339,11 +339,11 @@ function AccountDetail({
         <div className="bo-row">
           <select
             className="bo-input"
-            aria-label="Équipe à rejoindre"
+            aria-label="Table à rejoindre"
             value={teamId}
             onChange={(e) => setTeamId(e.target.value)}
           >
-            <option value="">Ajouter à une équipe…</option>
+            <option value="">Ajouter à une table…</option>
             {others.map((t) => (
               <option key={t.id} value={t.id}>
                 {t.name}
