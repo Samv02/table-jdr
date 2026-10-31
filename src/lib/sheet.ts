@@ -208,6 +208,19 @@ export function hpMax(stats: Stats, sheet: Sheet, u: Universe): number {
   return hpMaxFor(u, stats, sheet);
 }
 
+/**
+ * Le maximum est une valeur calculée : il encadre les PV, il ne les remplace jamais.
+ * Un maximum à 0 veut dire « inconnu » (formule sur des caractéristiques vides) :
+ * les PV enregistrés restent alors affichés et modifiables tels quels.
+ */
+export const hpShown = (hp: number, max: number) => (max > 0 ? Math.min(hp, max) : hp);
+
+/** Seul calcul de PV après un soin ou des dégâts. */
+export function hpAfter(hp: number, delta: number, max: number) {
+  const next = Math.max(0, hpShown(hp, max) + delta);
+  return max > 0 ? Math.min(max, next) : next;
+}
+
 export type HpStatus = "ok" | "blesse" | "mourant";
 
 /** État de santé. `wounded` = seuil « gravement blessé » (null : l'univers n'en a pas). */

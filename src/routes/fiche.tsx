@@ -36,6 +36,8 @@ import { rowsToSheet, type AmmoEntry, type InventoryItem } from "@/lib/character
 import { rollDice } from "@/lib/dice.functions";
 import {
   newSkillName,
+  hpAfter,
+  hpShown,
   addSkills,
   ammoNote,
   hpMax,
@@ -582,7 +584,7 @@ function Sheet({ charId, isGm, userId }: { charId: string; isGm: boolean; userId
               </div>
               <div className="hp-top">
                 <div className="hp-num">
-                  {Math.min(st.hp_current, max)}
+                  {hpShown(st.hp_current, max)}
                   <small> / {max}</small>
                 </div>
                 <span
@@ -591,7 +593,7 @@ function Sheet({ charId, isGm, userId }: { charId: string; isGm: boolean; userId
                   {status === "ok" ? w$.hpOk : status === "blesse" ? w$.hpHurt : w$.hpDying}
                 </span>
               </div>
-              <HpVisual style={u.theme.hpVisual} hp={Math.min(st.hp_current, max)} max={max} />
+              <HpVisual style={u.theme.hpVisual} hp={hpShown(st.hp_current, max)} max={max} />
               <div className="segs">
                 {Array.from({ length: 15 }, (_, i) => (
                   <i
@@ -633,10 +635,7 @@ function Sheet({ charId, isGm, userId }: { charId: string; isGm: boolean; userId
                     disabled={!canEdit}
                     onClick={() =>
                       saveState({
-                        hp_current: Math.min(
-                          max,
-                          Math.max(0, Math.min(st.hp_current, max) + delta),
-                        ),
+                        hp_current: hpAfter(st.hp_current, delta, max),
                       })
                     }
                   >
@@ -657,21 +656,25 @@ function Sheet({ charId, isGm, userId }: { charId: string; isGm: boolean; userId
                   variant="prototype"
                   className="btn red"
                   disabled={!canEdit}
-                  onClick={() =>
-                    saveState({ hp_current: Math.max(0, Math.min(st.hp_current, max) - damage) })
-                  }
+                  onClick={() => saveState({ hp_current: hpAfter(st.hp_current, -damage, max) })}
                 >
                   Encaisser
                 </Button>
                 <Button
                   variant="prototype"
                   className="btn"
-                  disabled={!canEdit}
+                  disabled={!canEdit || max <= 0}
                   onClick={() => saveState({ hp_current: max })}
                 >
                   Max
                 </Button>
               </div>
+              {max <= 0 && u.rules.hpMax.trim() !== "" && (
+                <p className="note">
+                  {u.words.hp} maximum inconnu : les caractéristiques de son calcul sont vides sur
+                  cette fiche. Les {u.words.hp} restent enregistrés et modifiables.
+                </p>
+              )}
               {u.rules.defenses.length + u.rules.gauges.length > 0 && (
                 <div className="minis">
                   {u.rules.defenses.map((d) => (

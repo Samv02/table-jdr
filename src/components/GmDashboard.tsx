@@ -37,6 +37,8 @@ import {
   reload,
   shoot,
   packMagazine,
+  hpAfter,
+  hpShown,
 } from "@/lib/sheet";
 import { orderedSkills, shortSkillName, topSkillIndexes } from "@/lib/skill-presentation";
 import { weaponAttack, weaponDamage } from "@/lib/weapon-rules";
@@ -437,7 +439,7 @@ export function GmDashboard() {
                 <b>{r.handle || r.name}</b>
                 <progress max={max} value={state?.hp_current ?? 0} />
                 <small>
-                  {state ? Math.min(state.hp_current, max) : "—"}/{max} {u.words.hp}
+                  {state ? hpShown(state.hp_current, max) : "—"}/{max} {u.words.hp}
                 </small>
               </div>
               <span className="dashboard-alerts">
@@ -865,7 +867,7 @@ function DashboardColumn({
         <SectionTitle name="Vitaux" tools={tools} />
         <div className="dashboard-hp">
           <b>
-            {s ? Math.min(s.hp_current, max) : "—"}
+            {s ? hpShown(s.hp_current, max) : "—"}
             <small> / {max}</small>
           </b>
           <span
@@ -874,7 +876,7 @@ function DashboardColumn({
             {status === "ok" ? W.hpOk : status === "blesse" ? W.hpHurt : W.hpDying}
           </span>
         </div>
-        {s && <HpVisual style={u.theme.hpVisual} hp={Math.min(s.hp_current, max)} max={max} />}
+        {s && <HpVisual style={u.theme.hpVisual} hp={hpShown(s.hp_current, max)} max={max} />}
         <div className="segs">
           {Array.from({ length: 15 }, (_, i) => (
             <i
@@ -892,7 +894,7 @@ function DashboardColumn({
               disabled={!s}
               onClick={() =>
                 update((current) => ({
-                  hp_current: Math.min(max, Math.max(0, Math.min(current.hp_current, max) + d)),
+                  hp_current: hpAfter(current.hp_current, d, max),
                 }))
               }
             >
@@ -907,7 +909,7 @@ function DashboardColumn({
             const n = Number(damage);
             if (Number.isSafeInteger(n) && n > 0) {
               update((current) => ({
-                hp_current: Math.max(0, Math.min(current.hp_current, max) - n),
+                hp_current: hpAfter(current.hp_current, -n, max),
               }));
               setDamage("");
             }

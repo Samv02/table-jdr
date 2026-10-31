@@ -122,7 +122,17 @@ function Candle({ hp, max }: { hp: number; max: number }) {
 }
 
 /** Affiche la santé dans le style choisi par le MJ. Le visuel ne décide jamais de l'état. */
-export function HpVisual({ style, hp, max }: { style: HpVisualKey; hp: number; max: number }) {
+export function HpVisual({
+  style,
+  hp,
+  max: limit,
+}: {
+  style: HpVisualKey;
+  hp: number;
+  max: number;
+}) {
+  // Maximum inconnu : le visuel se cale sur les PV, il ne les affiche pas à vide
+  const max = limit > 0 ? limit : Math.max(hp, 1);
   if (style === "none") return null;
   if (style === "ecg") return <HealthTrace hp={hp} max={max} />;
   const label = `${hp} sur ${max}`;

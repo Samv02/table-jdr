@@ -1,4 +1,4 @@
-import { addSkills, missingSkills } from "./sheet";
+import { addSkills, hpAfter, hpShown, missingSkills } from "./sheet";
 import { describe, expect, it } from "vitest";
 import {
   ammoStatus,
@@ -233,5 +233,19 @@ describe("skill library on a sheet", () => {
     const once = addSkills([], library);
     expect(addSkills(once, library)).toHaveLength(2);
     expect(once[0]).toMatchObject({ name: "Écouter", stat: "INT", level: 20 });
+  });
+});
+
+describe("HP never depend on a computed maximum being known", () => {
+  it("keeps the usual limits when the maximum is known", () => {
+    expect(hpAfter(18, 5, 20)).toBe(20);
+    expect(hpAfter(3, -5, 20)).toBe(0);
+    expect(hpShown(25, 20)).toBe(20);
+  });
+  it("keeps and changes HP freely when the maximum is unknown", () => {
+    expect(hpShown(16, 0)).toBe(16);
+    expect(hpAfter(16, 5, 0)).toBe(21);
+    expect(hpAfter(0, 5, 0)).toBe(5);
+    expect(hpAfter(16, -20, 0)).toBe(0);
   });
 });

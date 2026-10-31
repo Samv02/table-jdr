@@ -34,8 +34,9 @@ Comptes de test (mot de passe `table1234`) : `mj@table.local` (MJ), `joueur1@tab
 3. **Sécurité des données** : chaque accès est contrôlé par la base (RLS). Une équipe ne voit jamais rien d'une autre : toute nouvelle table de jeu porte un `team_id` filtré sur `current_team()`. Personne ne lance un dé à la place d'un autre, même le MJ ou l'admin. Un joueur ne voit jamais la fiche d'un autre. On n'affiche jamais un e-mail, seulement le pseudo du personnage (seule exception : le back office `/admin`).
 4. **Base de données** : toute modification du schéma = une **nouvelle** migration dans `supabase/migrations/` (horodatée, idempotente). Ne jamais modifier une migration déjà appliquée. Puis `npm run db:push` et `npm run db:types`.
 5. **Pas de pop-up de notification** (toasts) ni de `window.confirm` : confirmation via `confirmAction()` (`src/components/ConfirmDialog.tsx`).
-6. Avant de dire « c'est fini » : `npx tsc --noEmit`, `npm test`, `npm run lint`.
-7. Interface en français, adaptée au mobile.
+6. **Les données commandent l'affichage, jamais l'inverse.** Base → information affichée → visuel. Un visuel, un thème ou une valeur calculée (maximum, base, formule) ne décide rien et n'écrase jamais une donnée enregistrée. Les PV passent par `hpAfter` et `hpShown` (`src/lib/sheet.ts`) : un maximum à 0 veut dire « inconnu », pas « zéro PV ».
+7. Avant de dire « c'est fini » : `npx tsc --noEmit`, `npm test`, `npm run lint`.
+8. Interface en français, adaptée au mobile.
 
 Historique, préférences du propriétaire et tâches en attente : @docs/CONTEXTE.md
 Détails techniques complémentaires : @AGENTS.md

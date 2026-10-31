@@ -79,6 +79,16 @@ describe("applyEffects", () => {
     );
     expect(minus.hp).toBe(1);
   });
+  it("does not wipe HP when the maximum is unknown", () => {
+    const horror = presetById("horreur");
+    const r = applyEffects(
+      { hp: 16, money: 0, sheet: { stats: {} } },
+      [{ target: "hp", amount: 2, useDie: false }],
+      null,
+      horror,
+    );
+    expect(r.hp).toBe(18);
+  });
   it("keeps money positive", () => {
     const r = applyEffects(
       { hp: 1, money: 3, sheet },

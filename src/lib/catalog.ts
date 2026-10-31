@@ -2,7 +2,7 @@
  * CATALOGUE — ce que le MJ prépare à l'avance : armes, consommables, pouvoirs, équipement.
  * Rien de propre à un jeu ici : les cibles d'effet viennent des règles de l'univers.
  */
-import { parseDamage, readStats, statLabel, writeStat, type Sheet } from "./sheet";
+import { hpAfter, parseDamage, readStats, statLabel, writeStat, type Sheet } from "./sheet";
 import { gaugeMax, hpMaxFor, type Universe } from "./universe";
 
 export const ITEM_KINDS = [
@@ -147,7 +147,7 @@ export function applyEffects(
     }
   }
   const max = hpMaxFor(u, readStats(sheet, u), sheet);
-  return { hp: Math.max(0, Math.min(max, hp)), money, sheet, lines };
+  return { hp: hpAfter(hp, 0, max), money, sheet, lines };
 }
 
 export type RollPlan = { count: number; sides: number; mod: number };
