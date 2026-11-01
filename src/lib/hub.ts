@@ -13,6 +13,8 @@ export type HubRow = {
   last_opened_at: string | null;
   last_activity: string | null;
   next_session: string | null;
+  is_owner: boolean;
+  my_avatar: string | null;
 };
 
 export type HubTable = Omit<HubRow, "universe"> & { universe: Universe; isNew: boolean };
@@ -59,6 +61,37 @@ export function soonestTable<T extends { next_session: string | null }>(
       .filter((t) => sessionLabel(t.next_session, now))
       .sort((x, y) => (x.next_session as string).localeCompare(y.next_session as string))[0] ?? null
   );
+}
+
+export const HUB_SORTS = [
+  { id: "recent", label: "Dernière ouverte" },
+  { id: "mine", label: "Mes tables d’abord" },
+  { id: "session", label: "Prochaine séance" },
+  { id: "name", label: "Nom (A à Z)" },
+] as const;
+export type HubSort = (typeof HUB_SORTS)[number]["id"];
+
+type HubOrder = { name: string; role: string; is_owner: boolean; next_session: string | null };
+
+/** Propriétaire, puis MJ, puis joueur. */
+const rank = (t: HubOrder) => (t.is_owner ? 0 : t.role === "gm" ? 1 : 2);
+
+/** « recent » garde l'ordre de la base : la dernière table ouverte en tête. */
+export function sortTables<T extends HubOrder>(tables: T[], sort: HubSort, now = new Date()) {
+  const list = [...tables];
+  if (sort === "mine") return list.sort((a, b) => rank(a) - rank(b));
+  if (sort === "name") return list.sort((a, b) => a.name.localeCompare(b.name, "fr"));
+  if (sort === "session") {
+    const at = (t: T) => (sessionLabel(t.next_session, now) ? (t.next_session as string) : "9999");
+    return list.sort((a, b) => at(a).localeCompare(at(b)));
+  }
+  return list;
+}
+
+/** Ce que le compte est à cette table, affiché sur sa carte. */
+export function roleLabel(t: { role: string; is_owner: boolean }) {
+  const role = t.role === "gm" ? "MJ" : "Joueur";
+  return t.is_owner ? `${role} · Propriétaire` : role;
 }
 
 /** Valeur attendue par un champ datetime-local, à l'heure de l'appareil. */

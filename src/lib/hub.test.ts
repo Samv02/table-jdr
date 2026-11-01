@@ -7,6 +7,8 @@ import {
   setupSteps,
   sinceLabel,
   soonestTable,
+  roleLabel,
+  sortTables,
   type HubRow,
 } from "./hub";
 import { activeTab, GM_TABS } from "./navigation";
@@ -25,6 +27,8 @@ const row: HubRow = {
   last_opened_at: "2026-10-30T10:00:00.000Z",
   last_activity: "2026-10-30T12:00:00.000Z",
   next_session: null,
+  is_owner: false,
+  my_avatar: null,
 };
 
 describe("hub", () => {
@@ -102,5 +106,53 @@ describe("navigation", () => {
   it("never lists a page twice", () => {
     const all = GM_TABS.flat().map((t) => t.to);
     expect(new Set(all).size).toBe(all.length);
+  });
+});
+
+describe("sortTables", () => {
+  const owner = { name: "Zèbre", role: "gm", is_owner: true, next_session: null };
+  const gm = {
+    name: "Écume",
+    role: "gm",
+    is_owner: false,
+    next_session: "2026-11-02T20:00:00.000Z",
+  };
+  const player = {
+    name: "Alpha",
+    role: "player",
+    is_owner: false,
+    next_session: "2026-11-01T20:00:00.000Z",
+  };
+  const list = [player, gm, owner];
+  const now = new Date("2026-10-31T12:00:00.000Z");
+
+  it("keeps the database order for recent", () => {
+    expect(sortTables(list, "recent", now)).toEqual(list);
+  });
+  it("puts owned tables first, then the ones the account runs", () => {
+    expect(sortTables(list, "mine", now)).toEqual([owner, gm, player]);
+  });
+  it("sorts names the French way", () => {
+    expect(sortTables(list, "name", now).map((t) => t.name)).toEqual(["Alpha", "Écume", "Zèbre"]);
+  });
+  it("puts the next session first and tables without a date last", () => {
+    expect(sortTables(list, "session", now)).toEqual([player, gm, owner]);
+  });
+  it("ignores a past session", () => {
+    const past = { ...gm, next_session: "2026-10-01T20:00:00.000Z" };
+    expect(sortTables([past, player], "session", now)).toEqual([player, past]);
+  });
+  it("does not change the list it receives", () => {
+    sortTables(list, "name", now);
+    expect(list).toEqual([player, gm, owner]);
+  });
+});
+
+describe("roleLabel", () => {
+  it("says what the account is at this table", () => {
+    expect(roleLabel({ role: "gm", is_owner: true })).toBe("MJ · Propriétaire");
+    expect(roleLabel({ role: "gm", is_owner: false })).toBe("MJ");
+    expect(roleLabel({ role: "player", is_owner: true })).toBe("Joueur · Propriétaire");
+    expect(roleLabel({ role: "player", is_owner: false })).toBe("Joueur");
   });
 });

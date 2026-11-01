@@ -60,6 +60,7 @@ import {
   type SheetWeapon,
 } from "@/lib/sheet";
 import { useUniverse } from "@/lib/universe-context";
+import { statColumns, topStatKeys } from "@/lib/universe-preview";
 import {
   deathSaveFor,
   gaugeMax,
@@ -609,6 +610,22 @@ function Sheet({ charId, isGm, userId }: { charId: string; isGm: boolean; userId
                     value={num(sheet, "hpMax")}
                     onChange={(e) => saveSheet({ hpMax: Math.max(0, Number(e.target.value) || 0) })}
                   />
+                </label>
+              )}
+              {edit && u.rules.hpMax.trim() !== "" && (
+                <label className="hp-max-edit">
+                  {w$.hp} max
+                  <input
+                    className="field"
+                    type="number"
+                    min={0}
+                    placeholder={String(hpMax(stats, { ...sheet, hpMaxForced: 0 }, u))}
+                    value={num(sheet, "hpMaxForced") || ""}
+                    onChange={(e) =>
+                      saveSheet({ hpMaxForced: Math.max(0, Number(e.target.value) || 0) })
+                    }
+                  />
+                  <span>Vide = calcul automatique</span>
                 </label>
               )}
               <div className="row-btns">
@@ -1185,24 +1202,6 @@ function weaponFields(u: Universe): [keyof SheetWeapon, string][] {
     ...(u.modules.ammo ? ([["capacity", "Munitions"]] as [keyof SheetWeapon, string][]) : []),
     ["rof", u.words.rof],
   ];
-}
-
-function statColumns(n: number) {
-  if (n <= 4) return Math.max(1, n);
-  for (const c of [5, 4, 3]) if (n % c === 0) return c;
-  return n <= 6 ? 3 : n <= 8 ? 4 : 5;
-}
-
-/** Les trois meilleures caractéristiques, mises en valeur (quelle que soit l'échelle du jeu) */
-function topStatKeys(stats: Record<string, number>) {
-  const values = Object.values(stats).filter((v) => v > 0);
-  if (values.length < 4) return new Set<string>();
-  const cut = [...values].sort((a, b) => b - a)[2]!;
-  return new Set(
-    Object.entries(stats)
-      .filter(([, v]) => v > 0 && v >= cut)
-      .map(([k]) => k),
-  );
 }
 
 function BannerField({

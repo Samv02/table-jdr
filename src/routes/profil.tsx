@@ -8,6 +8,7 @@ import { deleteMyAccount } from "@/lib/accounts.functions";
 
 import { Button } from "@/components/ui/button";
 import { InlineError } from "@/components/InlineError";
+import { TableAvatars } from "@/components/TableAvatars";
 import { confirmAction } from "@/components/ConfirmDialog";
 import {
   Camera,
@@ -228,6 +229,8 @@ function ProfilePage() {
             </div>
           </div>
         </section>
+
+        <TableAvatars userId={me.id} fallback={avatar} onError={setSaveError} />
 
         <ul className="acct-rows">
           <li>

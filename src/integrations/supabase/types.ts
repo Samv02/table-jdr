@@ -309,6 +309,135 @@ export type Database = {
           },
         ];
       };
+      map_tokens: {
+        Row: {
+          character_id: string | null;
+          color: string | null;
+          hidden: boolean;
+          id: string;
+          kind: string;
+          label: string;
+          map_id: string;
+          size: number;
+          team_id: string;
+          updated_at: string;
+          x: number;
+          y: number;
+        };
+        Insert: {
+          character_id?: string | null;
+          color?: string | null;
+          hidden?: boolean;
+          id?: string;
+          kind: string;
+          label: string;
+          map_id: string;
+          size?: number;
+          team_id?: string;
+          updated_at?: string;
+          x: number;
+          y: number;
+        };
+        Update: {
+          character_id?: string | null;
+          color?: string | null;
+          hidden?: boolean;
+          id?: string;
+          kind?: string;
+          label?: string;
+          map_id?: string;
+          size?: number;
+          team_id?: string;
+          updated_at?: string;
+          x?: number;
+          y?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "map_tokens_character_id_fkey";
+            columns: ["character_id"];
+            isOneToOne: false;
+            referencedRelation: "characters";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "map_tokens_map_id_fkey";
+            columns: ["map_id"];
+            isOneToOne: false;
+            referencedRelation: "maps";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "map_tokens_team_id_fkey";
+            columns: ["team_id"];
+            isOneToOne: false;
+            referencedRelation: "teams";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      maps: {
+        Row: {
+          background_opacity: number;
+          background_path: string | null;
+          cell_unit: string;
+          cell_value: number;
+          created_at: string;
+          fog: boolean;
+          height: number;
+          id: string;
+          name: string;
+          players_move: boolean;
+          show_grid: boolean;
+          team_id: string;
+          updated_at: string;
+          walls: Json;
+          width: number;
+        };
+        Insert: {
+          background_opacity?: number;
+          background_path?: string | null;
+          cell_unit?: string;
+          cell_value?: number;
+          created_at?: string;
+          fog?: boolean;
+          height?: number;
+          id?: string;
+          name: string;
+          players_move?: boolean;
+          show_grid?: boolean;
+          team_id?: string;
+          updated_at?: string;
+          walls?: Json;
+          width?: number;
+        };
+        Update: {
+          background_opacity?: number;
+          background_path?: string | null;
+          cell_unit?: string;
+          cell_value?: number;
+          created_at?: string;
+          fog?: boolean;
+          height?: number;
+          id?: string;
+          name?: string;
+          players_move?: boolean;
+          show_grid?: boolean;
+          team_id?: string;
+          updated_at?: string;
+          walls?: Json;
+          width?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "maps_team_id_fkey";
+            columns: ["team_id"];
+            isOneToOne: false;
+            referencedRelation: "teams";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       messages: {
         Row: {
           body: string;
@@ -617,6 +746,7 @@ export type Database = {
       };
       session_state: {
         Row: {
+          active_map_id: string | null;
           active_scene_id: string | null;
           music: Json;
           team_id: string;
@@ -624,6 +754,7 @@ export type Database = {
           updated_at: string;
         };
         Insert: {
+          active_map_id?: string | null;
           active_scene_id?: string | null;
           music?: Json;
           team_id: string;
@@ -631,6 +762,7 @@ export type Database = {
           updated_at?: string;
         };
         Update: {
+          active_map_id?: string | null;
           active_scene_id?: string | null;
           music?: Json;
           team_id?: string;
@@ -638,6 +770,13 @@ export type Database = {
           updated_at?: string;
         };
         Relationships: [
+          {
+            foreignKeyName: "session_state_active_map_id_fkey";
+            columns: ["active_map_id"];
+            isOneToOne: false;
+            referencedRelation: "maps";
+            referencedColumns: ["id"];
+          },
           {
             foreignKeyName: "session_state_active_scene_id_fkey";
             columns: ["active_scene_id"];
@@ -761,6 +900,7 @@ export type Database = {
       };
       team_members: {
         Row: {
+          avatar_url: string | null;
           dashboard: Json;
           joined_at: string;
           last_opened_at: string | null;
@@ -769,6 +909,7 @@ export type Database = {
           user_id: string;
         };
         Insert: {
+          avatar_url?: string | null;
           dashboard?: Json;
           joined_at?: string;
           last_opened_at?: string | null;
@@ -777,6 +918,7 @@ export type Database = {
           user_id: string;
         };
         Update: {
+          avatar_url?: string | null;
           dashboard?: Json;
           joined_at?: string;
           last_opened_at?: string | null;
@@ -912,15 +1054,26 @@ export type Database = {
       is_team_member: { Args: never; Returns: boolean };
       join_team: { Args: { _code: string }; Returns: string };
       leave_team: { Args: { _team: string }; Returns: undefined };
+      map_is_live: { Args: { _map: string }; Returns: boolean };
+      map_token_ok: {
+        Args: { _character: string; _map: string; _team: string };
+        Returns: boolean;
+      };
       mark_ticket_read: { Args: { _ticket: string }; Returns: undefined };
+      move_my_token: {
+        Args: { _id: string; _x: number; _y: number };
+        Returns: undefined;
+      };
       my_hub: {
         Args: never;
         Returns: {
           characters: string[];
           id: string;
+          is_owner: boolean;
           last_activity: string;
           last_opened_at: string;
           members: number;
+          my_avatar: string;
           name: string;
           next_session: string;
           party: Json;
@@ -946,6 +1099,10 @@ export type Database = {
       };
       save_dashboard_prefs: { Args: { _prefs: Json }; Returns: undefined };
       set_next_session: { Args: { _at: string }; Returns: undefined };
+      set_table_avatar: {
+        Args: { _path: string; _team: string };
+        Returns: undefined;
+      };
       set_table_music: { Args: { payload: Json }; Returns: Json };
       set_user_role: {
         Args: { _role: string; _user: string };

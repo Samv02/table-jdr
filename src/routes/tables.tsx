@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState, type PointerEvent } from "react";
-import { ArrowRight, CalendarDays, DoorOpen, LogIn, Plus } from "lucide-react";
+import { ArrowRight, CalendarDays, Crown, DoorOpen, LogIn, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { InlineError } from "@/components/InlineError";
@@ -11,12 +11,16 @@ import { loginDestination } from "@/lib/dashboard";
 import {
   clearInvite,
   greeting,
+  HUB_SORTS,
   hubTable,
   readInvite,
+  roleLabel,
   sessionLabel,
   sinceLabel,
   soonestTable,
+  sortTables,
   type HubRow,
+  type HubSort,
   type HubTable,
 } from "@/lib/hub";
 import { neonVar } from "@/lib/profile";
@@ -48,12 +52,23 @@ function themeStyle(t: HubTable) {
   };
 }
 
+const SORT_KEY = "table:hub-sort";
+function readSort(): HubSort {
+  try {
+    const saved = localStorage.getItem(SORT_KEY);
+    return HUB_SORTS.find((s) => s.id === saved)?.id ?? "recent";
+  } catch {
+    return "recent";
+  }
+}
+
 function TablesPage() {
   const identity = useIdentity();
   const [tables, setTables] = useState<HubTable[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [invited, setInvited] = useState(false);
   const [going, setGoing] = useState<string | null>(null);
+  const [sort, setSort] = useState<HubSort>(readSort);
   const atTable = identity.ready && !!identity.teamId;
 
   async function load() {
@@ -67,6 +82,15 @@ function TablesPage() {
     else void load();
   }, [atTable]);
   useEffect(() => setInvited(!!readInvite()), []);
+
+  function chooseSort(next: HubSort) {
+    setSort(next);
+    try {
+      localStorage.setItem(SORT_KEY, next);
+    } catch {
+      /* rien : simple confort */
+    }
+  }
 
   async function enter(t: HubTable) {
     if (going) return;
@@ -121,13 +145,30 @@ function TablesPage() {
           </ul>
         ) : (
           <>
+            {tables.length > 1 && (
+              <label className="hub-sort">
+                <span>Trier</span>
+                <select
+                  className="field"
+                  value={sort}
+                  onChange={(e) => chooseSort(e.target.value as HubSort)}
+                >
+                  {HUB_SORTS.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
             {tables.length > 0 && (
               <ul className={`hub-grid ${going ? "entering" : ""}`}>
-                {tables.map((t, i) => (
+                {sortTables(tables, sort).map((t, i) => (
                   <TableCard
                     key={t.id}
                     table={t}
                     index={i}
+                    lead={sort === "recent" && i === 0}
                     going={going === t.id}
                     onEnter={() => void enter(t)}
                     onLeave={() => void leave(t)}
@@ -155,12 +196,14 @@ function TablesPage() {
 function TableCard({
   table: t,
   index,
+  lead: first,
   going,
   onEnter,
   onLeave,
 }: {
   table: HubTable;
   index: number;
+  lead: boolean;
   going: boolean;
   onEnter: () => void;
   onLeave: () => void;
@@ -168,7 +211,7 @@ function TableCard({
   const theme = t.universe.theme;
   const session = sessionLabel(t.next_session);
   const gm = t.role === "gm";
-  const first = index === 0;
+  const mine = gm || t.is_owner;
   useEffect(() => {
     const href = fontsHref(theme);
     if (!href || document.querySelector(`link[href="${href}"]`)) return;
@@ -186,7 +229,7 @@ function TableCard({
   };
   return (
     <li
-      className={`hub-card ${first ? "first" : ""} ${going ? "going" : ""} shape-${theme.corners} ${theme.glow ? "glow" : ""}`}
+      className={`hub-card ${first ? "first" : ""} ${mine ? "mine" : ""} ${going ? "going" : ""} shape-${theme.corners} ${theme.glow ? "glow" : ""}`}
       style={{ ...themeStyle(t), ["--i" as string]: index }}
     >
       <Button
@@ -200,7 +243,10 @@ function TableCard({
         </span>
         <span className="hub-text">
           <span className="hub-top">
-            <span className="hub-role">{gm ? "MJ" : "Joueur"}</span>
+            <span className={`hub-role ${mine ? "mine" : ""}`}>
+              {mine && <Crown size={12} aria-hidden="true" />}
+              {roleLabel(t)}
+            </span>
             {t.isNew && <span className="hub-new">Du nouveau</span>}
           </span>
           <strong>{t.name}</strong>

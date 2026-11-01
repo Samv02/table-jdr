@@ -12,7 +12,8 @@ export async function openTeam(teamId: string | null, to: string): Promise<strin
 }
 
 /** Pages de jeu : elles n'ont de sens qu'à l'intérieur d'une équipe. */
-export const needsTeam = (pathname: string) => pathname === "/fiche" || pathname.startsWith("/mj");
+export const needsTeam = (pathname: string) =>
+  pathname === "/fiche" || pathname === "/carte" || pathname.startsWith("/mj");
 
 /** Pages publiques : tout le reste demande d'être connecté. */
 const PUBLIC_PAGES = ["/", "/confidentialite", "/mot-de-passe", "/rejoindre"];

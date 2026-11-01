@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ArrowDown,
   ArrowLeft,
@@ -6,6 +6,8 @@ import {
   ArrowUp,
   Check,
   Download,
+  Eye,
+  PanelRight,
   Plus,
   RotateCcw,
   Trash2,
@@ -13,7 +15,7 @@ import {
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { confirmAction } from "@/components/ConfirmDialog";
+import { PlayerView, SheetPreviewPanel } from "@/components/SheetPreview";
 import { useUniverse } from "@/lib/universe-context";
 import { HpVisual } from "@/components/HpVisual";
 import { FormulaField } from "@/components/FormulaField";
@@ -86,6 +88,11 @@ export function UniverseEditor({
   const [busy, setBusy] = useState(false);
   const [previewHp, setPreviewHp] = useState(60);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  // Essai d'un modèle : le brouillon d'avant reste de côté pour pouvoir y revenir
+  const [trial, setTrial] = useState<{ before: Universe; label: string } | null>(null);
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [playerView, setPlayerView] = useState(false);
+  const closePlayerView = useCallback(() => setPlayerView(false), []);
   const file = useRef<HTMLInputElement>(null);
   const dirty = JSON.stringify(draft) !== JSON.stringify(saved);
   const errors = useMemo(() => universeErrors(draft), [draft]);
@@ -129,19 +136,15 @@ export function UniverseEditor({
   const mod = (k: keyof Universe["modules"], v: boolean) =>
     set((u) => ({ ...u, modules: { ...u.modules, [k]: v } }));
 
-  async function applyPreset(id: string) {
+  function tryPreset(id: string) {
     const p = PRESETS.find((x) => x.id === id);
     if (!p) return;
-    if (
-      !(await confirmAction({
-        title: `Partir du modèle « ${p.label} » ?`,
-        message:
-          "Couleurs, polices, vocabulaire et règles seront remplacés dans ce brouillon. Rien n'est envoyé à la table tant que tu n'as pas enregistré.",
-        confirmLabel: "Utiliser ce modèle",
-      }))
-    )
-      return;
+    setTrial((t) => ({ before: t?.before ?? draft, label: p.label }));
     setDraft(structuredClone(p.universe));
+  }
+  function revertTrial() {
+    if (trial) setDraft(trial.before);
+    setTrial(null);
   }
 
   async function submit() {
@@ -168,6 +171,7 @@ export function UniverseEditor({
   async function importFile(f: File) {
     try {
       setDraft(normalizeUniverse(JSON.parse(await f.text())));
+      setTrial(null);
       setMsg({ ok: true, text: "Univers importé dans le brouillon : vérifie puis enregistre." });
     } catch {
       setMsg({
@@ -191,12 +195,16 @@ export function UniverseEditor({
       <UniverseMenu current={current} draft={draft} saved={saved} errors={errors} onPage={onPage} />
       <div className="uni-content">
         <Section id="modele" page={page}>
+          <p className="note plain">
+            Touche un modèle pour l’essayer : il s’affiche sur ton écran seulement, puis tu le
+            gardes ou tu reviens en arrière.
+          </p>
           <div className="uni-preset-list">
             {PRESETS.map((p) => (
               <Button
                 key={p.id}
                 className={`uni-preset ${draft.preset === p.id ? "on" : ""}`}
-                onClick={() => void applyPreset(p.id)}
+                onClick={() => tryPreset(p.id)}
                 style={{
                   ["--p-bg" as string]: p.universe.theme.bg,
                   ["--p-panel" as string]: p.universe.theme.panel,
@@ -821,9 +829,13 @@ export function UniverseEditor({
 
         <PageSteps current={current} onPage={onPage} />
       </div>
-      <div className={`uni-bar ${dirty ? "dirty" : ""}`}>
+      <SheetPreviewPanel u={draft} open={panelOpen} onClose={() => setPanelOpen(false)} />
+      {playerView && <PlayerView u={draft} onClose={closePlayerView} />}
+      <div className={`uni-bar ${dirty || trial ? "dirty" : ""}`}>
         <span className="uni-state">
-          {hasErrors ? (
+          {trial ? (
+            `Essai de « ${trial.label} » · sur ton écran seulement`
+          ) : hasErrors ? (
             <>
               <X size={14} /> {Object.keys(errors).length} formule(s) à corriger
             </>
@@ -836,6 +848,16 @@ export function UniverseEditor({
           )}
         </span>
         <span className="uni-actions">
+          <Button
+            className="btn uni-preview-toggle"
+            aria-expanded={panelOpen}
+            onClick={() => setPanelOpen((o) => !o)}
+          >
+            <PanelRight size={16} /> Aperçu
+          </Button>
+          <Button className="btn" onClick={() => setPlayerView(true)}>
+            <Eye size={16} /> Vue joueur
+          </Button>
           <Button
             className="btn"
             title="Exporter l'univers (fichier)"
@@ -863,16 +885,29 @@ export function UniverseEditor({
               e.target.value = "";
             }}
           />
-          <Button className="btn" disabled={!dirty || busy} onClick={() => setDraft(saved)}>
-            <RotateCcw size={15} /> Annuler
-          </Button>
-          <Button
-            className="btn y"
-            disabled={!dirty || busy || hasErrors}
-            onClick={() => void submit()}
-          >
-            {busy ? "Enregistrement…" : "Enregistrer pour la table"}
-          </Button>
+          {trial ? (
+            <>
+              <Button className="btn" onClick={revertTrial}>
+                <RotateCcw size={15} /> Revenir
+              </Button>
+              <Button className="btn y" onClick={() => setTrial(null)}>
+                <Check size={15} /> Garder
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button className="btn" disabled={!dirty || busy} onClick={() => setDraft(saved)}>
+                <RotateCcw size={15} /> Annuler
+              </Button>
+              <Button
+                className="btn y"
+                disabled={!dirty || busy || hasErrors}
+                onClick={() => void submit()}
+              >
+                {busy ? "Enregistrement…" : "Enregistrer pour la table"}
+              </Button>
+            </>
+          )}
         </span>
         {msg && (
           <p className={`uni-msg ${msg.ok ? "ok" : "ko"}`} role="status">

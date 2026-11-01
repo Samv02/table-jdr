@@ -190,6 +190,7 @@ describe("routeGuard", () => {
   it("never leaves a player on a GM or admin page", () => {
     expect(routeGuard("/mj/tableau", player)).toBe("/fiche");
     expect(routeGuard("/mj/personnages", player)).toBe("/fiche");
+    expect(routeGuard("/carte", player)).toBeNull();
     expect(routeGuard("/admin", player)).toBe("/fiche");
     expect(routeGuard("/fiche", player)).toBeNull();
   });

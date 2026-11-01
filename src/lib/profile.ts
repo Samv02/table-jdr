@@ -41,8 +41,16 @@ export function useProfiles() {
   useEffect(() => {
     let alive = true;
     const load = async () => {
-      const { data } = await supabase.from("profiles").select("id,username,color,avatar_url");
-      const list = (data ?? []) as PublicProfile[];
+      const [{ data }, { data: members }] = await Promise.all([
+        supabase.from("profiles").select("id,username,color,avatar_url"),
+        supabase.rpc("get_team_members"),
+      ]);
+      // À une table, la photo propre à cette table remplace celle du compte
+      const atTable = new Map((members ?? []).map((m) => [m.user_id, m.avatar_url]));
+      const list = ((data ?? []) as PublicProfile[]).map((p) => ({
+        ...p,
+        avatar_url: atTable.get(p.id) ?? p.avatar_url,
+      }));
       const paths = list.map((p) => p.avatar_url).filter((x): x is string => !!x);
       const urls: Record<string, string> = {};
       if (paths.length) {

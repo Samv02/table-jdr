@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
+import { Route as CarteRouteImport } from './routes/carte'
 import { Route as ConfidentialiteRouteImport } from './routes/confidentialite'
 import { Route as FicheRouteImport } from './routes/fiche'
 import { Route as MotDePasseRouteImport } from './routes/mot-de-passe'
@@ -33,6 +34,11 @@ const IndexRoute = IndexRouteImport.update({
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CarteRoute = CarteRouteImport.update({
+  id: '/carte',
+  path: '/carte',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ConfidentialiteRoute = ConfidentialiteRouteImport.update({
@@ -104,6 +110,7 @@ const MjUniversRoute = MjUniversRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/carte': typeof CarteRoute
   '/confidentialite': typeof ConfidentialiteRoute
   '/fiche': typeof FicheRoute
   '/mot-de-passe': typeof MotDePasseRoute
@@ -121,6 +128,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/carte': typeof CarteRoute
   '/confidentialite': typeof ConfidentialiteRoute
   '/fiche': typeof FicheRoute
   '/mot-de-passe': typeof MotDePasseRoute
@@ -139,6 +147,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/carte': typeof CarteRoute
   '/confidentialite': typeof ConfidentialiteRoute
   '/fiche': typeof FicheRoute
   '/mot-de-passe': typeof MotDePasseRoute
@@ -158,6 +167,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
+    | '/carte'
     | '/confidentialite'
     | '/fiche'
     | '/mot-de-passe'
@@ -175,6 +185,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/admin'
+    | '/carte'
     | '/confidentialite'
     | '/fiche'
     | '/mot-de-passe'
@@ -192,6 +203,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/admin'
+    | '/carte'
     | '/confidentialite'
     | '/fiche'
     | '/mot-de-passe'
@@ -210,6 +222,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
+  CarteRoute: typeof CarteRoute
   ConfidentialiteRoute: typeof ConfidentialiteRoute
   FicheRoute: typeof FicheRoute
   MotDePasseRoute: typeof MotDePasseRoute
@@ -239,6 +252,13 @@ declare module '@tanstack/react-router' {
       path: '/admin'
       fullPath: '/admin'
       preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/carte': {
+      id: '/carte'
+      path: '/carte'
+      fullPath: '/carte'
+      preLoaderRoute: typeof CarteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/confidentialite': {
@@ -338,6 +358,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
+  CarteRoute: CarteRoute,
   ConfidentialiteRoute: ConfidentialiteRoute,
   FicheRoute: FicheRoute,
   MotDePasseRoute: MotDePasseRoute,

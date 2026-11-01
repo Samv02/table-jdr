@@ -27,6 +27,7 @@ Comptes de test (mot de passe `table1234`) : `mj@table.local` (MJ), `joueur1@tab
 - **Support** : tickets dans `support_tickets` et `support_messages` ; l'utilisateur n'écrit que par `open_ticket` et `reply_ticket`, les notes internes (`internal`) lui restent invisibles par RLS.
 - Boutons : toujours le composant `Button` (`src/components/ui/button.tsx`), l'apparence vient de ses classes. ESLint refuse un `<button>` brut.
 - **Plan de l'appli** (`src/lib/navigation.ts`) : deux espaces. Hors table : hub `/tables` (porte d'entrée après connexion), `/profil`, `/support`. À la table, le MJ a Partie, Scènes, Musique, puis Personnages, Joueurs, Univers ; le joueur a sa fiche. Revenir au hub referme la table (`openTeam(null, "/tables")`). Pour l'utilisateur, on dit toujours « table », jamais « équipe » (`team` reste le nom dans le code et la base).
+- **Carte** (`/carte`, `src/components/MapPage.tsx`, `MapBoard.tsx`, `src/lib/map.ts`) : le MJ prépare des cartes (murs et portes sur la grille, pions libres) et en affiche une. Le joueur l’ouvre en fenêtre flottante sur sa fiche et ne lit que la carte affichée et les pions non cachés (RLS), en direct.
 - Univers : une page par sujet, décrite dans `src/lib/universe-pages.ts`. Un nouveau réglage y déclare sa page, sa valeur et ses mots-clés de recherche.
 - Styles : `src/styles/table-base.css` + `src/styles/table-integration.css`, uniquement avec les variables du thème.
 
@@ -42,4 +43,5 @@ Comptes de test (mot de passe `table1234`) : `mj@table.local` (MJ), `joueur1@tab
 8. Interface en français, adaptée au mobile.
 
 Historique, préférences du propriétaire et tâches en attente : @docs/CONTEXTE.md
+Dernier point d'arrivée et reprise sur un autre PC : @docs/REPRISE.md
 Détails techniques complémentaires : @AGENTS.md

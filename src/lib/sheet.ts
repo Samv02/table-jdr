@@ -204,8 +204,10 @@ export function parseDamage(dmg: string): { count: number; sides: number; mod: n
   };
 }
 
+/** Le maximum fixé par le MJ sur une fiche passe avant la formule ; 0 ou vide = la formule. */
 export function hpMax(stats: Stats, sheet: Sheet, u: Universe): number {
-  return hpMaxFor(u, stats, sheet);
+  const forced = num(sheet, "hpMaxForced");
+  return forced > 0 ? forced : hpMaxFor(u, stats, sheet);
 }
 
 /**

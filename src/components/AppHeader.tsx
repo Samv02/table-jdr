@@ -9,6 +9,7 @@ import {
   LifeBuoy,
   List,
   LogOut,
+  Map as MapIcon,
   Music2,
   ScrollText,
   UserRound,
@@ -18,6 +19,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { charLabel, useIdentity } from "@/lib/active-character";
 import { useTable } from "@/lib/table-context";
+import { MapPage } from "@/components/MapPage";
 import { Button } from "@/components/ui/button";
 import { hudParty } from "@/lib/dashboard";
 import { usePinnedFeed } from "@/lib/pinned-feed";
@@ -76,6 +78,7 @@ export function AppHeader() {
   const { pinned } = usePinnedFeed(id.userId);
   const W = useWords();
   const [supportUnread, setSupportUnread] = useState(false);
+  const [mapOpen, setMapOpen] = useState(false);
   useEffect(() => {
     if (!id.userId) return;
     const check = async () => {
@@ -154,6 +157,27 @@ export function AppHeader() {
           ))}
         </div>
         <div className="hud-actions">
+          {id.isGm ? (
+            <Link
+              to="/carte"
+              className="icon-btn cut-s"
+              title="Carte"
+              aria-label="Carte"
+              activeProps={{ className: "active" }}
+            >
+              <MapIcon />
+            </Link>
+          ) : (
+            <Button
+              className="icon-btn cut-s"
+              title="Carte"
+              aria-label="Carte"
+              aria-pressed={mapOpen}
+              onClick={() => setMapOpen((o) => !o)}
+            >
+              <MapIcon />
+            </Button>
+          )}
           <Button
             className="icon-btn cut-s"
             title="Fil des jets"
@@ -176,6 +200,7 @@ export function AppHeader() {
           </Button>
         </div>
       </header>
+      {mapOpen && !id.isGm && <MapPage popup onClose={() => setMapOpen(false)} />}
       <div className={`table-navigation ${id.isGm ? "" : "solo"}`}>
         <Button
           className="nav-exit"

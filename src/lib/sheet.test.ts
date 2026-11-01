@@ -67,6 +67,11 @@ describe("calculs", () => {
   it("PV max = 10 + 5 × arrondi sup((CORPS + VOL) / 2)", () => {
     expect(hpMax(readStats({ stats: { CORPS: 8, VOL: 6 } }, cp), {}, cp)).toBe(45); // (8+6)/2 = 7 → 10 + 35
     expect(hpMax(readStats({ stats: { CORPS: 5, VOL: 4 } }, cp), {}, cp)).toBe(35); // 4.5 → 5 → 10 + 25
+    const stats = readStats({ stats: { CORPS: 5, VOL: 4 } }, cp);
+    expect(hpMax(stats, { hpMaxForced: 60 }, cp)).toBe(60); // le MJ passe avant la formule
+    expect(hpMax(stats, { hpMaxForced: 12 }, cp)).toBe(12);
+    expect(hpMax(stats, { hpMaxForced: 0 }, cp)).toBe(35);
+    expect(hpMax({}, { hpMaxForced: 40 }, cp)).toBe(40); // caracs vides : plus de maximum inconnu
   });
   it("gravement blessé ≤ arrondi sup(PV max / 2)", () => {
     const w = woundedFor(cp, 45, stats, {});
