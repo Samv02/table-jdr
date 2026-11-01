@@ -19,6 +19,7 @@ Le détail de chaque fonctionnalité est dans `docs/HISTORIQUE.md` (entrées 35 
 ## Limites connues de la carte
 - La vision limitée masque l'affichage côté joueur ; seul « Caché » retient vraiment un pion en base.
 - Les murs bloquent la vue, pas les déplacements.
+- Une porte secrète fermée est dessinée comme un mur, mais elle reste lisible dans les données envoyées au joueur (colonne `walls`).
 
 ## Sur un PC avec peu de mémoire
 `npm test` peut échouer par dépassement de temps sur des tests sans rapport. Lancer `npx vitest run --maxWorkers=2 --testTimeout=30000`.

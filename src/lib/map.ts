@@ -1,23 +1,43 @@
 /**
  * Cartes 2D : calculs de la grille, sans affichage ni base.
- * Murs et portes vivent sur les arêtes des cases ; les pions sont libres, en fractions de case.
+ * Murs et portes vivent sur les arêtes des cases, les trappes au sol d'une case ;
+ * les pions sont libres, en fractions de case.
  */
 export const MAP_MIN = 4;
 export const MAP_MAX = 100;
 export const MAP_EDGES_MAX = 5000;
 
-export type EdgeDir = "h" | "v";
+export type EdgeDir = "h" | "v" | "c";
 export type EdgeKind = "wall" | "door";
-/** Arête partant du coin (x, y), vers la droite (h) ou vers le bas (v). */
-export type MapEdge = { x: number; y: number; dir: EdgeDir; kind: EdgeKind; open?: boolean };
+export type DoorType = "simple" | "double" | "secret" | "bars" | "trap";
+export const DOOR_TYPES: { id: DoorType; label: string; hint: string }[] = [
+  { id: "simple", label: "Porte", hint: "Bloque la vue tant qu’elle est fermée." },
+  { id: "double", label: "Double", hint: "Deux battants, bloque la vue tant qu’elle est fermée." },
+  { id: "secret", label: "Secrète", hint: "Les joueurs voient un mur tant qu’elle est fermée." },
+  { id: "bars", label: "Grille", hint: "Laisse passer la vue, même fermée." },
+  { id: "trap", label: "Trappe", hint: "Se pose au sol d’une case, ne bloque pas la vue." },
+];
+/**
+ * Arête partant du coin (x, y), vers la droite (h) ou vers le bas (v) ; c : le sol de la case (x, y).
+ * Une porte sans `door` est une porte simple.
+ */
+export type MapEdge = {
+  x: number;
+  y: number;
+  dir: EdgeDir;
+  kind: EdgeKind;
+  open?: boolean;
+  door?: Exclude<DoorType, "simple">;
+};
 export type Point = { x: number; y: number };
 
 export const edgeKey = (e: Pick<MapEdge, "x" | "y" | "dir">) => `${e.dir}:${e.x}:${e.y}`;
 
 export const insideMap = (e: Pick<MapEdge, "x" | "y" | "dir">, w: number, h: number) =>
-  e.dir === "h"
-    ? e.x >= 0 && e.x < w && e.y >= 0 && e.y <= h
-    : e.x >= 0 && e.x <= w && e.y >= 0 && e.y < h;
+  e.x >= 0 && e.y >= 0 && e.x <= (e.dir === "v" ? w : w - 1) && e.y <= (e.dir === "h" ? h : h - 1);
+
+const readDoor = (raw: unknown) =>
+  raw === "double" || raw === "secret" || raw === "bars" || raw === "trap" ? raw : undefined;
 
 /** Lit la colonne `walls` ; une ligne illisible est ignorée, jamais une erreur d'affichage. */
 export function readEdges(raw: unknown): MapEdge[] {
@@ -27,12 +47,16 @@ export function readEdges(raw: unknown): MapEdge[] {
     const o = (item ?? {}) as Record<string, unknown>;
     const { x, y } = o;
     if (!Number.isInteger(x) || !Number.isInteger(y)) continue;
-    if (o["dir"] !== "h" && o["dir"] !== "v") continue;
+    if (o["dir"] !== "h" && o["dir"] !== "v" && o["dir"] !== "c") continue;
+    const door = o["kind"] === "door" ? readDoor(o["door"]) : undefined;
+    // Le sol d'une case ne porte qu'une trappe, et une trappe n'est jamais sur une arête
+    if ((o["dir"] === "c") !== (door === "trap")) continue;
     const edge: MapEdge = {
       x: x as number,
       y: y as number,
       dir: o["dir"],
       kind: o["kind"] === "door" ? "door" : "wall",
+      ...(door ? { door } : {}),
       ...(o["kind"] === "door" && o["open"] === true ? { open: true } : {}),
     };
     seen.set(edgeKey(edge), edge);
@@ -67,6 +91,22 @@ export function nearestEdge(p: Point, w: number, h: number): Pick<MapEdge, "x" |
   if (min === bottom) return { x: cx, y: cy + 1, dir: "h" };
   if (min === left) return { x: cx, y: cy, dir: "v" };
   return { x: cx + 1, y: cy, dir: "v" };
+}
+
+/** Sol de la case sous un point : c'est là que se pose une trappe. */
+export const cellAt = (p: Point, w: number, h: number): Pick<MapEdge, "x" | "y" | "dir"> => ({
+  x: Math.min(w - 1, Math.max(0, Math.floor(p.x))),
+  y: Math.min(h - 1, Math.max(0, Math.floor(p.y))),
+  dir: "c",
+});
+
+/** Ce que vise la gomme : la trappe si le pointeur est dessus, sinon l'arête la plus proche. */
+export function eraseTarget(edges: MapEdge[], p: Point, w: number, h: number) {
+  const cell = cellAt(p, w, h);
+  const onTrap =
+    distance(p, { x: cell.x + 0.5, y: cell.y + 0.5 }) < 0.35 &&
+    edges.some((e) => edgeKey(e) === edgeKey(cell));
+  return onTrap ? cell : nearestEdge(p, w, h);
 }
 
 /** Arêtes reliant deux coins en suivant la grille : d'abord à l'horizontale, puis à la verticale. */
@@ -133,11 +173,14 @@ export const snapToCell = (p: Point, w: number, h: number): Point => ({
 
 export type Segment = { a: Point; b: Point };
 
-/** Ce qui bloque la vue : murs et portes fermées, arêtes voisines fusionnées pour aller vite. */
+/**
+ * Ce qui bloque la vue : murs et portes fermées, arêtes voisines fusionnées pour aller vite.
+ * Une grille laisse voir à travers, une trappe est au sol.
+ */
 export function blockers(edges: MapEdge[]): Segment[] {
   const lines = new Map<string, number[]>();
   for (const e of edges) {
-    if (e.open) continue;
+    if (e.open || e.dir === "c" || e.door === "bars") continue;
     const key = e.dir === "h" ? `h${e.y}` : `v${e.x}`;
     lines.set(key, [...(lines.get(key) ?? []), e.dir === "h" ? e.x : e.y]);
   }

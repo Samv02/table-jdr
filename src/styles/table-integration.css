@@ -9093,10 +9093,44 @@ main.map-screen {
   stroke-dasharray: 6 8;
   stroke-width: 3;
 }
+.map-door.double {
+  stroke-linecap: butt;
+}
+.map-door.leaf {
+  stroke-width: 4;
+}
+.map-door.bars {
+  stroke: var(--cyan);
+  stroke-linecap: butt;
+  stroke-dasharray: 3 5;
+  stroke-width: 10;
+}
+.map-door.secret {
+  stroke: var(--pink);
+  stroke-linecap: butt;
+  stroke-dasharray: 4 6;
+  stroke-width: 3;
+}
+.map-trap rect {
+  fill: color-mix(in srgb, var(--yellow) 18%, transparent);
+  stroke: var(--yellow);
+  stroke-width: 2;
+}
+.map-trap line {
+  stroke: var(--yellow);
+  stroke-width: 1.5;
+}
+.map-trap.open rect {
+  fill: var(--ink);
+}
 .map-door-hit {
   cursor: pointer;
+  fill: transparent;
   stroke: transparent;
   stroke-width: 18;
+}
+rect.map-door-hit {
+  stroke-width: 0;
 }
 .map-fog.player {
   fill: var(--ink);
@@ -9191,6 +9225,7 @@ main.map-screen {
 /* Barres flottantes */
 .map-top,
 .map-tools,
+.map-door-types,
 .map-zoom,
 .map-panel {
   border: 1px solid var(--line);
@@ -9311,6 +9346,34 @@ main.map-screen {
 }
 .map-tools button:hover span {
   display: block;
+}
+.map-door-types {
+  position: absolute;
+  top: 66px;
+  left: 66px;
+  z-index: 3;
+  display: flex;
+  gap: 2px;
+  max-width: calc(100% - 76px);
+  padding: 4px;
+  overflow-x: auto;
+}
+.map-door-types button {
+  flex: none;
+  min-height: 40px;
+  padding: 0 12px;
+  border-radius: 8px;
+  color: var(--text);
+  font-family: var(--head);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+.map-door-types button:hover {
+  background: color-mix(in srgb, var(--text) 10%, transparent);
+}
+.map-door-types button[aria-checked="true"] {
+  background: var(--yellow);
+  color: var(--bg);
 }
 .map-zoom {
   position: absolute;
@@ -9538,6 +9601,12 @@ main.map-screen {
   }
   .map-tools button span {
     display: none !important;
+  }
+  .map-door-types {
+    top: auto;
+    left: 10px;
+    bottom: calc(126px + env(safe-area-inset-bottom));
+    max-width: calc(100% - 80px);
   }
   .map-zoom {
     top: auto;

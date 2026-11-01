@@ -39,11 +39,13 @@ import type { Json } from "@/integrations/supabase/types";
 import { useIdentity } from "@/lib/active-character";
 import {
   clampSize,
+  DOOR_TYPES,
   MAP_MAX,
   MAP_MIN,
   nextLabel,
   readEdges,
   toggleDoor,
+  type DoorType,
   type MapEdge,
   type Point,
 } from "@/lib/map";
@@ -166,6 +168,7 @@ export function MapPage({ popup = false, onClose }: { popup?: boolean; onClose?:
   const [currentId, setCurrentId] = useState<string | null>(null);
   const [tokens, setTokens] = useState<TokenRow[]>([]);
   const [tool, setTool] = useState<MapTool>("move");
+  const [doorType, setDoorType] = useState<DoorType>("simple");
   const [selected, setSelected] = useState<string | null>(null);
   const [panel, setPanel] = useState<"map" | "tokens" | null>(null);
   const [full, setFull] = useState(false);
@@ -604,6 +607,7 @@ export function MapPage({ popup = false, onClose }: { popup?: boolean; onClose?:
             tokens={onMap}
             party={party}
             tool={tool}
+            doorType={doorType}
             editable={canEdit}
             mine={mine}
             canDrag={(t) =>
@@ -780,6 +784,22 @@ export function MapPage({ popup = false, onClose }: { popup?: boolean; onClose?:
               >
                 <Icon size={18} aria-hidden="true" />
                 <span>{label}</span>
+              </Button>
+            ))}
+          </div>
+        )}
+
+        {canEdit && map && tool === "door" && (
+          <div className="map-door-types" role="radiogroup" aria-label="Type de porte">
+            {DOOR_TYPES.map((d) => (
+              <Button
+                key={d.id}
+                role="radio"
+                aria-checked={doorType === d.id}
+                title={d.hint}
+                onClick={() => setDoorType(d.id)}
+              >
+                {d.label}
               </Button>
             ))}
           </div>

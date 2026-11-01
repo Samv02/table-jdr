@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
   blockers,
+  cellAt,
   clampSize,
   clampToken,
   distance,
   edgeKey,
   edgesBetween,
+  eraseTarget,
   fitCamera,
   formatDistance,
   inPolygon,
@@ -37,6 +39,46 @@ describe("readEdges", () => {
   it("only keeps a door open", () => {
     expect(readEdges([{ ...wall, open: true }])[0]).toEqual(wall);
     expect(readEdges([{ ...wall, kind: "door", open: true }])[0]?.open).toBe(true);
+  });
+});
+
+describe("door types", () => {
+  const trap: MapEdge = { x: 2, y: 3, dir: "c", kind: "door", door: "trap" };
+  it("keeps the type and reads old doors as simple ones", () => {
+    const secret: MapEdge = { ...wall, kind: "door", door: "secret", open: true };
+    expect(readEdges([secret])).toEqual([secret]);
+    expect(readEdges([{ ...wall, kind: "door" }])[0]?.door).toBeUndefined();
+    expect(readEdges([{ ...wall, kind: "door", door: "inconnu" }])[0]?.door).toBeUndefined();
+    expect(readEdges([{ ...wall, door: "secret" }])).toEqual([wall]);
+  });
+  it("only allows a trapdoor on the floor of a cell", () => {
+    expect(readEdges([trap])).toEqual([trap]);
+    expect(readEdges([{ ...wall, kind: "door", door: "trap" }])).toEqual([]);
+    expect(readEdges([{ ...trap, door: "double" }])).toEqual([]);
+  });
+  it("keeps cells inside the map", () => {
+    expect(insideMap({ x: 3, y: 3, dir: "c" }, 4, 4)).toBe(true);
+    expect(insideMap({ x: 4, y: 0, dir: "c" }, 4, 4)).toBe(false);
+    expect(cellAt({ x: 50, y: -2 }, 10, 8)).toEqual({ x: 9, y: 0, dir: "c" });
+  });
+  it("opens a trapdoor and keeps its type", () => {
+    expect(toggleDoor([trap], edgeKey(trap))).toEqual([{ ...trap, open: true }]);
+  });
+  it("erases the trapdoor under the pointer, the edge otherwise", () => {
+    expect(eraseTarget([trap], { x: 2.5, y: 3.5 }, 10, 10)).toEqual(cellAt(trap, 10, 10));
+    expect(eraseTarget([trap], { x: 2.5, y: 3.05 }, 10, 10)).toEqual({ x: 2, y: 3, dir: "h" });
+    expect(eraseTarget([], { x: 2.5, y: 3.4 }, 10, 10).dir).toBe("h");
+  });
+  it("lets the view through bars and over trapdoors, never through a closed secret door", () => {
+    const door = (d: MapEdge["door"]): MapEdge => ({
+      ...wall,
+      kind: "door",
+      ...(d ? { door: d } : {}),
+    });
+    expect(blockers([door("bars"), trap])).toEqual([]);
+    expect(blockers([door("double")])).toHaveLength(1);
+    expect(blockers([door("secret")])).toHaveLength(1);
+    expect(blockers([{ ...door("secret"), open: true }])).toEqual([]);
   });
 });
 

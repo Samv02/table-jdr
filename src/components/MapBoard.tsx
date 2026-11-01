@@ -9,10 +9,12 @@ import { Maximize, Minus, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   blockers,
+  cellAt,
   clampToken,
   distance,
   edgeKey,
   edgesBetween,
+  eraseTarget,
   fitCamera,
   formatDistance,
   initials,
@@ -27,6 +29,7 @@ import {
   visibility,
   zoomAt,
   type Camera,
+  type DoorType,
   type MapEdge,
   type Point,
 } from "@/lib/map";
@@ -62,6 +65,83 @@ function tokenColor(t: MapToken, member?: PartyMember) {
 
 const polygonPoints = (poly: Point[]) => poly.map((p) => `${p.x * CELL},${p.y * CELL}`).join(" ");
 
+const edgeLine = (e: Pick<MapEdge, "x" | "y" | "dir">) => ({
+  x1: e.x * CELL,
+  y1: e.y * CELL,
+  x2: (e.x + (e.dir === "h" ? 1 : 0)) * CELL,
+  y2: (e.y + (e.dir === "v" ? 1 : 0)) * CELL,
+});
+
+const TRAP = CELL * 0.6;
+const trapBox = (e: MapEdge) => ({
+  x: (e.x + 0.5) * CELL - TRAP / 2,
+  y: (e.y + 0.5) * CELL - TRAP / 2,
+  width: TRAP,
+  height: TRAP,
+});
+
+/** Dessin d'un mur ou d'une porte. Une porte secrète fermée n'est un mur que pour les joueurs. */
+export function EdgeMark({ edge: e, gm }: { edge: MapEdge; gm: boolean }) {
+  if (e.door === "trap") {
+    const box = trapBox(e);
+    return (
+      <g className={e.open ? "map-trap open" : "map-trap"}>
+        <rect {...box} rx={2} />
+        {!e.open && (
+          <>
+            <line x1={box.x} y1={box.y} x2={box.x + TRAP} y2={box.y + TRAP} />
+            <line x1={box.x + TRAP} y1={box.y} x2={box.x} y2={box.y + TRAP} />
+          </>
+        )}
+      </g>
+    );
+  }
+  const line = edgeLine(e);
+  if (e.kind === "wall") return <line {...line} className="map-wall" />;
+  if (e.door === "secret" && !e.open)
+    return (
+      <>
+        <line {...line} className="map-wall" />
+        {gm && <line {...line} className="map-door secret" />}
+      </>
+    );
+  if (e.door === "bars")
+    return <line {...line} className={e.open ? "map-door open" : "map-door bars"} />;
+  if (e.door === "double") {
+    const mx = (line.x1 + line.x2) / 2;
+    const my = (line.y1 + line.y2) / 2;
+    const gapX = e.dir === "h" ? 2 : 0;
+    const gapY = e.dir === "v" ? 2 : 0;
+    // Ouverte, chaque battant pivote sur son gond, à angle droit de l'arête
+    const leafX = e.dir === "v" ? CELL * 0.4 : 0;
+    const leafY = e.dir === "h" ? CELL * 0.4 : 0;
+    return e.open ? (
+      <>
+        <line
+          className="map-door leaf"
+          x1={line.x1}
+          y1={line.y1}
+          x2={line.x1 + leafX}
+          y2={line.y1 + leafY}
+        />
+        <line
+          className="map-door leaf"
+          x1={line.x2}
+          y1={line.y2}
+          x2={line.x2 + leafX}
+          y2={line.y2 + leafY}
+        />
+      </>
+    ) : (
+      <>
+        <line className="map-door double" x1={line.x1} y1={line.y1} x2={mx - gapX} y2={my - gapY} />
+        <line className="map-door double" x1={mx + gapX} y1={my + gapY} x2={line.x2} y2={line.y2} />
+      </>
+    );
+  }
+  return <line {...line} className={e.open ? "map-door open" : "map-door"} />;
+}
+
 /**
  * Plateau en SVG avec caméra libre. Les gestes restent ici : pendant un tracé ou un glissé
  * rien ne part vers la base, le parent reçoit le résultat quand le pointeur se relève.
@@ -73,6 +153,7 @@ export function MapBoard({
   tokens,
   party,
   tool,
+  doorType,
   editable,
   mine,
   canDrag,
@@ -99,6 +180,7 @@ export function MapBoard({
   tokens: MapToken[];
   party: PartyMember[];
   tool: MapTool;
+  doorType: DoorType;
   editable: boolean;
   /** Personnages de ce compte : leur pion est signalé */
   mine: Set<string>;
@@ -211,7 +293,12 @@ export function MapBoard({
   const paint = (list: MapEdge[], key: Pick<MapEdge, "x" | "y" | "dir">) => {
     if (!insideMap(key, width, height)) return list;
     if (tool === "erase") return removeEdge(list, edgeKey(key));
-    return setEdge(list, { ...key, kind: tool === "door" ? "door" : "wall" });
+    if (tool !== "door") return setEdge(list, { ...key, kind: "wall" });
+    return setEdge(list, {
+      ...key,
+      kind: "door",
+      ...(doorType === "simple" ? {} : { door: doorType }),
+    });
   };
 
   function cancel() {
@@ -251,11 +338,13 @@ export function MapBoard({
     }
     if (!editable) return;
     if (tool === "enemy" || tool === "ally") return onPlace(clampToken(p, width, height));
+    if (tool === "door" && doorType === "trap")
+      return onEdges(paint(edges, cellAt(p, width, height)));
     moved.current = false;
     const c = nearestCorner(p, width, height);
     if (tool === "room") return setRoom({ a: c, b: c });
     corner.current = c;
-    setStroke(tool === "erase" ? paint(edges, nearestEdge(p, width, height)) : edges);
+    setStroke(tool === "erase" ? paint(edges, eraseTarget(edges, p, width, height)) : edges);
   }
 
   function move(e: ReactPointerEvent<HTMLDivElement>) {
@@ -293,7 +382,11 @@ export function MapBoard({
     if (ruler) return setRuler({ a: ruler.a, b: clampToken(p, width, height) });
     if (room) return setRoom({ a: room.a, b: nearestCorner(p, width, height) });
     if (!stroke || !corner.current) return;
-    if (tool === "erase") return setStroke((s) => paint(s ?? edges, nearestEdge(p, width, height)));
+    if (tool === "erase")
+      return setStroke((s) => {
+        const list = s ?? edges;
+        return paint(list, eraseTarget(list, p, width, height));
+      });
     // Les murs suivent la grille de coin en coin : un tracé ne déborde jamais d'une case
     const next = nearestCorner(p, width, height);
     if (next.x === corner.current.x && next.y === corner.current.y) return;
@@ -429,36 +522,28 @@ export function MapBoard({
             ))}
             {shown.map((e) => {
               const key = edgeKey(e);
-              const geometry = {
-                x1: e.x * CELL,
-                y1: e.y * CELL,
-                x2: (e.x + (e.dir === "h" ? 1 : 0)) * CELL,
-                y2: (e.y + (e.dir === "v" ? 1 : 0)) * CELL,
+              const hit = {
+                className: "map-door-hit",
+                "aria-label": e.open ? "Fermer la porte" : "Ouvrir la porte",
+                onPointerDown: (ev: ReactPointerEvent) => ev.stopPropagation(),
+                onClick: () => onDoor(key),
               };
               return (
                 <g key={key}>
-                  <line {...geometry} className={e.open ? "map-door open" : `map-${e.kind}`} />
-                  {e.kind === "door" && editable && tool === "move" && (
-                    <line
-                      {...geometry}
-                      className="map-door-hit"
-                      aria-label={e.open ? "Fermer la porte" : "Ouvrir la porte"}
-                      onPointerDown={(ev) => ev.stopPropagation()}
-                      onClick={() => onDoor(key)}
-                    />
-                  )}
+                  <EdgeMark edge={e} gm={editable} />
+                  {e.kind === "door" &&
+                    editable &&
+                    tool === "move" &&
+                    (e.door === "trap" ? (
+                      <rect {...trapBox(e)} {...hit} />
+                    ) : (
+                      <line {...edgeLine(e)} {...hit} />
+                    ))}
                 </g>
               );
             })}
             {preview.map((e) => (
-              <line
-                key={edgeKey(e)}
-                className="map-wall ghost"
-                x1={e.x * CELL}
-                y1={e.y * CELL}
-                x2={(e.x + (e.dir === "h" ? 1 : 0)) * CELL}
-                y2={(e.y + (e.dir === "v" ? 1 : 0)) * CELL}
-              />
+              <line key={edgeKey(e)} className="map-wall ghost" {...edgeLine(e)} />
             ))}
             {polygons && (
               <rect
