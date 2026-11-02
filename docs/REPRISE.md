@@ -18,6 +18,7 @@ Le détail de chaque fonctionnalité est dans `docs/HISTORIQUE.md` (entrées 35 
 
 ## Limites connues de la carte
 - La vision limitée masque l'affichage côté joueur ; seul « Caché » retient vraiment un pion en base.
+- Pour une surprise sûre dans une pièce fermée, poser les ennemis en Caché : un pion seulement masqué par la vision arrive quand même sur le navigateur du joueur.
 - Les murs bloquent la vue, pas les déplacements.
 - Une porte secrète fermée est dessinée comme un mur, mais elle reste lisible dans les données envoyées au joueur (colonne `walls`).
 

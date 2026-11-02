@@ -173,6 +173,8 @@ export const snapToCell = (p: Point, w: number, h: number): Point => ({
 
 export type Segment = { a: Point; b: Point };
 
+export const blocksView = (e: MapEdge) => !e.open && e.dir !== "c" && e.door !== "bars";
+
 /**
  * Ce qui bloque la vue : murs et portes fermées, arêtes voisines fusionnées pour aller vite.
  * Une grille laisse voir à travers, une trappe est au sol.
@@ -180,7 +182,7 @@ export type Segment = { a: Point; b: Point };
 export function blockers(edges: MapEdge[]): Segment[] {
   const lines = new Map<string, number[]>();
   for (const e of edges) {
-    if (e.open || e.dir === "c" || e.door === "bars") continue;
+    if (!blocksView(e)) continue;
     const key = e.dir === "h" ? `h${e.y}` : `v${e.x}`;
     lines.set(key, [...(lines.get(key) ?? []), e.dir === "h" ? e.x : e.y]);
   }
@@ -277,4 +279,97 @@ export function fitCamera(cw: number, ch: number, vw: number, vh: number, pad = 
     Math.max(ZOOM_MIN, Math.min((vw - pad * 2) / cw, (vh - pad * 2) / ch)),
   );
   return { k, x: (vw - cw * k) / 2, y: (vh - ch * k) / 2 };
+}
+
+export type VisionRule = {
+  /** room : toute la pièce ; sight : champ de vue depuis le pion */
+  mode: "room" | "sight";
+  /** Portée en cases, 0 = sans limite. Ignorée en mode room. */
+  range: number;
+  /** En champ de vue : voir aussi ce qui se cache dans les angles de la pièce */
+  corners: boolean;
+};
+export type Sight = {
+  origin: Point;
+  /** Portée en cases, 0 = sans limite */
+  radius: number;
+  /** Zone visible : des cases entières, ou le polygone du champ de vue */
+  cells: Set<string> | null;
+  polygon: Point[] | null;
+};
+
+const cellKey = (x: number, y: number) => `${x}:${y}`;
+
+/** Cases reliées à celle d'un point sans traverser ce qui bloque la vue. */
+export function reachableCells(o: Point, edges: MapEdge[], w: number, h: number) {
+  const closed = new Set(edges.filter(blocksView).map(edgeKey));
+  const start = cellAt(o, w, h);
+  const seen = new Set([cellKey(start.x, start.y)]);
+  const todo = [{ x: start.x, y: start.y }];
+  while (todo.length) {
+    const { x, y } = todo.pop()!;
+    const next = [
+      { x: x + 1, y, wall: edgeKey({ x: x + 1, y, dir: "v" }) },
+      { x: x - 1, y, wall: edgeKey({ x, y, dir: "v" }) },
+      { x, y: y + 1, wall: edgeKey({ x, y: y + 1, dir: "h" }) },
+      { x, y: y - 1, wall: edgeKey({ x, y, dir: "h" }) },
+    ];
+    for (const n of next) {
+      if (n.x < 0 || n.y < 0 || n.x >= w || n.y >= h) continue;
+      if (closed.has(n.wall) || seen.has(cellKey(n.x, n.y))) continue;
+      seen.add(cellKey(n.x, n.y));
+      todo.push({ x: n.x, y: n.y });
+    }
+  }
+  return seen;
+}
+
+/** Ce que voit un pion selon la règle choisie par le MJ. */
+export function sightFrom(
+  origin: Point,
+  edges: MapEdge[],
+  rule: VisionRule,
+  w: number,
+  h: number,
+): Sight {
+  const radius = rule.mode === "sight" ? rule.range : 0;
+  const flood = rule.mode === "room" || rule.corners;
+  return {
+    origin,
+    radius,
+    cells: flood ? reachableCells(origin, edges, w, h) : null,
+    polygon: flood ? null : visibility(origin, blockers(edges), w, h),
+  };
+}
+
+export function sees(s: Sight, p: Point, w: number, h: number) {
+  if (s.radius > 0 && distance(s.origin, p) > s.radius) return false;
+  if (s.polygon) return inPolygon(p, s.polygon);
+  const c = cellAt(p, w, h);
+  return !!s.cells?.has(cellKey(c.x, c.y));
+}
+
+/** Cases regroupées par lignes : bien moins de rectangles à dessiner. */
+export function cellRuns(cells: Set<string>) {
+  const rows = new Map<number, number[]>();
+  for (const key of cells) {
+    const [x, y] = key.split(":").map(Number) as [number, number];
+    rows.set(y, [...(rows.get(y) ?? []), x]);
+  }
+  const runs: { x: number; y: number; w: number }[] = [];
+  for (const [y, xs] of rows) {
+    const sorted = xs.sort((a, b) => a - b);
+    let start = sorted[0]!;
+    let end = start + 1;
+    for (const x of sorted.slice(1)) {
+      if (x === end) end = x + 1;
+      else {
+        runs.push({ x: start, y, w: end - start });
+        start = x;
+        end = x + 1;
+      }
+    }
+    runs.push({ x: start, y, w: end - start });
+  }
+  return runs;
 }

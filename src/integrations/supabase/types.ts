@@ -391,6 +391,9 @@ export type Database = {
           show_grid: boolean;
           team_id: string;
           updated_at: string;
+          vision_corners: boolean;
+          vision_mode: string;
+          vision_range: number;
           walls: Json;
           width: number;
         };
@@ -408,6 +411,9 @@ export type Database = {
           show_grid?: boolean;
           team_id?: string;
           updated_at?: string;
+          vision_corners?: boolean;
+          vision_mode?: string;
+          vision_range?: number;
           walls?: Json;
           width?: number;
         };
@@ -425,6 +431,9 @@ export type Database = {
           show_grid?: boolean;
           team_id?: string;
           updated_at?: string;
+          vision_corners?: boolean;
+          vision_mode?: string;
+          vision_range?: number;
           walls?: Json;
           width?: number;
         };

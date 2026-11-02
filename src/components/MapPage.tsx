@@ -54,7 +54,7 @@ import { createSaveQueue } from "@/lib/save-queue";
 import { useTable } from "@/lib/table-context";
 
 const MAP_COLUMNS =
-  "id,name,width,height,walls,background_path,background_opacity,cell_value,cell_unit,show_grid,fog,players_move";
+  "id,name,width,height,walls,background_path,background_opacity,cell_value,cell_unit,show_grid,fog,players_move,vision_mode,vision_range,vision_corners";
 const TOKEN_COLUMNS = "id,map_id,kind,character_id,label,x,y,hidden,size,color";
 
 type TokenRow = MapToken & { map_id: string };
@@ -70,6 +70,9 @@ type MapRow = {
   cell_unit: string;
   show_grid: boolean;
   fog: boolean;
+  vision_mode: "room" | "sight";
+  vision_range: number;
+  vision_corners: boolean;
   players_move: boolean;
 };
 type MapPatch = Partial<Omit<MapRow, "id" | "walls">>;
@@ -145,6 +148,15 @@ function Panel({
   );
 }
 
+const HIDDEN_KEY = "table:map-place-hidden";
+function readPlaceHidden() {
+  try {
+    return localStorage.getItem(HIDDEN_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
 const ALPHA_KEY = "table:map-alpha";
 function readAlpha() {
   try {
@@ -169,6 +181,7 @@ export function MapPage({ popup = false, onClose }: { popup?: boolean; onClose?:
   const [tokens, setTokens] = useState<TokenRow[]>([]);
   const [tool, setTool] = useState<MapTool>("move");
   const [doorType, setDoorType] = useState<DoorType>("simple");
+  const [placeHidden, setPlaceHidden] = useState(readPlaceHidden);
   const [selected, setSelected] = useState<string | null>(null);
   const [panel, setPanel] = useState<"map" | "tokens" | null>(null);
   const [full, setFull] = useState(false);
@@ -421,9 +434,24 @@ export function MapPage({ popup = false, onClose }: { popup?: boolean; onClose?:
     void addToken({
       kind: enemy ? "enemy" : "ally",
       label: nextLabel(enemy ? "Ennemi" : "Allié", labels),
+      hidden: placeHidden,
       ...p,
     });
   };
+  function choosePlaceHidden(next: boolean) {
+    setPlaceHidden(next);
+    try {
+      localStorage.setItem(HIDDEN_KEY, next ? "1" : "0");
+    } catch {
+      /* rien : simple confort */
+    }
+  }
+  function revealAll() {
+    const ids = onMap.filter((t) => t.hidden).map((t) => t.id);
+    if (!ids.length || !mapId) return;
+    setTokens((list) => list.map((t) => (ids.includes(t.id) ? { ...t, hidden: false } : t)));
+    write(() => supabase.from("map_tokens").update({ hidden: false }).in("id", ids));
+  }
   async function placeParty() {
     if (!map) return;
     for (const [i, p] of absent.entries())
@@ -466,6 +494,10 @@ export function MapPage({ popup = false, onClose }: { popup?: boolean; onClose?:
         cell_value: from?.cell_value ?? 1,
         cell_unit: from?.cell_unit ?? "case",
         show_grid: from?.show_grid ?? true,
+        fog: from?.fog ?? false,
+        vision_mode: from?.vision_mode ?? "sight",
+        vision_range: from?.vision_range ?? 0,
+        vision_corners: from?.vision_corners ?? false,
       })
       .select("id")
       .single();
@@ -549,6 +581,11 @@ export function MapPage({ popup = false, onClose }: { popup?: boolean; onClose?:
       void removeToken(chosen);
       return;
     }
+    if (key === "h" && canEdit) {
+      if (chosen) patchToken(chosen.id, { hidden: !chosen.hidden });
+      else choosePlaceHidden(!placeHidden);
+      return;
+    }
     const hit = tools.find((t) => t.key === key);
     if (hit) setTool(hit.id);
   };
@@ -618,6 +655,11 @@ export function MapPage({ popup = false, onClose }: { popup?: boolean; onClose?:
             backgroundOpacity={map.background_opacity}
             showGrid={map.show_grid}
             vision={map.fog ? (canEdit ? "preview" : "player") : null}
+            visionRule={{
+              mode: map.vision_mode,
+              range: map.vision_range / map.cell_value,
+              corners: map.vision_corners,
+            }}
             cellValue={map.cell_value}
             cellUnit={map.cell_unit}
             pings={pings}
@@ -789,6 +831,26 @@ export function MapPage({ popup = false, onClose }: { popup?: boolean; onClose?:
           </div>
         )}
 
+        {canEdit && map && (tool === "enemy" || tool === "ally") && (
+          <div className="map-door-types" role="radiogroup" aria-label="Pose des pions">
+            <Button
+              role="radio"
+              aria-checked={!placeHidden}
+              title="Les joueurs verront ce pion"
+              onClick={() => choosePlaceHidden(false)}
+            >
+              <Eye size={15} aria-hidden="true" /> Visible
+            </Button>
+            <Button
+              role="radio"
+              aria-checked={placeHidden}
+              title="Caché aux joueurs jusqu’à ce que tu le révèles (H)"
+              onClick={() => choosePlaceHidden(true)}
+            >
+              <EyeOff size={15} aria-hidden="true" /> Caché
+            </Button>
+          </div>
+        )}
         {canEdit && map && tool === "door" && (
           <div className="map-door-types" role="radiogroup" aria-label="Type de porte">
             {DOOR_TYPES.map((d) => (
@@ -886,10 +948,65 @@ export function MapPage({ popup = false, onClose }: { popup?: boolean; onClose?:
             />
             <Switch
               label="Vision limitée"
-              hint="Les joueurs ne voient que ce que le groupe voit : murs et portes fermées bloquent la vue."
+              hint="Murs et portes fermées cachent ce qu’il y a derrière."
               value={map.fog}
               onChange={(fog) => patchMap({ fog })}
             />
+            {map.fog && (
+              <div className="map-vision">
+                <div
+                  className="map-seg two"
+                  role="radiogroup"
+                  aria-label="Ce que voient les joueurs"
+                >
+                  <Button
+                    role="radio"
+                    aria-checked={map.vision_mode === "room"}
+                    aria-pressed={map.vision_mode === "room"}
+                    onClick={() => patchMap({ vision_mode: "room" })}
+                  >
+                    Toute la pièce
+                  </Button>
+                  <Button
+                    role="radio"
+                    aria-checked={map.vision_mode === "sight"}
+                    aria-pressed={map.vision_mode === "sight"}
+                    onClick={() => patchMap({ vision_mode: "sight" })}
+                  >
+                    Champ de vue
+                  </Button>
+                </div>
+                {map.vision_mode === "room" ? (
+                  <p className="note plain">
+                    En entrant, les joueurs voient toute la pièce. Une porte ouverte dévoile la
+                    suivante.
+                  </p>
+                ) : (
+                  <>
+                    <label className="uni-field" key={`range-${map.id}`}>
+                      <span>Portée en {map.cell_unit} (0 = sans limite)</span>
+                      <input
+                        className="field"
+                        type="number"
+                        min={0}
+                        step={1}
+                        defaultValue={map.vision_range}
+                        onBlur={(e) => {
+                          const vision_range = Math.max(0, Number(e.target.value) || 0);
+                          if (vision_range !== map.vision_range) patchMap({ vision_range });
+                        }}
+                      />
+                    </label>
+                    <Switch
+                      label="Voir dans les angles"
+                      hint="Sinon, ce qui se cache derrière un angle reste invisible."
+                      value={map.vision_corners}
+                      onChange={(vision_corners) => patchMap({ vision_corners })}
+                    />
+                  </>
+                )}
+              </div>
+            )}
             <Switch
               label="Les joueurs bougent leur pion"
               value={map.players_move}
@@ -1026,6 +1143,11 @@ export function MapPage({ popup = false, onClose }: { popup?: boolean; onClose?:
                   </Button>
                 </div>
               </div>
+            )}
+            {onMap.some((t) => t.hidden) && (
+              <Button className="btn" onClick={revealAll}>
+                <Eye size={15} /> Révéler tous les pions cachés
+              </Button>
             )}
             <ul className="map-list">
               {onMap.map((t) => (

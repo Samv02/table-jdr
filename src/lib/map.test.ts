@@ -24,7 +24,12 @@ import {
   visibility,
   ZOOM_MAX,
   zoomAt,
+  cellRuns,
+  reachableCells,
+  sees,
+  sightFrom,
   type MapEdge,
+  type VisionRule,
 } from "./map";
 
 const wall: MapEdge = { x: 1, y: 2, dir: "h", kind: "wall" };
@@ -192,5 +197,70 @@ describe("camera", () => {
   });
   it("fits and centres the map", () => {
     expect(fitCamera(800, 600, 1000, 1000, 100)).toEqual({ k: 1, x: 100, y: 200 });
+  });
+});
+
+describe("vision rules", () => {
+  // Pièce de 4 cases sur 4 en (1,1), une porte sur le mur du bas, un pilier en L à l'intérieur
+  const room = [...roomEdges({ x: 1, y: 1 }, { x: 5, y: 5 })].map((e): MapEdge => ({
+    ...e,
+    kind: "wall",
+  }));
+  const door: MapEdge = { x: 3, y: 5, dir: "h", kind: "door" };
+  const closed = [...room.filter((e) => edgeKey(e) !== edgeKey(door)), door];
+  const opened = closed.map((e) => (edgeKey(e) === edgeKey(door) ? { ...e, open: true } : e));
+  const inside = { x: 2.5, y: 2.5 };
+  const outside = { x: 3.5, y: 7.5 };
+  const roomRule: VisionRule = { mode: "room", range: 0, corners: false };
+
+  it("keeps a closed room hidden from outside, in both modes", () => {
+    const los: VisionRule = { mode: "sight", range: 0, corners: false };
+    expect(sees(sightFrom(outside, closed, roomRule, 10, 10), inside, 10, 10)).toBe(false);
+    expect(sees(sightFrom(outside, closed, los, 10, 10), inside, 10, 10)).toBe(false);
+  });
+  it("opens the room when its door opens", () => {
+    expect(sees(sightFrom(outside, opened, roomRule, 10, 10), inside, 10, 10)).toBe(true);
+  });
+  it("treats bars as open and a secret door as closed", () => {
+    const with_ = (d: MapEdge["door"]) =>
+      closed.map((e) => (edgeKey(e) === edgeKey(door) && d ? { ...e, door: d } : e));
+    expect(reachableCells(outside, with_("bars"), 10, 10).has("2:2")).toBe(true);
+    expect(reachableCells(outside, with_("secret"), 10, 10).has("2:2")).toBe(false);
+  });
+  it("shows the whole room once inside, corners included", () => {
+    const s = sightFrom(inside, closed, roomRule, 10, 10);
+    expect(sees(s, { x: 4.9, y: 4.9 }, 10, 10)).toBe(true);
+    expect(sees(s, outside, 10, 10)).toBe(false);
+  });
+
+  // Un mur au milieu de la pièce crée un angle mort
+  const pillar: MapEdge[] = [2, 3].map((y) => ({ x: 3, y, dir: "v", kind: "wall" }));
+  const corner = { x: 4.5, y: 2.5 };
+  it("hides what stands behind a corner unless the GM allows it", () => {
+    const blind: VisionRule = { mode: "sight", range: 0, corners: false };
+    const free: VisionRule = { ...blind, corners: true };
+    // Le pilier ne ferme pas la pièce : les cases restent reliées par le bas
+    expect(sees(sightFrom(inside, [...closed, ...pillar], blind, 10, 10), corner, 10, 10)).toBe(
+      false,
+    );
+    expect(sees(sightFrom(inside, [...closed, ...pillar], free, 10, 10), corner, 10, 10)).toBe(
+      true,
+    );
+  });
+  it("stops at the chosen range", () => {
+    const short: VisionRule = { mode: "sight", range: 1.5, corners: false };
+    const s = sightFrom(inside, closed, short, 10, 10);
+    expect(sees(s, { x: 3.5, y: 2.5 }, 10, 10)).toBe(true);
+    expect(sees(s, { x: 4.8, y: 2.5 }, 10, 10)).toBe(false);
+  });
+  it("ignores the range in room mode", () => {
+    const s = sightFrom(inside, closed, { ...roomRule, range: 1 }, 10, 10);
+    expect(sees(s, { x: 4.8, y: 4.8 }, 10, 10)).toBe(true);
+  });
+  it("groups cells into rows", () => {
+    expect(cellRuns(new Set(["1:2", "2:2", "4:2"]))).toEqual([
+      { x: 1, y: 2, w: 2 },
+      { x: 4, y: 2, w: 1 },
+    ]);
   });
 });

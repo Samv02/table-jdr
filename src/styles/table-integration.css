@@ -9673,3 +9673,26 @@ rect.map-door-hit {
     bottom: 10px;
   }
 }
+
+/* Carte : règles de vision et pose des pions cachés */
+.map-vision {
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.map-vision .note {
+  margin: 0;
+}
+.map-seg.two {
+  grid-template-columns: 1fr 1fr;
+}
+.map-door-types button svg {
+  vertical-align: -3px;
+}
+.map-door-types button {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}

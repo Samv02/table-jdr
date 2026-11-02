@@ -8,7 +8,6 @@ import {
 import { Maximize, Minus, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
-  blockers,
   cellAt,
   clampToken,
   distance,
@@ -18,7 +17,6 @@ import {
   fitCamera,
   formatDistance,
   initials,
-  inPolygon,
   insideMap,
   nearestCorner,
   nearestEdge,
@@ -26,11 +24,14 @@ import {
   roomEdges,
   setEdge,
   snapToCell,
-  visibility,
+  sees,
+  sightFrom,
+  cellRuns,
   zoomAt,
   type Camera,
   type DoorType,
   type MapEdge,
+  type VisionRule,
   type Point,
 } from "@/lib/map";
 import { neonVar } from "@/lib/profile";
@@ -52,6 +53,8 @@ export type MapToken = {
 export type Ping = { id: number; x: number; y: number; color: string };
 
 const CELL = 40;
+/** Les murs d'une pièce visible restent entiers au bord du brouillard */
+const WALL_BLEED = 3;
 const GUTTER = 22;
 const BASE = 16;
 const STROKE_TOOLS: MapTool[] = ["wall", "door", "erase"];
@@ -162,6 +165,7 @@ export function MapBoard({
   backgroundOpacity,
   showGrid,
   vision,
+  visionRule,
   cellValue,
   cellUnit,
   pings,
@@ -191,6 +195,7 @@ export function MapBoard({
   showGrid: boolean;
   /** player : le brouillard cache vraiment ; preview : le MJ voit ce que voit le groupe */
   vision: "player" | "preview" | null;
+  visionRule: VisionRule;
   cellValue: number;
   cellUnit: string;
   pings: Ping[];
@@ -445,17 +450,20 @@ export function MapBoard({
     .map(at)
     .map((p) => `${p.x}:${p.y}`)
     .join("|");
-  const polygons = useMemo(() => {
+  const { mode, range, corners } = visionRule;
+  const sights = useMemo(() => {
     if (!vision || !eyes) return vision ? [] : null;
-    const walls = blockers(edges);
     return eyes.split("|").map((s) => {
       const [x, y] = s.split(":").map(Number);
-      return visibility({ x: x as number, y: y as number }, walls, width, height);
+      const origin = { x: x as number, y: y as number };
+      return sightFrom(origin, edges, { mode, range, corners }, width, height);
     });
-  }, [vision, eyes, edges, width, height]);
+  }, [vision, eyes, edges, width, height, mode, range, corners]);
   const visible =
-    vision === "player" && polygons
-      ? tokens.filter((t) => t.kind === "party" || polygons.some((p) => inPolygon(at(t), p)))
+    vision === "player" && sights
+      ? tokens.filter(
+          (t) => t.kind === "party" || sights.some((s) => sees(s, at(t), width, height)),
+        )
       : tokens;
 
   const zoomBy = (factor: number) =>
@@ -479,11 +487,32 @@ export function MapBoard({
     >
       <svg className="map-board" role="img" aria-label="Carte de la table">
         <defs>
-          {polygons && (
+          {sights?.map(
+            (s, i) =>
+              s.radius > 0 && (
+                <clipPath key={i} id={`map-reach-${i}`}>
+                  <circle cx={s.origin.x * CELL} cy={s.origin.y * CELL} r={s.radius * CELL} />
+                </clipPath>
+              ),
+          )}
+          {sights && (
             <mask id="map-sight">
               <rect x={-CELL} y={-CELL} width={contentW + CELL * 2} height={contentH + CELL * 2} />
-              {polygons.map((poly, i) => (
-                <polygon key={i} points={polygonPoints(poly)} fill="black" />
+              {sights.map((s, i) => (
+                <g key={i} clipPath={s.radius > 0 ? `url(#map-reach-${i})` : undefined}>
+                  {s.polygon && <polygon points={polygonPoints(s.polygon)} fill="black" />}
+                  {s.cells &&
+                    cellRuns(s.cells).map((r) => (
+                      <rect
+                        key={`${r.x}:${r.y}`}
+                        x={r.x * CELL - WALL_BLEED}
+                        y={r.y * CELL - WALL_BLEED}
+                        width={r.w * CELL + WALL_BLEED * 2}
+                        height={CELL + WALL_BLEED * 2}
+                        fill="black"
+                      />
+                    ))}
+                </g>
               ))}
             </mask>
           )}
@@ -545,7 +574,7 @@ export function MapBoard({
             {preview.map((e) => (
               <line key={edgeKey(e)} className="map-wall ghost" {...edgeLine(e)} />
             ))}
-            {polygons && (
+            {sights && (
               <rect
                 className={`map-fog ${vision}`}
                 x={-GUTTER}
