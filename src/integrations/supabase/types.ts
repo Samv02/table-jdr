@@ -914,6 +914,7 @@ export type Database = {
           joined_at: string;
           last_opened_at: string | null;
           role: string;
+          sheet_layout: Json;
           team_id: string;
           user_id: string;
         };
@@ -923,6 +924,7 @@ export type Database = {
           joined_at?: string;
           last_opened_at?: string | null;
           role?: string;
+          sheet_layout?: Json;
           team_id: string;
           user_id: string;
         };
@@ -932,6 +934,7 @@ export type Database = {
           joined_at?: string;
           last_opened_at?: string | null;
           role?: string;
+          sheet_layout?: Json;
           team_id?: string;
           user_id?: string;
         };
@@ -1036,6 +1039,7 @@ export type Database = {
           team_creation_open: boolean;
         }[];
       };
+      get_sheet_layout: { Args: never; Returns: Json };
       get_team_context: {
         Args: never;
         Returns: {
@@ -1107,6 +1111,7 @@ export type Database = {
         Returns: undefined;
       };
       save_dashboard_prefs: { Args: { _prefs: Json }; Returns: undefined };
+      save_sheet_layout: { Args: { _layout: Json }; Returns: undefined };
       set_next_session: { Args: { _at: string }; Returns: undefined };
       set_table_avatar: {
         Args: { _path: string; _team: string };

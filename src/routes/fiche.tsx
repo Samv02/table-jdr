@@ -1,5 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+} from "react";
 import { Button } from "@/components/ui/button";
 import { InlineError } from "@/components/InlineError";
 import { DieIcon } from "@/components/DieIcon";
@@ -9,6 +20,24 @@ import { HpVisual } from "@/components/HpVisual";
 import { PlayerNotes } from "@/components/PlayerNotes";
 import { ArsenalWeapon } from "@/components/ArsenalWeapon";
 import { SlotPanel } from "@/components/SlotPanel";
+import { FeatureEditor } from "@/components/FeatureEditor";
+import {
+  DEFAULT_SHEET_LAYOUT,
+  GRID_COLUMNS,
+  GRID_GAP,
+  blockTab,
+  compactLayout,
+  freezeLayout,
+  placeBlock,
+  readSheetLayout,
+  readingOrder,
+  resizeBlock,
+  resolveLayout,
+  toggleBlock,
+  type PlacedBlock,
+  type SheetBlock,
+  type SheetLayout,
+} from "@/lib/sheet-layout";
 import { readDeckSlots, readPrograms, type Program } from "@/lib/programs";
 import { useServerFn } from "@tanstack/react-start";
 import { consumeItem } from "@/lib/catalog.functions";
@@ -28,6 +57,10 @@ import {
   Dices,
   Lock,
   LockOpen,
+  LayoutGrid,
+  GripVertical,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
@@ -143,6 +176,60 @@ function Sheet({ charId, isGm, userId }: { charId: string; isGm: boolean; userId
   const [newItem, setNewItem] = useState("");
   const [damage, setDamage] = useState(0);
   const [amount, setAmount] = useState(0);
+  // Disposition de la fiche, propre à chaque membre (team_members.sheet_layout)
+  const [layout, setLayout] = useState<SheetLayout>(DEFAULT_SHEET_LAYOUT);
+  const [dragLayout, setDragLayout] = useState<SheetLayout | null>(null);
+  const [arranging, setArranging] = useState(false);
+  const layoutRef = useRef(layout);
+  layoutRef.current = layout;
+  const dragLayoutRef = useRef(dragLayout);
+  dragLayoutRef.current = dragLayout;
+  const layoutTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    void supabase.rpc("get_sheet_layout").then(({ data }) => setLayout(readSheetLayout(data)));
+    return () => {
+      if (layoutTimer.current) clearTimeout(layoutTimer.current);
+    };
+  }, []);
+  // Seul un geste de l'utilisateur change la disposition ; elle est gardée en base pour tous ses appareils
+  function changeLayout(next: SheetLayout) {
+    setLayout(next);
+    if (layoutTimer.current) clearTimeout(layoutTimer.current);
+    layoutTimer.current = setTimeout(() => {
+      void supabase
+        .rpc("save_sheet_layout", { _layout: next as unknown as Json })
+        .then(({ error }) => {
+          if (error) setErr(error.message);
+        });
+    }, 400);
+  }
+  // Bloc tenu en main : il suit le pointeur, les autres se rangent autour de sa place d'arrivée
+  const [held, setHeld] = useState<{ key: SheetBlock; left: number; top: number } | null>(null);
+  const stopTracking = useRef<(() => void) | null>(null);
+  useEffect(() => () => stopTracking.current?.(), []);
+  // Hauteur réelle de chaque bloc : elle suit son contenu et décide où passent ceux du dessous
+  const [heights, setHeights] = useState<Partial<Record<SheetBlock, number>>>({});
+  const observer = useRef<ResizeObserver | null>(null);
+  useLayoutEffect(() => {
+    if (typeof ResizeObserver === "undefined") return;
+    observer.current ??= new ResizeObserver((entries) =>
+      setHeights((old) => {
+        let next = old;
+        for (const entry of entries) {
+          const el = entry.target as HTMLElement;
+          const key = el.dataset["sheetBlock"] as SheetBlock | undefined;
+          const h = el.offsetHeight;
+          if (key && next[key] !== h) next = { ...next, [key]: h };
+        }
+        return next;
+      }),
+    );
+    gridRef.current
+      ?.querySelectorAll<HTMLElement>("[data-sheet-block]")
+      .forEach((el) => observer.current?.observe(el));
+  });
+  useEffect(() => () => observer.current?.disconnect(), []);
   const roll = useServerFn(rollDice);
   const table = useTable();
   const { universe: u } = useUniverse();
@@ -452,12 +539,10 @@ function Sheet({ charId, isGm, userId }: { charId: string; isGm: boolean; userId
         <h2>{w$.features}</h2>
       </div>
       {edit ? (
-        <textarea
-          aria-label={w$.features}
-          placeholder="Une ligne par élément"
+        <FeatureEditor
+          label={w$.features}
           value={str(sheet, "cyberware")}
-          onChange={(e) => saveSheet({ cyberware: e.target.value })}
-          rows={5}
+          onChange={(v) => saveSheet({ cyberware: v })}
         />
       ) : (
         <div className="chips">
@@ -474,6 +559,722 @@ function Sheet({ charId, isGm, userId }: { charId: string; isGm: boolean; userId
       )}
     </section>
   );
+  // Chaque bloc de la fiche, placé ensuite selon la disposition choisie (lib/sheet-layout)
+  const identBlock = (
+    <section className="panel cut">
+      <div className="ident">
+        <div className={`av neon-${member?.color ?? "cyan"}`}>
+          {member?.avatar ? <img src={member.avatar} alt="" /> : (charLabel(ch) ?? "").slice(0, 2)}
+          <i />
+        </div>
+        <div>
+          <h1>{charLabel(ch)}</h1>
+          <div className={`meta ${edit ? "editing" : ""}`}>
+            {u.rules.infoFields.map((f) => (
+              <BannerField
+                key={f.key}
+                label={f.label.toUpperCase()}
+                value={str(sheet, f.key) || "—"}
+                edit={edit}
+                onSave={(v) => saveSheet({ [f.key]: v })}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+  const vitalsBlock = (
+    <section className={`panel cut hp-${status}`} id="hpPanel">
+      <div className="ph">
+        <h2>{w$.vitals}</h2>
+      </div>
+      <div className="hp-top">
+        <div className="hp-num">
+          {hpShown(st.hp_current, max)}
+          <small> / {hpLimit(max)}</small>
+        </div>
+        <span className={`status ${status === "ok" ? "ok" : status === "blesse" ? "warn" : "bad"}`}>
+          {status === "ok" ? w$.hpOk : status === "blesse" ? w$.hpHurt : w$.hpDying}
+        </span>
+      </div>
+      <HpVisual style={u.theme.hpVisual} hp={hpShown(st.hp_current, max)} max={max} />
+      <div className="segs">
+        {Array.from({ length: 15 }, (_, i) => (
+          <i key={i} className={i < Math.ceil(hpFill(st.hp_current, max) * 15) ? "" : "off"} />
+        ))}
+      </div>
+      {(wounded !== null || deathSave !== null) && (
+        <div className="hp-sub">
+          {[
+            wounded !== null ? `${w$.wounded} ≤ ${wounded}` : null,
+            deathSave !== null && u.rules.deathSave
+              ? `${u.rules.deathSave.label} : ${deathSave}`
+              : null,
+          ]
+            .filter(Boolean)
+            .join(" · ")}
+        </div>
+      )}
+      {edit && !u.rules.hpMax.trim() && (
+        <label className="hp-max-edit">
+          {w$.hp} max
+          <input
+            className="field"
+            type="number"
+            min={0}
+            value={num(sheet, "hpMax")}
+            onChange={(e) => saveSheet({ hpMax: Math.max(0, Number(e.target.value) || 0) })}
+          />
+        </label>
+      )}
+      {edit && u.rules.hpMax.trim() !== "" && (
+        <label className="hp-max-edit">
+          {w$.hp} max
+          <input
+            className="field"
+            type="number"
+            min={0}
+            placeholder={String(hpMax(stats, { ...sheet, hpMaxForced: 0 }, u))}
+            value={num(sheet, "hpMaxForced") || ""}
+            onChange={(e) => saveSheet({ hpMaxForced: Math.max(0, Number(e.target.value) || 0) })}
+          />
+          <span>Vide = calcul automatique</span>
+        </label>
+      )}
+      <div className="row-btns">
+        {[-5, -1, 1, 5].map((delta) => (
+          <Button
+            className={`btn ${delta < 0 ? "red" : ""}`}
+            key={delta}
+            disabled={!canEdit}
+            onClick={() =>
+              saveState({
+                hp_current: hpAfter(st.hp_current, delta, max),
+              })
+            }
+          >
+            {delta > 0 ? `+${delta}` : delta}
+          </Button>
+        ))}
+        <input
+          className="field"
+          aria-label={w$.damage}
+          disabled={!canEdit}
+          type="number"
+          min={0}
+          placeholder={w$.damage}
+          value={damage || ""}
+          onChange={(e) => setDamage(Math.max(0, Number(e.target.value)))}
+        />
+        <Button
+          className="btn red"
+          disabled={!canEdit}
+          onClick={() => saveState({ hp_current: hpAfter(st.hp_current, -damage, max) })}
+        >
+          Encaisser
+        </Button>
+        <Button
+          className="btn"
+          disabled={!canEdit || max <= 0}
+          onClick={() => saveState({ hp_current: max })}
+        >
+          Max
+        </Button>
+      </div>
+      {max <= 0 && u.rules.hpMax.trim() !== "" && (
+        <p className="note">
+          {u.words.hp} maximum inconnu : les caractéristiques de son calcul sont vides sur cette
+          fiche. Les {u.words.hp} restent enregistrés et modifiables.
+        </p>
+      )}
+      {u.rules.defenses.length + u.rules.gauges.length > 0 && (
+        <div className="minis">
+          {u.rules.defenses.map((d) => (
+            <Vital
+              key={d.key}
+              label={d.label}
+              value={str(sheet, d.key) || "—"}
+              edit={edit}
+              onSave={(v) => saveSheet({ [d.key]: v })}
+            />
+          ))}
+          {u.rules.gauges.map((g) => (
+            <Gauge
+              key={g.key}
+              gauge={g}
+              current={hpShown(num(sheet, g.key), gaugeMax(u, g, stats, sheet))}
+              max={gaugeMax(u, g, stats, sheet)}
+              edit={edit}
+              onSave={(patch) => saveSheet(patch)}
+            />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+  const statsBlock = (
+    <section className="panel cut">
+      <div className="ph">
+        <h2>{w$.stats}</h2>
+      </div>
+      <div
+        className="stats"
+        // 6 caracs → 3 colonnes, 8 → 4, 10 → 5 : jamais de case orpheline
+        style={{ gridTemplateColumns: `repeat(${statColumns(u.rules.stats.length)}, 1fr)` }}
+      >
+        {u.rules.stats.map((s) => (
+          <StatTile
+            key={s.key}
+            label={s.label}
+            value={stats[s.key] ?? 0}
+            hi={topStats.has(s.key)}
+            edit={edit}
+            onSave={(v) =>
+              saveSheet({
+                stats: writeStat(characterRef.current?.sheet ?? sheet, s.key, v, u),
+              })
+            }
+          />
+        ))}
+      </div>
+    </section>
+  );
+  const notesBlock = (isGm || ch.owner_id === userId) && (
+    <PlayerNotes charId={charId} canWrite={!isGm && ch.owner_id === userId} />
+  );
+  const skillsBlock = (
+    <section className="panel cut">
+      <div className="ph">
+        <h2>{w$.skills}</h2>
+        <span className="tag">{canRoll ? "TOUCHER = LANCER" : "LECTURE SEULE"}</span>
+      </div>
+      {canRoll && (
+        <div className="hint">
+          <DieIcon className="d10" sides={u.rules.skillDice.sides} />
+          Touche une compétence : <b>{skillDiceLabel(u)}</b>
+        </div>
+      )}
+      <div className="skills">
+        {sorted.map(({ skill: sk, index: i }) => {
+          const base = skillBase(sk, stats, u);
+          const key = statKey(sk.stat, u);
+          const title = sk.title || shortSkillName(sk.name);
+          const r = skillRoll(u, base);
+          return (
+            <div key={i}>
+              <Button
+                className={`skill ${top.has(i) ? "top" : ""}`}
+                aria-disabled={!canRoll}
+                tabIndex={canRoll ? 0 : -1}
+                onClick={
+                  canRoll ? () => quickRoll(r.count, r.sides, r.mod, title, r.target) : undefined
+                }
+              >
+                <span className="nm">
+                  <b>{title}</b>
+                  <small>
+                    {key ? statLabel(key, u) : sk.stat || "—"} {key ? (stats[key] ?? 0) : 0} · niv.{" "}
+                    {sk.level}
+                  </small>
+                </span>
+                <span className="rollchip cut-s">
+                  {canRoll && <DieIcon sides={u.rules.skillDice.sides} />}
+                  <span>
+                    {u.rules.skillDice.count}d{u.rules.skillDice.sides}
+                    {u.rules.rollMode === "under" ? " ≤ " : base < 0 ? "" : "+"}
+                  </span>
+                  <b>{base}</b>
+                </span>
+              </Button>
+              {edit && (
+                <div className="skill-editor">
+                  <input
+                    className="field skill-title"
+                    aria-label={`Titre de ${sk.name}`}
+                    placeholder={shortSkillName(sk.name)}
+                    maxLength={80}
+                    value={titleDraft[sk.name] ?? sk.title ?? ""}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      setTitleDraft((d) => ({ ...d, [sk.name]: raw }));
+                      saveSheet({
+                        skills: writeSkills(
+                          sheet,
+                          skills.map((x, j) => (j === i ? { ...x, title: raw } : x)),
+                        ),
+                      });
+                    }}
+                    onBlur={() =>
+                      setTitleDraft((d) => {
+                        if (!(sk.name in d)) return d;
+                        const next = { ...d };
+                        delete next[sk.name];
+                        return next;
+                      })
+                    }
+                  />
+                  <select
+                    className="field skill-stat"
+                    aria-label={`Caractéristique de ${sk.name}`}
+                    title="Caractéristique utilisée par cette compétence"
+                    value={key ?? ""}
+                    onChange={(e) =>
+                      saveSheet({
+                        skills: writeSkills(
+                          sheet,
+                          skills.map((x, j) => (j === i ? { ...x, stat: e.target.value } : x)),
+                        ),
+                      })
+                    }
+                  >
+                    {!key && <option value="">— choisir —</option>}
+                    {u.rules.stats.map((s) => (
+                      <option key={s.key} value={s.key}>
+                        {s.label} ({stats[s.key] ?? 0})
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    className="field"
+                    aria-label={`Niveau de ${sk.name}`}
+                    type="number"
+                    value={sk.level}
+                    onChange={(e) =>
+                      saveSheet({
+                        skills: writeSkills(
+                          sheet,
+                          skills.map((x, j) =>
+                            j === i ? { ...x, level: Number(e.target.value) || 0 } : x,
+                          ),
+                        ),
+                      })
+                    }
+                  />
+                  <Button
+                    className="btn red"
+                    aria-label={`Supprimer ${sk.name}`}
+                    onClick={async () => {
+                      if (
+                        !(await confirmAction({
+                          title: `Supprimer la compétence « ${sk.name} » ?`,
+                        }))
+                      )
+                        return;
+                      const fresh = characterRef.current?.sheet ?? sheet;
+                      const list = readSkills(fresh);
+                      const k =
+                        list[i]?.name === sk.name ? i : list.findIndex((x) => x.name === sk.name);
+                      if (k < 0) return;
+                      void saveSheet({
+                        skills: writeSkills(
+                          fresh,
+                          list.filter((_, j) => j !== k),
+                        ),
+                      });
+                    }}
+                  >
+                    <Trash2 size={16} />
+                  </Button>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      {edit && (
+        <SkillPicker
+          u={u}
+          skills={skills}
+          stats={stats}
+          onAdd={(items) => {
+            const fresh = characterRef.current?.sheet ?? sheet;
+            void saveSheet({
+              skills: writeSkills(fresh, addSkills(readSkills(fresh), items)),
+            });
+          }}
+        />
+      )}
+      {edit && (
+        <Button
+          className="btn y"
+          onClick={() =>
+            saveSheet({
+              skills: writeSkills(sheet, [
+                ...skills,
+                { name: newSkillName(skills), stat: firstStat, level: 1 },
+              ]),
+            })
+          }
+        >
+          + Compétence libre
+        </Button>
+      )}
+    </section>
+  );
+  const weaponsBlock = (
+    <section className="panel cut">
+      <div className="ph">
+        <h2>{w$.weapons}</h2>
+      </div>
+      {!weapons.length && !edit && <p className="note">Aucune arme.</p>}
+      {weapons.map((w, i) => (
+        <ArsenalWeapon
+          key={i}
+          weapon={w}
+          ammo={ammoOf(st.ammo, i, w.capacity)}
+          attack={weaponAttack(w, skills, stats, u)}
+          autoAttack={weaponAttack(w, skills, stats, u, true)}
+          damage={weaponDamage(w, stats, u)}
+          canEdit={canEdit}
+          canRoll={canRoll}
+          onAmmo={(update) => updateAmmo(i, update)}
+          onRoll={quickRoll}
+        >
+          {edit && (
+            <div className="weapon-edit">
+              {weaponFields(u).map(([key, label]) => (
+                <label key={key}>
+                  {label}
+                  <input
+                    className="field"
+                    value={String(w[key as keyof SheetWeapon])}
+                    onChange={(e) =>
+                      saveSheet({
+                        weapons: weapons.map((weapon, j) =>
+                          weaponToJson(
+                            j === i
+                              ? {
+                                  ...weapon,
+                                  [key]:
+                                    key === "capacity" || key === "rof"
+                                      ? Number(e.target.value)
+                                      : e.target.value,
+                                  ...(key === "capacity" ? { ammoRaw: e.target.value } : {}),
+                                }
+                              : weapon,
+                          ),
+                        ),
+                      })
+                    }
+                  />
+                </label>
+              ))}
+              <Button
+                className="btn red"
+                onClick={async () => {
+                  if (
+                    !(await confirmAction({
+                      title: `Supprimer l'arme « ${w.name} » ?`,
+                      message: "Ses munitions suivies seront aussi perdues.",
+                    }))
+                  )
+                    return;
+                  const list = readWeapons(characterRef.current?.sheet ?? sheet);
+                  const k = list[i]?.name === w.name ? i : list.findIndex((x) => x.name === w.name);
+                  if (k < 0) return;
+                  void saveSheet({
+                    weapons: list.filter((_, j) => j !== k).map(weaponToJson),
+                  });
+                }}
+              >
+                Supprimer
+              </Button>
+            </div>
+          )}
+        </ArsenalWeapon>
+      ))}
+      {edit && (
+        <Button
+          className="btn y"
+          onClick={() =>
+            saveSheet({
+              weapons: [
+                ...weapons.map(weaponToJson),
+                { name: "Nouvelle arme", dmg: "1d6", ammo: "", rof: 1, skill: "" },
+              ],
+            })
+          }
+        >
+          + Ajouter
+        </Button>
+      )}
+    </section>
+  );
+  const slotsBlock = u.modules.slots && (
+    <SlotPanel
+      programs={st.programs}
+      capacity={st.program_slots}
+      isGm={isGm}
+      configure={isGm && edit}
+      // MJ : modifiable seulement en Mode édition (comme l'Arsenal)
+      canEdit={isGm ? edit : canEdit}
+      canRoll={canRoll}
+      onPrograms={(programs) => void saveState({ programs })}
+      onCapacity={(program_slots, programs) => void saveState({ program_slots, programs })}
+      onRoll={quickRoll}
+    />
+  );
+  const moneyBlock = u.modules.money && (
+    <section className="panel cut">
+      <div className="ph">
+        <h2>{w$.money}</h2>
+      </div>
+      <div className="eddies">
+        <b>{st.eddies}</b>
+        <small>{w$.moneySymbol}</small>
+      </div>
+      <div className="row-btns">
+        {[-100, -10, 10, 100].map((delta) => (
+          <Button
+            className="btn"
+            key={delta}
+            disabled={!canEdit}
+            onClick={() => saveState({ eddies: Math.max(0, st.eddies + delta) })}
+          >
+            {delta > 0 ? `+${delta}` : delta}
+          </Button>
+        ))}
+      </div>
+      <div className="row-btns">
+        <input
+          className="field"
+          aria-label="Montant"
+          disabled={!canEdit}
+          type="number"
+          min={0}
+          placeholder="Montant"
+          value={amount || ""}
+          onChange={(e) => setAmount(Math.max(0, Number(e.target.value)))}
+        />
+        <Button
+          className="btn y"
+          disabled={!canEdit}
+          onClick={() => saveState({ eddies: st.eddies + amount })}
+        >
+          Gagner
+        </Button>
+        <Button
+          className="btn red"
+          disabled={!canEdit}
+          onClick={() => saveState({ eddies: Math.max(0, st.eddies - amount) })}
+        >
+          Dépenser
+        </Button>
+      </div>
+    </section>
+  );
+  const inventoryBlock = (
+    <section className="panel cut">
+      <div className="ph">
+        <h2>{w$.inventory}</h2>
+      </div>
+      {useResult && <p className="note">{useResult}</p>}
+      <div className="inv">
+        {st.inventory.map((it, i) => (
+          <div className="item cut-s" key={i}>
+            <span className="n">
+              {it.name}
+              {it.desc && <small className="item-desc">{it.desc}</small>}
+            </span>
+            {it.usable && it.item_id && (
+              <Button
+                className="btn y item-use"
+                disabled={!canEdit || using}
+                onClick={() => void activateItem(it.item_id as string)}
+              >
+                Utiliser
+              </Button>
+            )}
+            <Button
+              disabled={!canEdit}
+              onClick={() =>
+                setInv(
+                  st.inventory.map((x, j) => (j === i ? { ...x, qty: Math.max(1, x.qty - 1) } : x)),
+                )
+              }
+            >
+              −
+            </Button>
+            <span className="q">{it.qty}</span>
+            <Button
+              disabled={!canEdit}
+              onClick={() =>
+                setInv(st.inventory.map((x, j) => (j === i ? { ...x, qty: x.qty + 1 } : x)))
+              }
+            >
+              +
+            </Button>
+            <Button
+              className="x"
+              aria-label={`Supprimer ${it.name}`}
+              disabled={!canEdit}
+              onClick={async () => {
+                if (
+                  !(await confirmAction({
+                    title: `Retirer « ${it.name} » de l'inventaire ?`,
+                  }))
+                )
+                  return;
+                const list = stateRef.current?.inventory ?? [];
+                const k = list[i]?.name === it.name ? i : list.findIndex((x) => x.name === it.name);
+                if (k >= 0) void setInv(list.filter((_, j) => j !== k));
+              }}
+            >
+              ✕
+            </Button>
+          </div>
+        ))}
+      </div>
+      {canEdit && (
+        <form
+          className="add"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const name = newItem.trim();
+            if (!name) return;
+            setInv([...st.inventory, { name, qty: 1 }]);
+            setNewItem("");
+          }}
+        >
+          <input
+            className="field"
+            value={newItem}
+            onChange={(e) => setNewItem(e.target.value)}
+            placeholder="Nouvel objet"
+          />
+          <Button type="submit" className="btn y">
+            Ajouter
+          </Button>
+        </form>
+      )}
+    </section>
+  );
+  const shopBlock = u.modules.shop && (
+    <ShopPanel characterId={charId} money={st.eddies} isGm={isGm} canEdit={canEdit} />
+  );
+  const blockNodes: Record<SheetBlock, ReactNode> = {
+    ident: identBlock,
+    vitals: vitalsBlock,
+    stats: statsBlock,
+    features,
+    notes: notesBlock,
+    skills: skillsBlock,
+    weapons: weaponsBlock,
+    slots: slotsBlock,
+    money: moneyBlock,
+    inventory: inventoryBlock,
+    shop: shopBlock,
+  };
+  const blockTitles: Record<SheetBlock, string> = {
+    ident: "Identité",
+    vitals: w$.vitals,
+    stats: w$.stats,
+    features: w$.features,
+    notes: w$.notes,
+    skills: w$.skills,
+    weapons: w$.weapons,
+    slots: w$.slots,
+    money: w$.money,
+    inventory: w$.inventory,
+    shop: w$.shop,
+  };
+  // Plateau : blocs présents (module actif, non masqués hors réglage), à leur place réelle
+  const shownLayout = dragLayout ?? layout;
+  const placed = readingOrder(shownLayout).filter(
+    (b) => blockNodes[b.key] && (arranging || !b.hidden),
+  );
+  const { tops, height: usedHeight } = resolveLayout(placed, heights);
+  // En réglage, de la place en bas pour y poser un bloc
+  const canvasHeight = usedHeight + (arranging ? 320 : 0);
+  const heldTarget = held ? shownLayout.blocks.find((b) => b.key === held.key) : undefined;
+  /** Suit le pointeur jusqu'au lâcher ; Échap annule. */
+  function track(onMove: (x: number, y: number) => void, onEnd: (keep: boolean) => void) {
+    let last = { x: 0, y: 0 };
+    const move = (ev: PointerEvent) => {
+      last = { x: ev.clientX, y: ev.clientY };
+      onMove(last.x, last.y);
+    };
+    // La molette fait défiler pendant le geste : la place se recalcule
+    const scrolled = () => onMove(last.x, last.y);
+    const stop = (keep: boolean) => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", cancel);
+      window.removeEventListener("keydown", key);
+      window.removeEventListener("scroll", scrolled, true);
+      document.body.classList.remove("is-dragging");
+      stopTracking.current = null;
+      onEnd(keep);
+    };
+    const up = () => stop(true);
+    const cancel = () => stop(false);
+    const key = (ev: KeyboardEvent) => {
+      if (ev.key === "Escape") stop(false);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", cancel);
+    window.addEventListener("keydown", key);
+    window.addEventListener("scroll", scrolled, true);
+    document.body.classList.add("is-dragging");
+    stopTracking.current = () => stop(false);
+    return (x: number, y: number) => {
+      last = { x, y };
+      onMove(x, y);
+    };
+  }
+  const columnWidth = (grid: HTMLElement) =>
+    (grid.getBoundingClientRect().width + GRID_GAP) / GRID_COLUMNS;
+  const finishGesture = (keep: boolean) => {
+    if (keep && dragLayoutRef.current) changeLayout(dragLayoutRef.current);
+    setDragLayout(null);
+    setHeld(null);
+  };
+  function grabBlock(e: ReactPointerEvent<HTMLElement>, key: SheetBlock) {
+    const grid = gridRef.current;
+    const el = e.currentTarget.closest<HTMLElement>("[data-sheet-block]");
+    if (!grid || !el || e.button !== 0) return;
+    e.preventDefault();
+    const base = freezeLayout(layout, tops);
+    const box = el.getBoundingClientRect();
+    const grab = { x: e.clientX - box.left, y: e.clientY - box.top };
+    const start = track((x, y) => {
+      const area = grid.getBoundingClientRect();
+      const left = x - area.left - grab.x;
+      const top = Math.max(0, y - area.top - grab.y);
+      setHeld({ key, left, top });
+      setDragLayout(placeBlock(base, key, Math.round(left / columnWidth(grid)), top));
+    }, finishGesture);
+    start(e.clientX, e.clientY);
+  }
+  function grabWidth(e: ReactPointerEvent<HTMLElement>, key: SheetBlock) {
+    const grid = gridRef.current;
+    const block = layout.blocks.find((b) => b.key === key);
+    if (!grid || !block || e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const base = freezeLayout(layout, tops);
+    const start = track((x) => {
+      const right = x - grid.getBoundingClientRect().left + GRID_GAP;
+      setDragLayout(resizeBlock(base, key, Math.round(right / columnWidth(grid)) - block.x));
+    }, finishGesture);
+    start(e.clientX, e.clientY);
+  }
+  /** Clavier : flèches pour déplacer, Maj + gauche/droite pour la largeur. */
+  function nudgeBlock(e: ReactKeyboardEvent<HTMLElement>, b: PlacedBlock) {
+    const dx = e.key === "ArrowLeft" ? -1 : e.key === "ArrowRight" ? 1 : 0;
+    const dy = e.key === "ArrowUp" ? -1 : e.key === "ArrowDown" ? 1 : 0;
+    if (!dx && !dy) return;
+    e.preventDefault();
+    const base = freezeLayout(layout, tops);
+    const top = tops[b.key] ?? b.y;
+    changeLayout(
+      e.shiftKey && dx
+        ? resizeBlock(base, b.key, b.w + dx)
+        : placeBlock(base, b.key, b.x + dx, top + dy * 40),
+    );
+  }
   return (
     <main className={`${isGm ? "gm-consultation" : ""} ${lockedForPlayer ? "sheet-locked" : ""}`}>
       <div className="wrap">
@@ -529,6 +1330,13 @@ function Sheet({ charId, isGm, userId }: { charId: string; isGm: boolean; userId
           >
             <Download size={18} />
           </Button>
+          <Button
+            className={`btn layout-toggle ${arranging ? "on" : ""}`}
+            aria-pressed={arranging}
+            onClick={() => setArranging((a) => !a)}
+          >
+            <LayoutGrid size={16} /> {arranging ? "Terminer" : "Disposition"}
+          </Button>
           {saveStatus && (
             <span className="note" role="status">
               {saveStatus}
@@ -536,625 +1344,93 @@ function Sheet({ charId, isGm, userId }: { charId: string; isGm: boolean; userId
           )}
         </div>
         <InlineError message={err} onClear={() => setErr(null)} />
-        <div className="player-grid">
-          <div className={`tabview ${tab === "perso" ? "on" : ""}`} data-tab="perso">
-            <section className="panel cut">
-              <div className="ident">
-                <div className={`av neon-${member?.color ?? "cyan"}`}>
-                  {member?.avatar ? (
-                    <img src={member.avatar} alt="" />
-                  ) : (
-                    (charLabel(ch) ?? "").slice(0, 2)
-                  )}
-                  <i />
-                </div>
-                <div>
-                  <h1>{charLabel(ch)}</h1>
-                  <div className="meta">
-                    {u.rules.infoFields.map((f) => (
-                      <BannerField
-                        key={f.key}
-                        label={f.label.toUpperCase()}
-                        value={str(sheet, f.key) || "—"}
-                        edit={edit}
-                        onSave={(v) => saveSheet({ [f.key]: v })}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </section>
-            <section className={`panel cut hp-${status}`} id="hpPanel">
-              <div className="ph">
-                <h2>{w$.vitals}</h2>
-              </div>
-              <div className="hp-top">
-                <div className="hp-num">
-                  {hpShown(st.hp_current, max)}
-                  <small> / {hpLimit(max)}</small>
-                </div>
-                <span
-                  className={`status ${status === "ok" ? "ok" : status === "blesse" ? "warn" : "bad"}`}
-                >
-                  {status === "ok" ? w$.hpOk : status === "blesse" ? w$.hpHurt : w$.hpDying}
-                </span>
-              </div>
-              <HpVisual style={u.theme.hpVisual} hp={hpShown(st.hp_current, max)} max={max} />
-              <div className="segs">
-                {Array.from({ length: 15 }, (_, i) => (
-                  <i
-                    key={i}
-                    className={i < Math.ceil(hpFill(st.hp_current, max) * 15) ? "" : "off"}
-                  />
-                ))}
-              </div>
-              {(wounded !== null || deathSave !== null) && (
-                <div className="hp-sub">
-                  {[
-                    wounded !== null ? `${w$.wounded} ≤ ${wounded}` : null,
-                    deathSave !== null && u.rules.deathSave
-                      ? `${u.rules.deathSave.label} : ${deathSave}`
-                      : null,
-                  ]
-                    .filter(Boolean)
-                    .join(" · ")}
-                </div>
-              )}
-              {edit && !u.rules.hpMax.trim() && (
-                <label className="hp-max-edit">
-                  {w$.hp} max
-                  <input
-                    className="field"
-                    type="number"
-                    min={0}
-                    value={num(sheet, "hpMax")}
-                    onChange={(e) => saveSheet({ hpMax: Math.max(0, Number(e.target.value) || 0) })}
-                  />
-                </label>
-              )}
-              {edit && u.rules.hpMax.trim() !== "" && (
-                <label className="hp-max-edit">
-                  {w$.hp} max
-                  <input
-                    className="field"
-                    type="number"
-                    min={0}
-                    placeholder={String(hpMax(stats, { ...sheet, hpMaxForced: 0 }, u))}
-                    value={num(sheet, "hpMaxForced") || ""}
-                    onChange={(e) =>
-                      saveSheet({ hpMaxForced: Math.max(0, Number(e.target.value) || 0) })
-                    }
-                  />
-                  <span>Vide = calcul automatique</span>
-                </label>
-              )}
-              <div className="row-btns">
-                {[-5, -1, 1, 5].map((delta) => (
-                  <Button
-                    className={`btn ${delta < 0 ? "red" : ""}`}
-                    key={delta}
-                    disabled={!canEdit}
-                    onClick={() =>
-                      saveState({
-                        hp_current: hpAfter(st.hp_current, delta, max),
-                      })
-                    }
-                  >
-                    {delta > 0 ? `+${delta}` : delta}
-                  </Button>
-                ))}
-                <input
-                  className="field"
-                  aria-label={w$.damage}
-                  disabled={!canEdit}
-                  type="number"
-                  min={0}
-                  placeholder={w$.damage}
-                  value={damage || ""}
-                  onChange={(e) => setDamage(Math.max(0, Number(e.target.value)))}
-                />
-                <Button
-                  className="btn red"
-                  disabled={!canEdit}
-                  onClick={() => saveState({ hp_current: hpAfter(st.hp_current, -damage, max) })}
-                >
-                  Encaisser
-                </Button>
-                <Button
-                  className="btn"
-                  disabled={!canEdit || max <= 0}
-                  onClick={() => saveState({ hp_current: max })}
-                >
-                  Max
-                </Button>
-              </div>
-              {max <= 0 && u.rules.hpMax.trim() !== "" && (
-                <p className="note">
-                  {u.words.hp} maximum inconnu : les caractéristiques de son calcul sont vides sur
-                  cette fiche. Les {u.words.hp} restent enregistrés et modifiables.
-                </p>
-              )}
-              {u.rules.defenses.length + u.rules.gauges.length > 0 && (
-                <div className="minis">
-                  {u.rules.defenses.map((d) => (
-                    <Vital
-                      key={d.key}
-                      label={d.label}
-                      value={str(sheet, d.key) || "—"}
-                      edit={edit}
-                      onSave={(v) => saveSheet({ [d.key]: v })}
-                    />
-                  ))}
-                  {u.rules.gauges.map((g) => (
-                    <Gauge
-                      key={g.key}
-                      gauge={g}
-                      current={hpShown(num(sheet, g.key), gaugeMax(u, g, stats, sheet))}
-                      max={gaugeMax(u, g, stats, sheet)}
-                      edit={edit}
-                      onSave={(patch) => saveSheet(patch)}
-                    />
-                  ))}
-                </div>
-              )}
-            </section>
-            <section className="panel cut">
-              <div className="ph">
-                <h2>{w$.stats}</h2>
-              </div>
+        {arranging && (
+          <div className="sheet-arrange cut-s" role="group" aria-label="Disposition de la fiche">
+            <span className="note plain">
+              Glisse un bloc par sa barre où tu veux, même en laissant de l’espace. Tire son bord
+              droit pour l’élargir, l’œil le masque. Ta disposition ne change que ton écran.
+            </span>
+            <Button className="btn" onClick={() => changeLayout(compactLayout(layout, tops))}>
+              Resserrer
+            </Button>
+            <Button className="btn" onClick={() => changeLayout(DEFAULT_SHEET_LAYOUT)}>
+              Par défaut
+            </Button>
+          </div>
+        )}
+        <div
+          ref={gridRef}
+          className={`player-grid custom ${arranging ? "arranging" : ""} ${held ? "holding" : ""}`}
+          style={{ "--canvas-h": `${canvasHeight}px` } as CSSProperties}
+        >
+          {held && heldTarget && (
+            <div
+              className="sheet-drop"
+              aria-hidden="true"
+              style={
+                {
+                  "--x": heldTarget.x,
+                  "--w": heldTarget.w,
+                  "--top": `${tops[heldTarget.key] ?? 0}px`,
+                  height: heights[heldTarget.key] ?? 0,
+                } as CSSProperties
+              }
+            />
+          )}
+          {placed.map((b) => {
+            const name = blockTitles[b.key];
+            const tabKey = blockTab(b.key);
+            const isHeld = held?.key === b.key;
+            const place = {
+              "--x": b.x,
+              "--w": b.w,
+              "--top": `${isHeld ? held.top : (tops[b.key] ?? 0)}px`,
+              ...(isHeld ? { "--left": `${held.left}px` } : {}),
+            } as CSSProperties;
+            return (
               <div
-                className="stats"
-                // 6 caracs → 3 colonnes, 8 → 4, 10 → 5 : jamais de case orpheline
-                style={{ gridTemplateColumns: `repeat(${statColumns(u.rules.stats.length)}, 1fr)` }}
+                key={b.key}
+                data-sheet-block={b.key}
+                data-tab={tabKey}
+                style={place}
+                className={`tabview sheet-block ${(tab === "jets" ? "skills" : tab) === tabKey ? "on" : ""} ${b.key === "skills" && !canRoll ? "locked" : ""} ${b.hidden ? "is-hidden" : ""} ${isHeld ? "held" : ""}`}
               >
-                {u.rules.stats.map((s) => (
-                  <StatTile
-                    key={s.key}
-                    label={s.label}
-                    value={stats[s.key] ?? 0}
-                    hi={topStats.has(s.key)}
-                    edit={edit}
-                    onSave={(v) =>
-                      saveSheet({
-                        stats: writeStat(characterRef.current?.sheet ?? sheet, s.key, v, u),
-                      })
-                    }
-                  />
-                ))}
-              </div>
-            </section>
-            {features}
-            {(isGm || ch.owner_id === userId) && (
-              <PlayerNotes charId={charId} canWrite={!isGm && ch.owner_id === userId} />
-            )}
-          </div>
-          <div
-            className={`tabview ${tab === "jets" ? "on" : ""} ${canRoll ? "" : "locked"}`}
-            data-tab="skills"
-          >
-            <section className="panel cut">
-              <div className="ph">
-                <h2>{w$.skills}</h2>
-                <span className="tag">{canRoll ? "TOUCHER = LANCER" : "LECTURE SEULE"}</span>
-              </div>
-              {canRoll && (
-                <div className="hint">
-                  <DieIcon className="d10" sides={u.rules.skillDice.sides} />
-                  Touche une compétence : <b>{skillDiceLabel(u)}</b>
-                </div>
-              )}
-              <div className="skills">
-                {sorted.map(({ skill: sk, index: i }) => {
-                  const base = skillBase(sk, stats, u);
-                  const key = statKey(sk.stat, u);
-                  const title = sk.title || shortSkillName(sk.name);
-                  const r = skillRoll(u, base);
-                  return (
-                    <div key={i}>
-                      <Button
-                        className={`skill ${top.has(i) ? "top" : ""}`}
-                        aria-disabled={!canRoll}
-                        tabIndex={canRoll ? 0 : -1}
-                        onClick={
-                          canRoll
-                            ? () => quickRoll(r.count, r.sides, r.mod, title, r.target)
-                            : undefined
-                        }
-                      >
-                        <span className="nm">
-                          <b>{title}</b>
-                          <small>
-                            {key ? statLabel(key, u) : sk.stat || "—"} {key ? (stats[key] ?? 0) : 0}{" "}
-                            · niv. {sk.level}
-                          </small>
-                        </span>
-                        <span className="rollchip cut-s">
-                          {canRoll && <DieIcon sides={u.rules.skillDice.sides} />}
-                          <span>
-                            {u.rules.skillDice.count}d{u.rules.skillDice.sides}
-                            {u.rules.rollMode === "under" ? " ≤ " : base < 0 ? "" : "+"}
-                          </span>
-                          <b>{base}</b>
-                        </span>
-                      </Button>
-                      {edit && (
-                        <div className="skill-editor">
-                          <input
-                            className="field skill-title"
-                            aria-label={`Titre de ${sk.name}`}
-                            placeholder={shortSkillName(sk.name)}
-                            maxLength={80}
-                            value={titleDraft[sk.name] ?? sk.title ?? ""}
-                            onChange={(e) => {
-                              const raw = e.target.value;
-                              setTitleDraft((d) => ({ ...d, [sk.name]: raw }));
-                              saveSheet({
-                                skills: writeSkills(
-                                  sheet,
-                                  skills.map((x, j) => (j === i ? { ...x, title: raw } : x)),
-                                ),
-                              });
-                            }}
-                            onBlur={() =>
-                              setTitleDraft((d) => {
-                                if (!(sk.name in d)) return d;
-                                const next = { ...d };
-                                delete next[sk.name];
-                                return next;
-                              })
-                            }
-                          />
-                          <select
-                            className="field skill-stat"
-                            aria-label={`Caractéristique de ${sk.name}`}
-                            title="Caractéristique utilisée par cette compétence"
-                            value={key ?? ""}
-                            onChange={(e) =>
-                              saveSheet({
-                                skills: writeSkills(
-                                  sheet,
-                                  skills.map((x, j) =>
-                                    j === i ? { ...x, stat: e.target.value } : x,
-                                  ),
-                                ),
-                              })
-                            }
-                          >
-                            {!key && <option value="">— choisir —</option>}
-                            {u.rules.stats.map((s) => (
-                              <option key={s.key} value={s.key}>
-                                {s.label} ({stats[s.key] ?? 0})
-                              </option>
-                            ))}
-                          </select>
-                          <input
-                            className="field"
-                            aria-label={`Niveau de ${sk.name}`}
-                            type="number"
-                            value={sk.level}
-                            onChange={(e) =>
-                              saveSheet({
-                                skills: writeSkills(
-                                  sheet,
-                                  skills.map((x, j) =>
-                                    j === i ? { ...x, level: Number(e.target.value) || 0 } : x,
-                                  ),
-                                ),
-                              })
-                            }
-                          />
-                          <Button
-                            className="btn red"
-                            aria-label={`Supprimer ${sk.name}`}
-                            onClick={async () => {
-                              if (
-                                !(await confirmAction({
-                                  title: `Supprimer la compétence « ${sk.name} » ?`,
-                                }))
-                              )
-                                return;
-                              const fresh = characterRef.current?.sheet ?? sheet;
-                              const list = readSkills(fresh);
-                              const k =
-                                list[i]?.name === sk.name
-                                  ? i
-                                  : list.findIndex((x) => x.name === sk.name);
-                              if (k < 0) return;
-                              void saveSheet({
-                                skills: writeSkills(
-                                  fresh,
-                                  list.filter((_, j) => j !== k),
-                                ),
-                              });
-                            }}
-                          >
-                            <Trash2 size={16} />
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-              {edit && (
-                <SkillPicker
-                  u={u}
-                  skills={skills}
-                  stats={stats}
-                  onAdd={(items) => {
-                    const fresh = characterRef.current?.sheet ?? sheet;
-                    void saveSheet({
-                      skills: writeSkills(fresh, addSkills(readSkills(fresh), items)),
-                    });
-                  }}
-                />
-              )}
-              {edit && (
-                <Button
-                  className="btn y"
-                  onClick={() =>
-                    saveSheet({
-                      skills: writeSkills(sheet, [
-                        ...skills,
-                        { name: newSkillName(skills), stat: firstStat, level: 1 },
-                      ]),
-                    })
-                  }
-                >
-                  + Compétence libre
-                </Button>
-              )}
-            </section>
-          </div>
-          <div className={`tabview ${tab === "combat" ? "on" : ""}`} data-tab="combat">
-            <section className="panel cut">
-              <div className="ph">
-                <h2>{w$.weapons}</h2>
-              </div>
-              {!weapons.length && !edit && <p className="note">Aucune arme.</p>}
-              {weapons.map((w, i) => (
-                <ArsenalWeapon
-                  key={i}
-                  weapon={w}
-                  ammo={ammoOf(st.ammo, i, w.capacity)}
-                  attack={weaponAttack(w, skills, stats, u)}
-                  autoAttack={weaponAttack(w, skills, stats, u, true)}
-                  damage={weaponDamage(w, stats, u)}
-                  canEdit={canEdit}
-                  canRoll={canRoll}
-                  onAmmo={(update) => updateAmmo(i, update)}
-                  onRoll={quickRoll}
-                >
-                  {edit && (
-                    <div className="weapon-edit">
-                      {weaponFields(u).map(([key, label]) => (
-                        <label key={key}>
-                          {label}
-                          <input
-                            className="field"
-                            value={String(w[key as keyof SheetWeapon])}
-                            onChange={(e) =>
-                              saveSheet({
-                                weapons: weapons.map((weapon, j) =>
-                                  weaponToJson(
-                                    j === i
-                                      ? {
-                                          ...weapon,
-                                          [key]:
-                                            key === "capacity" || key === "rof"
-                                              ? Number(e.target.value)
-                                              : e.target.value,
-                                          ...(key === "capacity"
-                                            ? { ammoRaw: e.target.value }
-                                            : {}),
-                                        }
-                                      : weapon,
-                                  ),
-                                ),
-                              })
-                            }
-                          />
-                        </label>
-                      ))}
-                      <Button
-                        className="btn red"
-                        onClick={async () => {
-                          if (
-                            !(await confirmAction({
-                              title: `Supprimer l'arme « ${w.name} » ?`,
-                              message: "Ses munitions suivies seront aussi perdues.",
-                            }))
-                          )
-                            return;
-                          const list = readWeapons(characterRef.current?.sheet ?? sheet);
-                          const k =
-                            list[i]?.name === w.name ? i : list.findIndex((x) => x.name === w.name);
-                          if (k < 0) return;
-                          void saveSheet({
-                            weapons: list.filter((_, j) => j !== k).map(weaponToJson),
-                          });
-                        }}
-                      >
-                        Supprimer
-                      </Button>
-                    </div>
-                  )}
-                </ArsenalWeapon>
-              ))}
-              {edit && (
-                <Button
-                  className="btn y"
-                  onClick={() =>
-                    saveSheet({
-                      weapons: [
-                        ...weapons.map(weaponToJson),
-                        { name: "Nouvelle arme", dmg: "1d6", ammo: "", rof: 1, skill: "" },
-                      ],
-                    })
-                  }
-                >
-                  + Ajouter
-                </Button>
-              )}
-            </section>
-            {u.modules.slots && (
-              <SlotPanel
-                programs={st.programs}
-                capacity={st.program_slots}
-                isGm={isGm}
-                configure={isGm && edit}
-                // MJ : modifiable seulement en Mode édition (comme l'Arsenal)
-                canEdit={isGm ? edit : canEdit}
-                canRoll={canRoll}
-                onPrograms={(programs) => void saveState({ programs })}
-                onCapacity={(program_slots, programs) =>
-                  void saveState({ program_slots, programs })
-                }
-                onRoll={quickRoll}
-              />
-            )}
-          </div>
-          <div className={`tabview ${tab === "sac" ? "on" : ""}`} data-tab="sac">
-            {u.modules.money && (
-              <section className="panel cut">
-                <div className="ph">
-                  <h2>{w$.money}</h2>
-                </div>
-                <div className="eddies">
-                  <b>{st.eddies}</b>
-                  <small>{w$.moneySymbol}</small>
-                </div>
-                <div className="row-btns">
-                  {[-100, -10, 10, 100].map((delta) => (
-                    <Button
-                      className="btn"
-                      key={delta}
-                      disabled={!canEdit}
-                      onClick={() => saveState({ eddies: Math.max(0, st.eddies + delta) })}
+                {arranging && (
+                  <div className="window-bar">
+                    <span
+                      className="grip"
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`Déplacer ${name}`}
+                      title="Glisse, ou flèches du clavier (Maj + flèches : largeur)"
+                      onPointerDown={(e) => grabBlock(e, b.key)}
+                      onKeyDown={(e) => nudgeBlock(e, b)}
                     >
-                      {delta > 0 ? `+${delta}` : delta}
-                    </Button>
-                  ))}
-                </div>
-                <div className="row-btns">
-                  <input
-                    className="field"
-                    aria-label="Montant"
-                    disabled={!canEdit}
-                    type="number"
-                    min={0}
-                    placeholder="Montant"
-                    value={amount || ""}
-                    onChange={(e) => setAmount(Math.max(0, Number(e.target.value)))}
-                  />
-                  <Button
-                    className="btn y"
-                    disabled={!canEdit}
-                    onClick={() => saveState({ eddies: st.eddies + amount })}
-                  >
-                    Gagner
-                  </Button>
-                  <Button
-                    className="btn red"
-                    disabled={!canEdit}
-                    onClick={() => saveState({ eddies: Math.max(0, st.eddies - amount) })}
-                  >
-                    Dépenser
-                  </Button>
-                </div>
-              </section>
-            )}
-            <section className="panel cut">
-              <div className="ph">
-                <h2>{w$.inventory}</h2>
-              </div>
-              {useResult && <p className="note">{useResult}</p>}
-              <div className="inv">
-                {st.inventory.map((it, i) => (
-                  <div className="item cut-s" key={i}>
-                    <span className="n">
-                      {it.name}
-                      {it.desc && <small className="item-desc">{it.desc}</small>}
+                      <GripVertical size={16} aria-hidden="true" />
+                      <span>{name}</span>
                     </span>
-                    {it.usable && it.item_id && (
-                      <Button
-                        className="btn y item-use"
-                        disabled={!canEdit || using}
-                        onClick={() => void activateItem(it.item_id as string)}
-                      >
-                        Utiliser
-                      </Button>
-                    )}
                     <Button
-                      disabled={!canEdit}
-                      onClick={() =>
-                        setInv(
-                          st.inventory.map((x, j) =>
-                            j === i ? { ...x, qty: Math.max(1, x.qty - 1) } : x,
-                          ),
-                        )
-                      }
+                      className="grip-close"
+                      aria-pressed={b.hidden}
+                      aria-label={b.hidden ? `Afficher ${name}` : `Masquer ${name}`}
+                      onClick={() => changeLayout(toggleBlock(layout, b.key, !b.hidden))}
                     >
-                      −
-                    </Button>
-                    <span className="q">{it.qty}</span>
-                    <Button
-                      disabled={!canEdit}
-                      onClick={() =>
-                        setInv(st.inventory.map((x, j) => (j === i ? { ...x, qty: x.qty + 1 } : x)))
-                      }
-                    >
-                      +
-                    </Button>
-                    <Button
-                      className="x"
-                      aria-label={`Supprimer ${it.name}`}
-                      disabled={!canEdit}
-                      onClick={async () => {
-                        if (
-                          !(await confirmAction({
-                            title: `Retirer « ${it.name} » de l'inventaire ?`,
-                          }))
-                        )
-                          return;
-                        const list = stateRef.current?.inventory ?? [];
-                        const k =
-                          list[i]?.name === it.name ? i : list.findIndex((x) => x.name === it.name);
-                        if (k >= 0) void setInv(list.filter((_, j) => j !== k));
-                      }}
-                    >
-                      ✕
+                      {b.hidden ? <EyeOff size={15} /> : <Eye size={15} />}
                     </Button>
                   </div>
-                ))}
-              </div>
-              {canEdit && (
-                <form
-                  className="add"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    const name = newItem.trim();
-                    if (!name) return;
-                    setInv([...st.inventory, { name, qty: 1 }]);
-                    setNewItem("");
-                  }}
-                >
-                  <input
-                    className="field"
-                    value={newItem}
-                    onChange={(e) => setNewItem(e.target.value)}
-                    placeholder="Nouvel objet"
+                )}
+                {blockNodes[b.key]}
+                {arranging && (
+                  <span
+                    className="sheet-resize"
+                    aria-hidden="true"
+                    title="Tire pour changer la largeur"
+                    onPointerDown={(e) => grabWidth(e, b.key)}
                   />
-                  <Button type="submit" className="btn y">
-                    Ajouter
-                  </Button>
-                </form>
-              )}
-            </section>
-            {u.modules.shop && (
-              <ShopPanel characterId={charId} money={st.eddies} isGm={isGm} canEdit={canEdit} />
-            )}
-          </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
       {!isGm && (

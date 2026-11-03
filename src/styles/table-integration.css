@@ -9696,3 +9696,195 @@ rect.map-door-hit {
   gap: 6px;
   align-items: center;
 }
+
+/* ===== Particularités en édition : puces modifiables ===== */
+.feature-edit .chip-edit {
+  padding: 4px 4px 4px 12px;
+  gap: 6px;
+  border-color: color-mix(in srgb, var(--cyan) 55%, transparent);
+}
+.feature-edit .chip-edit:focus-within {
+  border-color: var(--cyan);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--cyan) 35%, transparent);
+}
+.feature-edit .chip-edit input {
+  min-width: 4ch;
+  max-width: 100%;
+  padding: 2px 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+}
+.feature-edit .chip-edit .x {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+  border: 1px solid var(--line2);
+  color: var(--mute);
+}
+.feature-edit .chip-edit .x:hover {
+  color: var(--red);
+  border-color: var(--red);
+}
+.feature-edit .chip-edit {
+  max-width: 100%;
+  min-width: 0;
+}
+
+/* ===== Identité en Mode édition : avatar rond, un champ par ligne, pleine largeur ===== */
+.ident .av {
+  flex: none;
+}
+.ident > div:last-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.ident .meta.editing {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+.ident .meta.editing .pill {
+  display: grid;
+  grid-template-columns: 6ch minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.ident .meta.editing .pill .field {
+  width: 100%;
+  min-width: 0;
+}
+
+/* ===== Disposition de la fiche, choisie par chaque membre (lib/sheet-layout) ===== */
+.sheet-arrange {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--cyan) 45%, transparent);
+  background: color-mix(in srgb, var(--cyan) 6%, var(--panel));
+}
+.sheet-arrange .note {
+  flex: 1 1 260px;
+  margin: 0;
+}
+.layout-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.layout-toggle.on {
+  border-color: var(--cyan);
+  color: var(--cyan);
+}
+.sheet-block.is-hidden > :not(.window-bar) {
+  opacity: 0.3;
+  filter: grayscale(1);
+}
+.sheet-drop,
+.sheet-resize {
+  display: none;
+}
+/* Téléphone et tablette : les onglets du bas restent, la disposition ne sert qu'à l'ordinateur */
+@media (max-width: 1099px) {
+  .layout-toggle,
+  .sheet-arrange {
+    display: none !important;
+  }
+}
+@media (min-width: 1100px) {
+  /* Toute la largeur de l'écran */
+  main:has(.player-grid.custom) .wrap {
+    max-width: none;
+  }
+  /* Plateau de 12 colonnes : chaque bloc a sa colonne, sa largeur et sa hauteur */
+  .player-grid.custom {
+    --col: calc((100% + 14px) / 12);
+    display: block;
+    position: relative;
+    height: var(--canvas-h);
+  }
+  .player-grid.custom .sheet-block {
+    position: absolute;
+    top: var(--top);
+    left: var(--left, calc(var(--x) * var(--col)));
+    width: calc(var(--w) * var(--col) - 14px);
+    transition:
+      top 0.22s cubic-bezier(0.2, 0.8, 0.2, 1),
+      left 0.22s cubic-bezier(0.2, 0.8, 0.2, 1),
+      width 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  /* L'écart entre blocs est celui du plateau, pas la marge des panneaux */
+  .player-grid.custom .sheet-block > .panel:last-child {
+    margin-bottom: 0;
+  }
+  .player-grid.custom .sheet-block.held {
+    z-index: 20;
+    transition: none;
+    box-shadow:
+      0 24px 60px color-mix(in srgb, var(--ink) 55%, transparent),
+      0 0 0 1px var(--cyan);
+  }
+  .player-grid.arranging {
+    background-image: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--cyan) 5%, transparent) calc(100% - 14px),
+      transparent 0
+    );
+    background-size: var(--col) 100%;
+    outline: 1px dashed color-mix(in srgb, var(--cyan) 20%, transparent);
+    outline-offset: 4px;
+  }
+  .player-grid.arranging .sheet-block {
+    outline: 1px dashed color-mix(in srgb, var(--cyan) 40%, transparent);
+    background: var(--panel);
+  }
+  .player-grid.arranging .sheet-block > :not(.window-bar):not(.sheet-resize) {
+    pointer-events: none;
+  }
+  /* Place d'arrivée du bloc tenu */
+  .player-grid.custom .sheet-drop {
+    display: block;
+    position: absolute;
+    top: var(--top);
+    left: calc(var(--x) * var(--col));
+    width: calc(var(--w) * var(--col) - 14px);
+    border: 2px dashed var(--cyan);
+    background: color-mix(in srgb, var(--cyan) 10%, transparent);
+    transition:
+      top 0.15s,
+      left 0.15s,
+      width 0.15s;
+  }
+  /* Poignée de largeur, sur le bord droit */
+  .player-grid.arranging .sheet-resize {
+    display: block;
+    position: absolute;
+    top: 0;
+    right: -9px;
+    bottom: 0;
+    width: 16px;
+    cursor: ew-resize;
+    touch-action: none;
+  }
+  .player-grid.arranging .sheet-resize::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 6px;
+    width: 4px;
+    height: 44px;
+    transform: translateY(-50%);
+    background: var(--cyan);
+    box-shadow: 0 0 8px var(--cyan);
+  }
+  .player-grid .notes-area,
+  .player-grid .notes-read {
+    flex: none;
+    height: 260px;
+  }
+}

@@ -87,6 +87,7 @@ Ouvre-le dès qu'une demande touche une partie existante, pour ne pas défaire u
   - Les clés (URL, publishable, secret) sont dans `.env`, ignoré par git.
   - Le dossier est relié au projet avec la CLI Supabase (`npx supabase login` puis `link`, faits le 30/10/2026 ; la migration d'installation est marquée appliquée).
   - **Toute modification du schéma** : nouvelle migration dans `supabase/migrations/`, puis Claude l'applique lui-même avec `npm run db:push` et régénère les types avec `npm run db:types` (aucun mot de passe nécessaire). Plus besoin de faire coller le SQL à Sam.
+  - Depuis la CLI Supabase 3 (03/11/2026), `db:push` lancé par Claude demande une confirmation : `npx supabase db push --linked --yes`.
   - Sans Docker, `supabase db diff` ne marche pas.
 - **GitHub** : le PC est connecté (gestionnaire d'identifiants Windows), `git push` fonctionne.
 - **Comptes de test** (mot de passe `table1234`) :
