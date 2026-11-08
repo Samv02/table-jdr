@@ -131,6 +131,15 @@ Ouvre-le dès qu'une demande touche une partie existante, pour ne pas défaire u
   - tout expliquer pas à pas (Sam l'a demandé : « il va falloir me guider »).
 
 **Fonctionnalités proposées, pas encore commencées**
+- [x] **Éditeur de carte** (demandé le 03/11/2026, Sam : « fais ce que tu penses le mieux ») :
+  - [x] 1. sols par formes, fusion, creuser, aimant, usure (HISTORIQUE 46) ;
+  - [x] 2. styles de rendu (hachures, parchemin, plan bleu, murs pleins, noir et blanc), zones eau, lave, végétation, route, réglages du sol et des murs (HISTORIQUE 47) ;
+  - [x] 3. objets : escaliers, textes et numéros, images importées par le MJ, tampon, outil Objet (déplacer, tourner, agrandir), copier-coller une zone (HISTORIQUE 48) ;
+  - [x] 4. calques (masquer, verrouiller) et étages reliés (HISTORIQUE 49) ;
+  - [x] 5. éclairage (sources, portée en tailles neutres réglable par le MJ, obscurité) et brouillard effacé à la main (HISTORIQUE 50) ;
+  - [x] 6. donjon aléatoire (HISTORIQUE 51) ;
+  - [x] 7. export PNG, JPG, PDF, sauvegarde en fichier, mode écran de table (HISTORIQUE 52).
+  Écartés : Roll20, galerie publique, langues, isométrique, packs d’images d’autres sites (droits).
 - [ ] **Scènes** :
   - réordonner par glisser-déposer ;
   - musique liée à une scène ;

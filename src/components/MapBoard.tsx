@@ -3,9 +3,10 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type PointerEvent as ReactPointerEvent,
 } from "react";
-import { Maximize, Minus, Plus } from "lucide-react";
+import { Check, Maximize, Minus, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   cellAt,
@@ -21,10 +22,11 @@ import {
   nearestCorner,
   nearestEdge,
   removeEdge,
-  roomEdges,
   setEdge,
   snapToCell,
   sees,
+  blockers,
+  visibility,
   sightFrom,
   cellRuns,
   zoomAt,
@@ -34,11 +36,61 @@ import {
   type VisionRule,
   type Point,
 } from "@/lib/map";
+import {
+  SHAPES_MAX,
+  cutByDoors,
+  draftShape,
+  floorOf,
+  floorPath,
+  floorSegments,
+  pathOffset,
+  previewPath,
+  shapeArea,
+  snapPoint,
+  type MapShape,
+  type ShapeSettings,
+} from "@/lib/map-shapes";
 import { neonVar } from "@/lib/profile";
+import { ObjectView, type ObjectSource } from "@/components/MapObjects";
+import {
+  OBJECTS_MAX,
+  boxOf,
+  objectAt,
+  resizeTo,
+  rotationTo,
+  snapObjectCenter,
+  stampAt,
+  toMap,
+  updateObject,
+  type MapObject,
+  type StampSettings,
+} from "@/lib/map-objects";
+import { TERRAINS, hatchTile, styleVars, type MapStyle } from "@/lib/map-style";
+import { zoneFrom, type Zone } from "@/lib/map-zone";
+import {
+  hiddenCells,
+  isRevealed,
+  lightSources,
+  paintMask,
+  revealRoom,
+  type LightSettings,
+} from "@/lib/map-light";
 import type { PartyMember } from "@/lib/table-context";
 
 export type MapTool =
-  "move" | "wall" | "room" | "door" | "erase" | "enemy" | "ally" | "measure" | "ping";
+  | "move"
+  | "wall"
+  | "shape"
+  | "door"
+  | "object"
+  | "stamp"
+  | "zone"
+  | "fog"
+  | "erase"
+  | "enemy"
+  | "ally"
+  | "measure"
+  | "ping";
 export type MapToken = {
   id: string;
   kind: string;
@@ -57,6 +109,13 @@ const CELL = 40;
 const WALL_BLEED = 3;
 const GUTTER = 22;
 const BASE = 16;
+/** Carreau du motif de hachures, en pixels (deux cases) */
+const HATCH_TILE = CELL * 2;
+/** Poignées des objets, en pixels à l'écran */
+const HANDLE = 7;
+const EDIT_TOOLS: MapTool[] = ["wall", "shape", "door", "erase", "object", "stamp", "zone"];
+/** Réglages du pinceau de brouillard */
+export type FogBrush = { mode: "brush" | "room"; reveal: boolean; size: number };
 const STROKE_TOOLS: MapTool[] = ["wall", "door", "erase"];
 
 function tokenColor(t: MapToken, member?: PartyMember) {
@@ -145,6 +204,20 @@ export function EdgeMark({ edge: e, gm }: { edge: MapEdge; gm: boolean }) {
   return <line {...line} className={e.open ? "map-door open" : "map-door"} />;
 }
 
+/** Eau, lave, végétation ou route : un aplat, un reflet au bord intérieur, un contour. */
+function Terrain({ t, d }: { t: string; d: string }) {
+  return (
+    <g className={`map-terrain ${t}`}>
+      <path className="fill" d={d} fillRule="evenodd" />
+      {t === "plants" && (
+        <path className="leaves" d={d} fillRule="evenodd" fill="url(#map-leaves)" />
+      )}
+      <path className="band" d={d} clipPath={`url(#map-terrain-${t})`} />
+      <path className="edge" d={d} />
+    </g>
+  );
+}
+
 /**
  * Plateau en SVG avec caméra libre. Les gestes restent ici : pendant un tracé ou un glissé
  * rien ne part vers la base, le parent reçoit le résultat quand le pointeur se relève.
@@ -153,10 +226,31 @@ export function MapBoard({
   width,
   height,
   edges,
+  shapes,
   tokens,
   party,
   tool,
   doorType,
+  shapeSettings,
+  mapStyle,
+  allShapes,
+  ghostShapes,
+  layerObjects,
+  activeLayer,
+  locked,
+  objects,
+  objectUrls,
+  selectedObject,
+  placing,
+  objectSnap,
+  stampSource,
+  stamp,
+  light,
+  manualFog,
+  fogMask,
+  fogBrush,
+  zone,
+  clip,
   editable,
   mine,
   canDrag,
@@ -171,20 +265,58 @@ export function MapBoard({
   pings,
   focus,
   onEdges,
+  onShapes,
   onDoor,
   onMove,
   onDragLive,
   onSelect,
   onPlace,
   onPing,
+  onObjects,
+  onSelectObject,
+  onPlaceObject,
+  onZone,
+  onPaste,
+  onFogMask,
 }: {
   width: number;
   height: number;
   edges: MapEdge[];
+  shapes: MapShape[];
   tokens: MapToken[];
   party: PartyMember[];
   tool: MapTool;
   doorType: DoorType;
+  shapeSettings: ShapeSettings;
+  mapStyle: MapStyle;
+  /** Sols de tous les calques visibles, dans l'ordre ; `shapes` ne contient que le calque actif */
+  allShapes: MapShape[];
+  /** Sols des calques cachés aux joueurs, montrés au MJ en transparence */
+  ghostShapes: MapShape[];
+  /** Objets de chaque calque, dans l'ordre ; ghost : calque caché aux joueurs */
+  layerObjects: { id: string | null; objects: MapObject[]; ghost: boolean }[];
+  activeLayer: string | null;
+  /** Calque actif verrouillé : rien ne s'y dessine */
+  locked: boolean;
+  /** Objets du calque actif, les seuls qu'on peut prendre */
+  objects: MapObject[];
+  /** Liens signés des images importées, par chemin */
+  objectUrls: Record<string, string>;
+  selectedObject: string | null;
+  /** Outil Objet : un clic dans le vide pose l'objet choisi */
+  placing: boolean;
+  /** Aimant des objets : 1 = case, 0.5 = demi-case, 0 = libre */
+  objectSnap: number;
+  stampSource: ObjectSource | null;
+  stamp: StampSettings;
+  light: LightSettings;
+  /** Brouillard à la main : seules les cases révélées se voient chez les joueurs */
+  manualFog: boolean;
+  fogMask: Uint8Array;
+  fogBrush: FogBrush;
+  zone: Zone | null;
+  /** Taille de la zone copiée : un clic la colle */
+  clip: { w: number; h: number } | null;
   editable: boolean;
   /** Personnages de ce compte : leur pion est signalé */
   mine: Set<string>;
@@ -201,12 +333,19 @@ export function MapBoard({
   pings: Ping[];
   focus: { p: Point; n: number } | null;
   onEdges: (next: MapEdge[]) => void;
+  onShapes: (next: MapShape[]) => void;
   onDoor: (key: string) => void;
   onMove: (id: string, p: Point) => void;
   onDragLive: (id: string, p: Point) => void;
   onSelect: (id: string | null) => void;
   onPlace: (p: Point) => void;
   onPing: (p: Point) => void;
+  onObjects: (next: MapObject[]) => void;
+  onSelectObject: (id: string | null) => void;
+  onPlaceObject: (p: Point) => void;
+  onZone: (z: Zone | null) => void;
+  onPaste: (p: Point) => void;
+  onFogMask: (next: Uint8Array) => void;
 }) {
   const box = useRef<HTMLDivElement>(null);
   const [view, setView] = useState({ w: 0, h: 0 });
@@ -214,7 +353,24 @@ export function MapBoard({
   const [stroke, setStroke] = useState<MapEdge[] | null>(null);
   const [drag, setDrag] = useState<{ id: string; p: Point } | null>(null);
   const [ruler, setRuler] = useState<{ a: Point; b: Point } | null>(null);
-  const [room, setRoom] = useState<{ a: Point; b: Point } | null>(null);
+  /** Sol en cours : deux points pour un rectangle ou un cercle, les points posés sinon */
+  const [draft, setDraft] = useState<Point[] | null>(null);
+  const [hover, setHover] = useState<Point | null>(null);
+  const shaping = useRef(false);
+  /** Objet en cours de déplacement, d'agrandissement ou de rotation */
+  const [objDraft, setObjDraft] = useState<MapObject | null>(null);
+  const objGesture = useRef<{
+    mode: "move" | "resize" | "rotate";
+    start: MapObject;
+    grab: Point;
+  } | null>(null);
+  /** Copies du tampon pas encore enregistrées */
+  const [stamped, setStamped] = useState<MapObject[] | null>(null);
+  const lastStamp = useRef<Point | null>(null);
+  const [zoneDrag, setZoneDrag] = useState<{ a: Point; b: Point } | null>(null);
+  /** Brouillard en cours de pinceau, pas encore enregistré */
+  const [maskDraft, setMaskDraft] = useState<Uint8Array | null>(null);
+  const lastBrush = useRef<Point | null>(null);
   const moved = useRef(false);
   const corner = useRef<Point | null>(null);
   const pan = useRef<{ x: number; y: number } | null>(null);
@@ -224,6 +380,69 @@ export function MapBoard({
   const contentW = width * CELL + GUTTER;
   const contentH = height * CELL + GUTTER;
   const shown = stroke ?? edges;
+  const floor = useMemo(() => floorOf(allShapes, width, height), [allShapes, width, height]);
+  const ghostGround = useMemo(
+    () => (ghostShapes.length ? floorPath(floorOf(ghostShapes, width, height), CELL) : ""),
+    [ghostShapes, width, height],
+  );
+  const ground = useMemo(() => floorPath(floor, CELL), [floor]);
+  // Eau, lave, végétation, route : chacune sa couche, sans murs
+  const terrains = useMemo(
+    () =>
+      TERRAINS.map((t) => ({ t, d: floorPath(floorOf(allShapes, width, height, t), CELL) })).filter(
+        (x) => x.d,
+      ),
+    [allShapes, width, height],
+  );
+  const hatchLines = useMemo(() => hatchTile(HATCH_TILE), []);
+  const walls = useMemo(() => cutByDoors(floorSegments(floor), edges), [floor, edges]);
+  const kind = shapeSettings.kind;
+  const clicking = kind === "path" || kind === "poly";
+  const snapAt = (p: Point) =>
+    snapPoint(
+      p,
+      shapeSettings.snap,
+      width,
+      height,
+      kind === "path" ? pathOffset(shapeSettings.width, shapeSettings.snap) : 0,
+    );
+
+  // Changer d'outil ou de forme abandonne le tracé en cours (rien n'était enregistré)
+  useEffect(() => {
+    setDraft(null);
+    setHover(null);
+    shaping.current = false;
+  }, [tool, kind]);
+
+  function commitShape(pts: Point[]) {
+    setDraft(null);
+    setHover(null);
+    shaping.current = false;
+    const shape = draftShape(shapeSettings, pts);
+    if (shapes.length >= SHAPES_MAX || shapeArea(shape) < 0.01) return;
+    onShapes([...shapes, shape]);
+  }
+  function finishDraft() {
+    if (!draft || !clicking) return;
+    if (draft.length >= (kind === "poly" ? 3 : 1)) commitShape(draft);
+    else setDraft(null);
+  }
+  const finishRef = useRef(finishDraft);
+  finishRef.current = finishDraft;
+  useEffect(() => {
+    if (!draft || !clicking) return;
+    const key = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement;
+      if (/INPUT|TEXTAREA|SELECT/.test(t.tagName)) return;
+      if (e.key === "Enter") finishRef.current();
+      if (e.key === "Backspace") {
+        e.preventDefault();
+        setDraft((d) => (d && d.length > 1 ? d.slice(0, -1) : null));
+      }
+    };
+    window.addEventListener("keydown", key);
+    return () => window.removeEventListener("keydown", key);
+  }, [draft, clicking]);
 
   function fit() {
     if (!view.w) return;
@@ -306,10 +525,32 @@ export function MapBoard({
     });
   };
 
+  const snapCenter = (c: Point, o: MapObject) => snapObjectCenter(c, o, objectSnap, width, height);
+  function startObject(mode: "move" | "resize" | "rotate", o: MapObject, p: Point) {
+    objGesture.current = { mode, start: o, grab: { x: p.x - o.x, y: p.y - o.y } };
+    moved.current = false;
+    setObjDraft(o);
+  }
+  function addStamp(p: Point, done: MapObject[]) {
+    if (!stampSource || objects.length + done.length >= OBJECTS_MAX) return done;
+    const base =
+      stampSource.k === "symbol"
+        ? { k: "symbol" as const, sym: stampSource.sym }
+        : { k: "image" as const, src: stampSource.src };
+    lastStamp.current = p;
+    return [...done, stampAt(base, p, stamp, [...objects, ...done])];
+  }
+
   function cancel() {
     setStroke(null);
+    objGesture.current = null;
+    setObjDraft(null);
+    setStamped(null);
+    setZoneDrag(null);
+    setMaskDraft(null);
     setDrag(null);
-    setRoom(null);
+    if (!clicking) setDraft(null);
+    shaping.current = false;
     corner.current = null;
     pan.current = null;
   }
@@ -342,12 +583,66 @@ export function MapBoard({
       return;
     }
     if (!editable) return;
+    // Calque verrouillé : les outils de dessin ne font que déplacer la vue
+    if (locked && EDIT_TOOLS.includes(tool)) {
+      pan.current = { x: e.clientX, y: e.clientY };
+      return;
+    }
+    if (tool === "object") {
+      const reach = (HANDLE * 1.8) / CELL / (cam?.k ?? 1);
+      const sel = objects.find((o) => o.id === selectedObject);
+      if (sel) {
+        const b = boxOf(sel);
+        if (distance(p, toMap(sel, b.w / 2, b.h / 2)) < reach) return startObject("resize", sel, p);
+        if (distance(p, toMap(sel, 0, -b.h / 2 - 0.6)) < reach)
+          return startObject("rotate", sel, p);
+      }
+      const hit = objectAt(objects, p);
+      if (hit) {
+        onSelectObject(hit.id);
+        return startObject("move", hit, p);
+      }
+      if (placing) return onPlaceObject(clampToken(p, width, height));
+      onSelectObject(null);
+      pan.current = { x: e.clientX, y: e.clientY };
+      return;
+    }
+    if (tool === "stamp") {
+      if (stampSource) setStamped(addStamp(clampToken(p, width, height), []));
+      return;
+    }
+    if (tool === "fog") {
+      const q = clampToken(p, width, height);
+      if (fogBrush.mode === "room")
+        return onFogMask(
+          revealRoom(fogMask, q, edges, walls.segments, width, height, fogBrush.reveal),
+        );
+      lastBrush.current = q;
+      return setMaskDraft(paintMask(fogMask, q, fogBrush.size / 2, fogBrush.reveal, width, height));
+    }
+    if (tool === "zone") {
+      moved.current = false;
+      return setZoneDrag({ a: p, b: p });
+    }
     if (tool === "enemy" || tool === "ally") return onPlace(clampToken(p, width, height));
     if (tool === "door" && doorType === "trap")
       return onEdges(paint(edges, cellAt(p, width, height)));
+    if (tool === "shape") {
+      const q = snapAt(p);
+      if (!clicking) {
+        shaping.current = true;
+        return setDraft([q, q]);
+      }
+      if (!draft) return setDraft([q]);
+      // Revenir au premier coin ferme la forme ; toucher deux fois le même point termine
+      if (kind === "poly" && draft.length >= 3 && distance(q, draft[0]!) < 0.3)
+        return commitShape(draft);
+      if (distance(q, draft.at(-1)!) < 0.05) return finishDraft();
+      if (draft.length < 200) setDraft([...draft, q]);
+      return;
+    }
     moved.current = false;
     const c = nearestCorner(p, width, height);
-    if (tool === "room") return setRoom({ a: c, b: c });
     corner.current = c;
     setStroke(tool === "erase" ? paint(edges, eraseTarget(edges, p, width, height)) : edges);
   }
@@ -384,8 +679,56 @@ export function MapBoard({
       return;
     }
     const p = cells(e);
+    const g = objGesture.current;
+    if (g) {
+      moved.current = true;
+      if (g.mode === "move")
+        setObjDraft({
+          ...g.start,
+          ...snapCenter({ x: p.x - g.grab.x, y: p.y - g.grab.y }, g.start),
+        });
+      else if (g.mode === "resize")
+        setObjDraft({ ...g.start, ...resizeTo(g.start, p, e.shiftKey) });
+      else setObjDraft({ ...g.start, r: rotationTo(g.start, p, e.shiftKey) });
+      return;
+    }
+    if (stamped) {
+      const q = clampToken(p, width, height);
+      if (!lastStamp.current || distance(q, lastStamp.current) >= stamp.spacing)
+        setStamped(addStamp(q, stamped));
+      return;
+    }
+    if (zoneDrag) return setZoneDrag({ a: zoneDrag.a, b: p });
+    if (tool === "fog" && editable) {
+      const q = clampToken(p, width, height);
+      setHover(q);
+      const from = lastBrush.current;
+      if (!maskDraft || !from) return;
+      // Pas réguliers entre deux positions : un geste rapide ne laisse pas de trous
+      const n = Math.max(1, Math.ceil(distance(from, q) / 0.4));
+      setMaskDraft((m) => {
+        let next = m ?? fogMask;
+        for (let i = 1; i <= n; i++)
+          next = paintMask(
+            next,
+            { x: from.x + ((q.x - from.x) * i) / n, y: from.y + ((q.y - from.y) * i) / n },
+            fogBrush.size / 2,
+            fogBrush.reveal,
+            width,
+            height,
+          );
+        return next;
+      });
+      lastBrush.current = q;
+      return;
+    }
+    if (tool === "zone" && clip) return setHover(p);
     if (ruler) return setRuler({ a: ruler.a, b: clampToken(p, width, height) });
-    if (room) return setRoom({ a: room.a, b: nearestCorner(p, width, height) });
+    if (tool === "shape" && editable) {
+      if (shaping.current && draft) return setDraft([draft[0]!, snapAt(p)]);
+      if (clicking) setHover(snapAt(p));
+      return;
+    }
     if (!stroke || !corner.current) return;
     if (tool === "erase")
       return setStroke((s) => {
@@ -414,10 +757,36 @@ export function MapBoard({
       setDrag(null);
       return;
     }
-    if (room) {
-      const walls = roomEdges(room.a, room.b);
-      setRoom(null);
-      if (walls.length) onEdges(walls.reduce(paint, edges));
+    if (shaping.current && draft) return commitShape(draft);
+    if (objGesture.current) {
+      const d = objDraft;
+      objGesture.current = null;
+      setObjDraft(null);
+      if (moved.current && d)
+        onObjects(updateObject(objects, d.id, { x: d.x, y: d.y, w: d.w, h: d.h, r: d.r }));
+      return;
+    }
+    if (stamped) {
+      const done = stamped;
+      setStamped(null);
+      lastStamp.current = null;
+      if (done.length) onObjects([...objects, ...done].slice(0, OBJECTS_MAX));
+      return;
+    }
+    if (maskDraft) {
+      const done = maskDraft;
+      setMaskDraft(null);
+      lastBrush.current = null;
+      onFogMask(done);
+      return;
+    }
+    if (zoneDrag) {
+      const dragged = distance(zoneDrag.a, zoneDrag.b) > 0.3;
+      const z = zoneFrom(zoneDrag.a, zoneDrag.b, width, height);
+      setZoneDrag(null);
+      if (dragged) onZone(z);
+      else if (clip) onPaste(cells(e));
+      else onZone(null);
       return;
     }
     if (!stroke) return;
@@ -456,20 +825,90 @@ export function MapBoard({
     return eyes.split("|").map((s) => {
       const [x, y] = s.split(":").map(Number);
       const origin = { x: x as number, y: y as number };
-      return sightFrom(origin, edges, { mode, range, corners }, width, height);
+      return sightFrom(origin, edges, { mode, range, corners }, width, height, walls.segments);
     });
-  }, [vision, eyes, edges, width, height, mode, range, corners]);
-  const visible =
-    vision === "player" && sights
-      ? tokens.filter(
-          (t) => t.kind === "party" || sights.some((s) => sees(s, at(t), width, height)),
-        )
-      : tokens;
+  }, [vision, eyes, edges, width, height, mode, range, corners, walls]);
+  const shownMask = maskDraft ?? fogMask;
+  const fogHidden = useMemo(
+    () => (manualFog ? hiddenCells(shownMask, width, height) : null),
+    [manualFog, shownMask, width, height],
+  );
+  const inFog = (p: Point) => manualFog && !isRevealed(shownMask, Math.floor(p.x), Math.floor(p.y));
+  const visible = editable
+    ? tokens
+    : tokens.filter(
+        (t) =>
+          t.kind === "party" ||
+          ((!sights || vision !== "player" || sights.some((s) => sees(s, at(t), width, height))) &&
+            !inFog(at(t))),
+      );
+
+  // Éclairage : chaque lumière arrêtée par les murs, comme la vue
+  const viewBlockers = useMemo(() => [...blockers(edges), ...walls.segments], [edges, walls]);
+  const litObjects = useMemo(
+    () => layerObjects.filter((l) => !l.ghost).flatMap((l) => l.objects),
+    [layerObjects],
+  );
+  const lights = useMemo(() => {
+    if (!light.on) return [];
+    const carriers = eyes
+      ? eyes.split("|").map((e) => {
+          const [x, y] = e.split(":").map(Number);
+          return { x: x as number, y: y as number };
+        })
+      : [];
+    return lightSources(litObjects, carriers, light).map((l) => ({
+      ...l,
+      poly: visibility(l, viewBlockers, width, height),
+    }));
+  }, [light, litObjects, eyes, viewBlockers, width, height]);
 
   const zoomBy = (factor: number) =>
     setCam((c) => (c ? zoomAt(c, view.w / 2, view.h / 2, factor) : c));
   const lines = (n: number) => Array.from({ length: n + 1 }, (_, i) => i);
-  const preview = room ? roomEdges(room.a, room.b) : [];
+  const ghostPts = draft && clicking && hover ? [...draft, hover] : draft;
+  const ghost = ghostPts ? previewPath(draftShape(shapeSettings, ghostPts), CELL) : "";
+  const gridLines = (
+    <>
+      {lines(width).map((x) => (
+        <line key={`x${x}`} x1={x * CELL} x2={x * CELL} y2={height * CELL} />
+      ))}
+      {lines(height).map((y) => (
+        <line key={`y${y}`} y1={y * CELL} y2={y * CELL} x2={width * CELL} />
+      ))}
+    </>
+  );
+  const shownObjects = objDraft
+    ? objects.map((o) => (o.id === objDraft.id ? objDraft : o))
+    : objects;
+  const activeObjects = stamped ? [...shownObjects, ...stamped] : shownObjects;
+  // Chaque calque dans son ordre ; seul le calque actif suit les gestes en cours
+  const allObjects = layerObjects.flatMap((l) =>
+    l.id === activeLayer
+      ? activeObjects.map((o) => ({ o, ghost: l.ghost }))
+      : l.objects.map((o) => ({ o, ghost: l.ghost })),
+  );
+  const handle = HANDLE / (cam?.k ?? 1);
+  const showHandles = editable && tool === "object";
+  const drawObject = ({ o, ghost }: { o: MapObject; ghost: boolean }) =>
+    // Une lumière se voit à son effet ; son petit soleil n'est montré qu'au MJ
+    o.k === "light" && !editable ? null : (
+      <ObjectView
+        key={o.id}
+        o={ghost ? { ...o, op: (o.op ?? 1) * 0.4 } : o}
+        ghost={ghost}
+        cell={CELL}
+        url={o.src ? objectUrls[o.src] : undefined}
+        selected={showHandles && o.id === selectedObject}
+        handle={handle}
+      />
+    );
+  const zoneShown =
+    tool === "zone" && editable
+      ? zoneDrag
+        ? zoneFrom(zoneDrag.a, zoneDrag.b, width, height)
+        : zone
+      : null;
   const painting = tool !== "move" && tool !== "measure" && tool !== "ping" && editable;
 
   return (
@@ -485,8 +924,69 @@ export function MapBoard({
         cancel();
       }}
     >
-      <svg className="map-board" role="img" aria-label="Carte de la table">
+      <svg
+        className="map-board"
+        role="img"
+        aria-label="Carte de la table"
+        style={styleVars(mapStyle) as CSSProperties}
+      >
         <defs>
+          {ground && mapStyle.hatch && (
+            <>
+              <pattern
+                id="map-hatch"
+                className="map-hatch-tile"
+                patternUnits="userSpaceOnUse"
+                width={HATCH_TILE}
+                height={HATCH_TILE}
+              >
+                {hatchLines.map((l, i) => (
+                  <line key={i} {...l} />
+                ))}
+              </pattern>
+              <mask
+                id="map-hatch-mask"
+                maskUnits="userSpaceOnUse"
+                x={-CELL}
+                y={-CELL}
+                width={contentW + CELL * 2}
+                height={contentH + CELL * 2}
+              >
+                <path
+                  d={ground}
+                  fill="none"
+                  stroke="white"
+                  strokeWidth={mapStyle.hatchSize * CELL * 2}
+                  strokeLinejoin="round"
+                />
+                <path d={ground} fill="black" fillRule="evenodd" />
+              </mask>
+            </>
+          )}
+          {terrains.some((x) => x.t === "plants") && (
+            <pattern
+              id="map-leaves"
+              className="map-leaves-tile"
+              patternUnits="userSpaceOnUse"
+              width={CELL}
+              height={CELL}
+            >
+              <circle cx={8} cy={9} r={6} />
+              <circle cx={27} cy={14} r={8} />
+              <circle cx={14} cy={30} r={7} />
+              <circle cx={33} cy={34} r={5} />
+            </pattern>
+          )}
+          {terrains.map(({ t, d }) => (
+            <clipPath key={t} id={`map-terrain-${t}`}>
+              <path d={d} clipRule="evenodd" />
+            </clipPath>
+          ))}
+          {ground && (
+            <clipPath id="map-ground-clip">
+              <path d={ground} clipRule="evenodd" />
+            </clipPath>
+          )}
           {sights?.map(
             (s, i) =>
               s.radius > 0 && (
@@ -494,6 +994,52 @@ export function MapBoard({
                   <circle cx={s.origin.x * CELL} cy={s.origin.y * CELL} r={s.radius * CELL} />
                 </clipPath>
               ),
+          )}
+          {lights.map((l, i) => (
+            <g key={`l${i}`}>
+              <clipPath id={`map-lc-${i}`}>
+                <polygon points={polygonPoints(l.poly)} />
+              </clipPath>
+              <radialGradient id={`map-lg-${i}`}>
+                <stop offset={0} stopColor="black" stopOpacity={l.power} />
+                <stop offset={l.bright} stopColor="black" stopOpacity={l.power} />
+                <stop offset={1} stopColor="black" stopOpacity={0} />
+              </radialGradient>
+              {l.color && (
+                <radialGradient id={`map-lt-${i}`}>
+                  <stop offset={0} stopColor={l.color} stopOpacity={0.45 * l.power} />
+                  <stop offset={1} stopColor={l.color} stopOpacity={0} />
+                </radialGradient>
+              )}
+            </g>
+          ))}
+          {light.on && (
+            <mask
+              id="map-dark"
+              maskUnits="userSpaceOnUse"
+              x={-CELL}
+              y={-CELL}
+              width={contentW + CELL * 2}
+              height={contentH + CELL * 2}
+            >
+              <rect
+                x={-CELL}
+                y={-CELL}
+                width={contentW + CELL * 2}
+                height={contentH + CELL * 2}
+                fill="white"
+              />
+              {lights.map((l, i) => (
+                <g key={i} clipPath={`url(#map-lc-${i})`}>
+                  <circle
+                    cx={l.x * CELL}
+                    cy={l.y * CELL}
+                    r={l.rad * CELL}
+                    fill={`url(#map-lg-${i})`}
+                  />
+                </g>
+              ))}
+            </mask>
           )}
           {sights && (
             <mask id="map-sight">
@@ -519,7 +1065,12 @@ export function MapBoard({
         </defs>
         {cam && (
           <g transform={`translate(${cam.x} ${cam.y}) scale(${cam.k})`}>
-            <rect className="map-floor" width={width * CELL} height={height * CELL} rx={2} />
+            <rect
+              className={`map-floor ${ground ? "rock" : ""}`}
+              width={width * CELL}
+              height={height * CELL}
+              rx={2}
+            />
             {background && (
               <image
                 href={background}
@@ -529,15 +1080,56 @@ export function MapBoard({
                 preserveAspectRatio="xMidYMid slice"
               />
             )}
-            {showGrid && (
-              <g className="map-grid">
-                {lines(width).map((x) => (
-                  <line key={x} x1={x * CELL} x2={x * CELL} y2={height * CELL} />
-                ))}
-                {lines(height).map((y) => (
-                  <line key={y} y1={y * CELL} y2={y * CELL} x2={width * CELL} />
-                ))}
+            {ground && mapStyle.hatch && (
+              <rect
+                className="map-hatch"
+                width={width * CELL}
+                height={height * CELL}
+                fill="url(#map-hatch)"
+                mask="url(#map-hatch-mask)"
+              />
+            )}
+            {terrains
+              .filter((x) => x.t === "road")
+              .map(({ t, d }) => (
+                <Terrain key={t} t={t} d={d} />
+              ))}
+            {ground && mapStyle.shadow && (
+              <path
+                className="map-shadow"
+                d={ground}
+                fillRule="evenodd"
+                transform="translate(5 6)"
+              />
+            )}
+            {ground && (
+              <path
+                className={`map-ground ${background ? "over-image" : ""}`}
+                d={ground}
+                fillRule="evenodd"
+              />
+            )}
+            {terrains
+              .filter((x) => x.t !== "road")
+              .map(({ t, d }) => (
+                <Terrain key={t} t={t} d={d} />
+              ))}
+            {showGrid && (!ground || mapStyle.gridOutside) && (
+              <g className="map-grid">{gridLines}</g>
+            )}
+            {/* Sols dessinés : la grille dans les salles, et dehors pour le MJ qui trace */}
+            {showGrid && ground && !mapStyle.gridOutside && editable && (
+              <g className="map-grid faint">{gridLines}</g>
+            )}
+            {showGrid && ground && !mapStyle.gridOutside && (
+              <g className="map-grid" clipPath="url(#map-ground-clip)">
+                {gridLines}
               </g>
+            )}
+            {allObjects.filter(({ o }) => o.k !== "text").map(drawObject)}
+            {ground && <path className="map-ground-wall" d={ground} />}
+            {ghostGround && (
+              <path className="map-ground-hidden" d={ghostGround} fillRule="evenodd" />
             )}
             {lines(width - 1).map((x) => (
               <text key={x} className="map-grad" x={x * CELL + CELL / 2} y={-7}>
@@ -559,6 +1151,11 @@ export function MapBoard({
               };
               return (
                 <g key={key}>
+                  {walls.onWall.has(key) &&
+                    e.door !== "trap" &&
+                    (e.door !== "secret" || e.open) && (
+                      <line className="map-door-gap" {...edgeLine(e)} />
+                    )}
                   <EdgeMark edge={e} gm={editable} />
                   {e.kind === "door" &&
                     editable &&
@@ -571,9 +1168,84 @@ export function MapBoard({
                 </g>
               );
             })}
-            {preview.map((e) => (
-              <line key={edgeKey(e)} className="map-wall ghost" {...edgeLine(e)} />
-            ))}
+            {allObjects.filter(({ o }) => o.k === "text").map(drawObject)}
+            {zoneShown && (
+              <rect
+                className="map-zone"
+                x={zoneShown.x0 * CELL}
+                y={zoneShown.y0 * CELL}
+                width={(zoneShown.x1 - zoneShown.x0) * CELL}
+                height={(zoneShown.y1 - zoneShown.y0) * CELL}
+              />
+            )}
+            {tool === "zone" && editable && clip && hover && !zoneDrag && (
+              <rect
+                className="map-zone paste"
+                x={Math.floor(hover.x) * CELL}
+                y={Math.floor(hover.y) * CELL}
+                width={clip.w * CELL}
+                height={clip.h * CELL}
+              />
+            )}
+            {ghost && (
+              <path className={`map-shape-ghost ${shapeSettings.erase ? "erase" : ""}`} d={ghost} />
+            )}
+            {draft &&
+              clicking &&
+              draft.map((p, i) => (
+                <circle
+                  key={i}
+                  className={`map-draft-pt ${i === 0 && kind === "poly" ? "first" : ""}`}
+                  cx={p.x * CELL}
+                  cy={p.y * CELL}
+                  r={i === 0 && kind === "poly" ? 7 : 4}
+                />
+              ))}
+            {lights.map(
+              (l, i) =>
+                l.color && (
+                  <g key={i} clipPath={`url(#map-lc-${i})`} className="map-light-tint">
+                    <circle
+                      cx={l.x * CELL}
+                      cy={l.y * CELL}
+                      r={l.rad * CELL}
+                      fill={`url(#map-lt-${i})`}
+                    />
+                  </g>
+                ),
+            )}
+            {light.on && (
+              <rect
+                className="map-night"
+                width={width * CELL}
+                height={height * CELL}
+                mask="url(#map-dark)"
+                fill={light.night}
+                // Le MJ garde la carte lisible : il voit la nuit à moitié
+                opacity={editable ? light.dark * 0.55 : light.dark}
+              />
+            )}
+            {fogHidden && fogHidden.size > 0 && (
+              <g className={`map-handfog ${editable ? "preview" : ""}`}>
+                {cellRuns(fogHidden).map((r) => (
+                  <rect
+                    key={`${r.x}:${r.y}`}
+                    x={r.x * CELL - 0.5}
+                    y={r.y * CELL - 0.5}
+                    width={r.w * CELL + 1}
+                    height={CELL + 1}
+                  />
+                ))}
+              </g>
+            )}
+            {tool === "fog" && editable && hover && fogBrush.mode === "brush" && (
+              <circle
+                className={`map-brush ${fogBrush.reveal ? "" : "hide"}`}
+                cx={hover.x * CELL}
+                cy={hover.y * CELL}
+                r={(fogBrush.size / 2) * CELL}
+              />
+            )}
             {sights && (
               <rect
                 className={`map-fog ${vision}`}
@@ -660,6 +1332,20 @@ export function MapBoard({
           </g>
         )}
       </svg>
+      {draft && clicking && (
+        <div className="map-draft" role="group" aria-label="Tracé en cours">
+          <Button className="btn" onClick={() => setDraft(null)}>
+            <X size={15} aria-hidden="true" /> Annuler
+          </Button>
+          <Button
+            className="btn y"
+            disabled={draft.length < (kind === "poly" ? 3 : 1)}
+            onClick={finishDraft}
+          >
+            <Check size={15} aria-hidden="true" /> Terminer
+          </Button>
+        </div>
+      )}
       <div className="map-zoom">
         <Button aria-label="Zoomer" title="Zoomer" onClick={() => zoomBy(1.3)}>
           <Plus size={16} />

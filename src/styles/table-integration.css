@@ -9061,10 +9061,10 @@ main.map-screen {
   height: 100%;
 }
 .map-floor {
-  fill: color-mix(in srgb, var(--panel) 80%, var(--ink));
+  fill: var(--map-flat, color-mix(in srgb, var(--panel) 80%, var(--ink)));
 }
 .map-grid line {
-  stroke: color-mix(in srgb, var(--text) 14%, transparent);
+  stroke: var(--map-grid, color-mix(in srgb, var(--text) 14%, transparent));
   stroke-width: 1;
   vector-effect: non-scaling-stroke;
 }
@@ -9080,7 +9080,7 @@ main.map-screen {
   stroke-width: 6;
 }
 .map-wall {
-  stroke: var(--text);
+  stroke: var(--map-wall, var(--text));
 }
 .map-wall.ghost {
   opacity: 0.55;
@@ -9887,4 +9887,611 @@ rect.map-door-hit {
     flex: none;
     height: 260px;
   }
+}
+
+/* ===== Carte : sols dessinés par formes ===== */
+.map-board {
+  --map-ground: color-mix(in srgb, var(--panel) 82%, var(--text));
+}
+.map-floor.rock {
+  fill: var(--map-rock, color-mix(in srgb, var(--bg) 88%, var(--ink)));
+}
+.map-ground {
+  fill: var(--map-ground);
+}
+.map-ground.over-image {
+  fill-opacity: 0.35;
+}
+.map-ground-wall {
+  fill: none;
+  stroke: var(--map-wall, var(--text));
+  stroke-width: calc(var(--map-wall-w, 5) * 1px);
+  stroke-linejoin: round;
+}
+.map-grid.faint line {
+  stroke: color-mix(in srgb, var(--text) 6%, transparent);
+}
+.map-door-gap {
+  stroke: var(--map-ground);
+  stroke-width: calc(var(--map-wall-w, 5) * 1px + 4px);
+}
+.map-shape-ghost {
+  fill: color-mix(in srgb, var(--cyan) 22%, transparent);
+  stroke: var(--cyan);
+  stroke-width: 2;
+  stroke-dasharray: 6 5;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+.map-shape-ghost.erase {
+  fill: color-mix(in srgb, var(--red) 22%, transparent);
+  stroke: var(--red);
+}
+.map-draft-pt {
+  fill: var(--cyan);
+  pointer-events: none;
+}
+.map-draft-pt.first {
+  fill: color-mix(in srgb, var(--cyan) 30%, transparent);
+  stroke: var(--cyan);
+  stroke-width: 2;
+}
+.map-draft {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  z-index: 4;
+  display: flex;
+  gap: 8px;
+  transform: translateX(-50%);
+}
+.map-shape-opts {
+  top: 116px;
+  align-items: center;
+}
+.map-sep {
+  flex: none;
+  width: 1px;
+  margin: 6px 4px;
+  background: var(--line);
+}
+.map-door-types .map-erase.on {
+  background: var(--red);
+  color: var(--bg);
+}
+.map-opt {
+  display: flex;
+  flex: none;
+  gap: 2px;
+  align-items: center;
+  padding-right: 6px;
+  border-right: 1px solid var(--line);
+}
+.map-opt:last-child {
+  border-right: 0;
+}
+.map-opt small {
+  padding: 0 6px 0 4px;
+  color: var(--mute);
+  font-size: 0.72rem;
+}
+.map-door-types .map-opt button {
+  min-height: 36px;
+  padding: 0 9px;
+}
+@media (max-width: 760px) {
+  .map-shape-opts {
+    top: auto;
+    bottom: calc(186px + env(safe-area-inset-bottom));
+  }
+  .map-draft {
+    bottom: calc(246px + env(safe-area-inset-bottom));
+  }
+}
+.map-draft .btn {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
+/* ===== Carte : styles de rendu ===== */
+.map-grid.faint line {
+  stroke: color-mix(in srgb, var(--map-grid, var(--text)) 12%, transparent);
+}
+.map-hatch-tile line {
+  stroke: var(--map-wall, var(--text));
+  stroke-width: 1.4;
+  stroke-linecap: round;
+}
+.map-hatch {
+  pointer-events: none;
+}
+.map-shadow {
+  fill: color-mix(in srgb, var(--ink) 35%, transparent);
+  pointer-events: none;
+}
+.map-terrain path {
+  pointer-events: none;
+}
+.map-terrain .band {
+  fill: none;
+  stroke-width: 14;
+  stroke-linejoin: round;
+  opacity: 0.45;
+}
+.map-terrain .edge {
+  fill: none;
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+.map-terrain.water .fill {
+  fill: var(--map-water, var(--cyan));
+  fill-opacity: 0.85;
+}
+.map-terrain.water .band {
+  stroke: color-mix(in srgb, var(--map-water, var(--cyan)) 45%, var(--text));
+}
+.map-terrain.water .edge {
+  stroke: color-mix(in srgb, var(--map-water, var(--cyan)) 60%, var(--ink));
+}
+.map-terrain.lava .fill {
+  fill: var(--map-lava, var(--orange));
+}
+.map-terrain.lava .band {
+  stroke: var(--yellow);
+  opacity: 0.6;
+}
+.map-terrain.lava .edge {
+  stroke: color-mix(in srgb, var(--map-lava, var(--orange)) 55%, var(--ink));
+  stroke-width: 3;
+}
+.map-terrain.plants .fill {
+  fill: var(--map-plants, var(--green));
+  fill-opacity: 0.9;
+}
+.map-leaves-tile circle {
+  fill: color-mix(in srgb, var(--map-plants, var(--green)) 70%, var(--ink));
+  opacity: 0.55;
+}
+.map-terrain.plants .band {
+  stroke: color-mix(in srgb, var(--map-plants, var(--green)) 55%, var(--ink));
+  stroke-width: 8;
+}
+.map-terrain.plants .edge {
+  stroke: color-mix(in srgb, var(--map-plants, var(--green)) 45%, var(--ink));
+  stroke-width: 2.5;
+  stroke-dasharray: 2 5;
+  stroke-linecap: round;
+}
+.map-terrain.road .fill {
+  fill: var(--map-road, var(--mute));
+}
+.map-terrain.road .band {
+  stroke: color-mix(in srgb, var(--map-road, var(--mute)) 70%, var(--ink));
+  stroke-width: 6;
+  opacity: 0.35;
+}
+.map-terrain.road .edge {
+  stroke: color-mix(in srgb, var(--map-road, var(--mute)) 55%, var(--ink));
+  stroke-width: 1.5;
+}
+.map-styles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+.map-styles .map-style-pick {
+  display: grid;
+  gap: 4px;
+  justify-items: center;
+  padding: 6px 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font-family: var(--head);
+  font-size: 0.78rem;
+}
+.map-styles .map-style-pick[aria-checked="true"] {
+  border-color: var(--yellow);
+  color: var(--yellow);
+}
+.map-style-swatch {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 34px;
+  border-radius: 5px;
+  background: var(--sw-rock);
+}
+.map-style-swatch i {
+  width: 55%;
+  height: 60%;
+  border: 3px solid var(--sw-wall);
+  background: var(--sw-floor);
+}
+.map-style-colors {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+.map-color {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-height: 40px;
+  color: var(--text);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.map-color input {
+  flex: none;
+  width: 34px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+}
+.map-color small {
+  display: block;
+  color: var(--mute);
+  font-size: 0.7rem;
+}
+
+/* ===== Carte : objets, tampon et zone ===== */
+.map-object {
+  color: var(--obj, var(--map-wall, var(--text)));
+  pointer-events: none;
+}
+.map-object.k-stairs .frame {
+  fill: var(--map-ground);
+  stroke: var(--obj, var(--map-wall, var(--text)));
+  stroke-width: 2;
+}
+.map-object.k-stairs line {
+  stroke: var(--obj, var(--map-wall, var(--text)));
+  stroke-width: 1.5;
+}
+.map-object.k-stairs .arrow {
+  fill: none;
+  stroke: var(--obj, var(--map-wall, var(--text)));
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.6;
+}
+.map-object.k-text text {
+  paint-order: stroke;
+  fill: var(--obj, var(--map-wall, var(--text)));
+  stroke: var(--map-ground);
+  stroke-width: 3px;
+  font-family: var(--head);
+  font-weight: 700;
+  text-anchor: middle;
+}
+.map-object-wait {
+  fill: none;
+  stroke: var(--mute);
+  stroke-dasharray: 4 4;
+}
+.map-object-handles rect {
+  fill: none;
+  stroke: var(--yellow);
+  stroke-width: 1.5;
+  stroke-dasharray: 5 4;
+  vector-effect: non-scaling-stroke;
+}
+.map-object-handles line {
+  stroke: var(--yellow);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+.map-object-handles circle {
+  fill: var(--yellow);
+  stroke: var(--ink);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+.map-zone {
+  fill: color-mix(in srgb, var(--cyan) 12%, transparent);
+  stroke: var(--cyan);
+  stroke-width: 2;
+  stroke-dasharray: 8 6;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+.map-zone.paste {
+  fill: color-mix(in srgb, var(--yellow) 12%, transparent);
+  stroke: var(--yellow);
+}
+.map-stage-view.tool-object {
+  cursor: default;
+}
+.map-hint {
+  flex: none;
+  align-self: center;
+  padding: 0 8px;
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+.map-object-text {
+  flex: none;
+  width: 150px;
+  min-height: 36px;
+}
+.map-opt-value {
+  min-width: 18px;
+  font-family: var(--mono);
+  text-align: center;
+}
+.map-opt input[type="range"] {
+  width: 90px;
+}
+.map-source-img {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+}
+.map-library h3 {
+  margin-top: 6px;
+}
+.map-library-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+  gap: 4px;
+}
+.map-library-grid button {
+  display: grid;
+  place-items: center;
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+}
+.map-library-grid button[aria-pressed="true"] {
+  border-color: var(--yellow);
+  color: var(--yellow);
+}
+.map-library-grid.images {
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+}
+.map-library-image {
+  position: relative;
+}
+.map-library-image > button:first-child {
+  width: 100%;
+  height: 64px;
+  padding: 4px;
+}
+.map-library-image img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+.map-library-image .x {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  min-height: 0;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  background: color-mix(in srgb, var(--red) 80%, transparent);
+  color: var(--bg);
+}
+
+/* ===== Carte : calques et étages ===== */
+.map-ground-hidden {
+  fill: color-mix(in srgb, var(--violet) 14%, transparent);
+  stroke: var(--violet);
+  stroke-width: 2;
+  stroke-dasharray: 7 5;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+.map-top .map-layer-chip {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  max-width: 180px;
+  padding: 0 10px;
+  font-family: var(--head);
+  font-size: 0.8rem;
+}
+.map-layer-chip span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.map-top .map-layer-chip.on {
+  color: var(--violet);
+}
+.map-floors {
+  display: inline-flex;
+  align-items: center;
+}
+.map-floors small {
+  padding: 0 4px;
+  color: var(--mute);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+.map-layers {
+  display: grid;
+  gap: 4px;
+}
+.map-layer {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.map-layer.on {
+  border-color: var(--violet);
+  background: color-mix(in srgb, var(--violet) 10%, transparent);
+}
+.map-layer .field {
+  flex: 1;
+  min-width: 0;
+  min-height: 36px;
+}
+.map-layer button {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 32px;
+  min-height: 36px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+}
+.map-layer button:disabled {
+  opacity: 0.3;
+}
+.map-layer button.warn,
+.map-layer button[aria-pressed="true"] {
+  color: var(--violet);
+}
+.map-layer .map-layer-pick i {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--mute);
+  border-radius: 50%;
+}
+.map-layer .map-layer-pick[aria-checked="true"] i {
+  border-color: var(--violet);
+  background: var(--violet);
+}
+.map-layer-name {
+  flex: 1;
+  padding: 0 6px;
+  color: var(--text);
+  font-size: 0.88rem;
+}
+.map-layer-name small {
+  display: block;
+  color: var(--mute);
+  font-size: 0.72rem;
+}
+.map-object-link {
+  width: 150px;
+  min-height: 36px;
+}
+
+/* ===== Carte : éclairage et brouillard à la main ===== */
+.map-night,
+.map-light-tint,
+.map-handfog,
+.map-brush {
+  pointer-events: none;
+}
+.map-light-tint {
+  mix-blend-mode: screen;
+}
+.map-handfog rect {
+  fill: var(--ink);
+}
+.map-handfog.preview rect {
+  fill: color-mix(in srgb, var(--ink) 55%, transparent);
+}
+.map-brush {
+  fill: color-mix(in srgb, var(--cyan) 15%, transparent);
+  stroke: var(--cyan);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+.map-brush.hide {
+  fill: color-mix(in srgb, var(--ink) 30%, transparent);
+  stroke: var(--mute);
+}
+.map-object.k-light {
+  color: var(--obj, var(--yellow));
+}
+.map-light-icon {
+  filter: drop-shadow(0 0 4px var(--obj, var(--yellow)));
+}
+.map-light-range {
+  fill: none;
+  stroke: var(--obj, var(--yellow));
+  stroke-width: 1.5;
+  stroke-dasharray: 6 6;
+  vector-effect: non-scaling-stroke;
+}
+
+/* ===== Carte : donjon aléatoire ===== */
+.map-gen {
+  display: grid;
+  gap: 10px;
+}
+.map-gen .map-opt {
+  flex-wrap: wrap;
+  padding-right: 0;
+  border-right: 0;
+}
+.map-gen .map-opt small {
+  flex-basis: 100%;
+  padding: 0 0 2px;
+}
+.map-gen .map-opt button {
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font-family: var(--head);
+  font-size: 0.82rem;
+}
+.map-gen .map-opt button[aria-checked="true"],
+.map-gen .map-opt button[aria-pressed="true"] {
+  border-color: var(--yellow);
+  background: var(--yellow);
+  color: var(--bg);
+}
+
+/* ===== Carte : écran de table ===== */
+.map-tv {
+  position: fixed;
+  inset: 0;
+  z-index: 5000;
+  background: var(--bg);
+}
+.map-tv .map-stage {
+  height: 100dvh;
+}
+.map-tv .map-top,
+.map-tv .map-tools,
+.map-tv .map-zoom {
+  display: none;
+}
+.map-tv .map-tv-full {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  z-index: 4;
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--panel) 85%, transparent);
+  color: var(--mute);
+  font-family: var(--head);
+  opacity: 0.5;
+}
+.map-tv .map-tv-full:hover {
+  opacity: 1;
+}
+:fullscreen .map-tv .map-tv-full {
+  display: none;
 }

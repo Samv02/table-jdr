@@ -300,9 +300,53 @@ export type Sight = {
 
 const cellKey = (x: number, y: number) => `${x}:${y}`;
 
-/** Cases reliées à celle d'un point sans traverser ce qui bloque la vue. */
-export function reachableCells(o: Point, edges: MapEdge[], w: number, h: number) {
+/** Deux segments se coupent-ils (extrémités comprises) ? */
+function crosses(p: Point, q: Point, s: Segment) {
+  const side = (a: Point, b: Point, c: Point) =>
+    (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+  const d1 = side(s.a, s.b, p);
+  const d2 = side(s.a, s.b, q);
+  const d3 = side(p, q, s.a);
+  const d4 = side(p, q, s.b);
+  // Alignés : un mur dans l'axe du pas ne le coupe pas
+  if (Math.abs(d1) < 1e-9 && Math.abs(d2) < 1e-9) return false;
+  return d1 * d2 <= 0 && d3 * d4 <= 0;
+}
+
+/** Murs libres (contours des sols) rangés par case, pour ne tester que les voisins. */
+function bucketWalls(walls: Segment[], w: number, h: number) {
+  const out = new Map<string, Segment[]>();
+  for (const s of walls) {
+    const x0 = Math.max(0, Math.floor(Math.min(s.a.x, s.b.x) - 0.5));
+    const x1 = Math.min(w - 1, Math.floor(Math.max(s.a.x, s.b.x) + 0.5));
+    const y0 = Math.max(0, Math.floor(Math.min(s.a.y, s.b.y) - 0.5));
+    const y1 = Math.min(h - 1, Math.floor(Math.max(s.a.y, s.b.y) + 0.5));
+    for (let x = x0; x <= x1; x++)
+      for (let y = y0; y <= y1; y++) out.set(cellKey(x, y), [...(out.get(cellKey(x, y)) ?? []), s]);
+  }
+  return out;
+}
+
+/**
+ * Cases reliées à celle d'un point sans traverser ce qui bloque la vue :
+ * les arêtes de la grille, et les murs libres coupés en allant d'un centre de case à l'autre.
+ */
+export function reachableCells(
+  o: Point,
+  edges: MapEdge[],
+  w: number,
+  h: number,
+  walls: Segment[] = [],
+) {
   const closed = new Set(edges.filter(blocksView).map(edgeKey));
+  const near = bucketWalls(walls, w, h);
+  const blocked = (ax: number, ay: number, bx: number, by: number) => {
+    const list = near.get(cellKey(ax, ay));
+    if (!list) return false;
+    const p = { x: ax + 0.5, y: ay + 0.5 };
+    const q = { x: bx + 0.5, y: by + 0.5 };
+    return list.some((s) => crosses(p, q, s));
+  };
   const start = cellAt(o, w, h);
   const seen = new Set([cellKey(start.x, start.y)]);
   const todo = [{ x: start.x, y: start.y }];
@@ -317,6 +361,7 @@ export function reachableCells(o: Point, edges: MapEdge[], w: number, h: number)
     for (const n of next) {
       if (n.x < 0 || n.y < 0 || n.x >= w || n.y >= h) continue;
       if (closed.has(n.wall) || seen.has(cellKey(n.x, n.y))) continue;
+      if (blocked(x, y, n.x, n.y)) continue;
       seen.add(cellKey(n.x, n.y));
       todo.push({ x: n.x, y: n.y });
     }
@@ -324,21 +369,22 @@ export function reachableCells(o: Point, edges: MapEdge[], w: number, h: number)
   return seen;
 }
 
-/** Ce que voit un pion selon la règle choisie par le MJ. */
+/** Ce que voit un pion selon la règle choisie par le MJ ; walls : les murs des sols dessinés. */
 export function sightFrom(
   origin: Point,
   edges: MapEdge[],
   rule: VisionRule,
   w: number,
   h: number,
+  walls: Segment[] = [],
 ): Sight {
   const radius = rule.mode === "sight" ? rule.range : 0;
   const flood = rule.mode === "room" || rule.corners;
   return {
     origin,
     radius,
-    cells: flood ? reachableCells(origin, edges, w, h) : null,
-    polygon: flood ? null : visibility(origin, blockers(edges), w, h),
+    cells: flood ? reachableCells(origin, edges, w, h, walls) : null,
+    polygon: flood ? null : visibility(origin, [...blockers(edges), ...walls], w, h),
   };
 }
 

@@ -309,6 +309,63 @@ export type Database = {
           },
         ];
       };
+      map_layers: {
+        Row: {
+          created_at: string;
+          hidden: boolean;
+          id: string;
+          locked: boolean;
+          map_id: string;
+          name: string;
+          objects: Json;
+          position: number;
+          shapes: Json;
+          team_id: string;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          hidden?: boolean;
+          id?: string;
+          locked?: boolean;
+          map_id: string;
+          name: string;
+          objects?: Json;
+          position?: number;
+          shapes?: Json;
+          team_id?: string;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          hidden?: boolean;
+          id?: string;
+          locked?: boolean;
+          map_id?: string;
+          name?: string;
+          objects?: Json;
+          position?: number;
+          shapes?: Json;
+          team_id?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "map_layers_map_id_fkey";
+            columns: ["map_id"];
+            isOneToOne: false;
+            referencedRelation: "maps";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "map_layers_team_id_fkey";
+            columns: ["team_id"];
+            isOneToOne: false;
+            referencedRelation: "teams";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       map_tokens: {
         Row: {
           character_id: string | null;
@@ -384,11 +441,19 @@ export type Database = {
           cell_value: number;
           created_at: string;
           fog: boolean;
+          fog_mask: string;
           height: number;
           id: string;
+          level: number;
+          light: Json;
+          manual_fog: boolean;
           name: string;
+          objects: Json;
+          place: string | null;
           players_move: boolean;
+          shapes: Json;
           show_grid: boolean;
+          style: Json;
           team_id: string;
           updated_at: string;
           vision_corners: boolean;
@@ -404,11 +469,19 @@ export type Database = {
           cell_value?: number;
           created_at?: string;
           fog?: boolean;
+          fog_mask?: string;
           height?: number;
           id?: string;
+          level?: number;
+          light?: Json;
+          manual_fog?: boolean;
           name: string;
+          objects?: Json;
+          place?: string | null;
           players_move?: boolean;
+          shapes?: Json;
           show_grid?: boolean;
+          style?: Json;
           team_id?: string;
           updated_at?: string;
           vision_corners?: boolean;
@@ -424,11 +497,19 @@ export type Database = {
           cell_value?: number;
           created_at?: string;
           fog?: boolean;
+          fog_mask?: string;
           height?: number;
           id?: string;
+          level?: number;
+          light?: Json;
+          manual_fog?: boolean;
           name?: string;
+          objects?: Json;
+          place?: string | null;
           players_move?: boolean;
+          shapes?: Json;
           show_grid?: boolean;
+          style?: Json;
           team_id?: string;
           updated_at?: string;
           vision_corners?: boolean;

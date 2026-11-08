@@ -22,8 +22,13 @@ Le détail de chaque fonctionnalité est dans `docs/HISTORIQUE.md` (entrées 35 
 - Les murs bloquent la vue, pas les déplacements.
 - Une porte secrète fermée est dessinée comme un mur, mais elle reste lisible dans les données envoyées au joueur (colonne `walls`).
 
+## Éditeur de carte (03 au 05/11/2026)
+Les 7 étapes sont faites (HISTORIQUE 46 à 52) : sols par formes, styles, objets, calques et étages, éclairage et brouillard, donjon aléatoire, export et écran de table.
+Un vrai secret se met dans un **calque caché** (filtré par la base) ; la vision, la nuit et le brouillard ne sont qu’un filtre d’écran.
+
 ## Sur un PC avec peu de mémoire
 `npm test` peut échouer par dépassement de temps sur des tests sans rapport. Lancer `npx vitest run --maxWorkers=2 --testTimeout=30000`.
+Si tous les fichiers échouent d’un coup sans message (« no tests »), relancer avec `--maxWorkers=1` : c’est arrivé quand le serveur et un navigateur de test tournaient en même temps.
 
 ## Sur un nouveau PC
 1. `git clone https://github.com/Samv02/table-jdr.git C:\dev\table-jdr`, puis `npm install`.
