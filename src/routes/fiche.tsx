@@ -45,7 +45,13 @@ import { ShopPanel } from "@/components/ShopPanel";
 import { SkillPicker } from "@/components/SkillLibrary";
 import { sheetCanRoll } from "@/lib/table";
 import { createSaveQueue } from "@/lib/save-queue";
-import { weaponAttack, weaponDamage } from "@/lib/weapon-rules";
+import {
+  applyWeaponHint,
+  guessWeapon,
+  hintChanges,
+  weaponAttack,
+  weaponDamage,
+} from "@/lib/weapon-rules";
 import {
   Download,
   Pencil,
@@ -960,6 +966,36 @@ function Sheet({ charId, isGm, userId }: { charId: string; isGm: boolean; userId
                   />
                 </label>
               ))}
+              {(() => {
+                const guess = guessWeapon(w.name, u);
+                if (!guess || !hintChanges(w, guess.hint)) return null;
+                const h = guess.hint;
+                const parts = [
+                  h.skill && `${h.skill}`,
+                  h.capacity ? `${h.capacity} ${w$.rounds}` : "sans munitions",
+                  h.dmg && `${w$.damage} ${h.dmg}`,
+                  h.rof && `${w$.rof} ${h.rof}`,
+                ].filter(Boolean);
+                return (
+                  <div className="weapon-guess">
+                    <span>
+                      <b>Suggestion</b> pour « {guess.word} » : {parts.join(" · ")}
+                    </span>
+                    <Button
+                      className="btn y"
+                      onClick={() =>
+                        saveSheet({
+                          weapons: weapons.map((weapon, j) =>
+                            weaponToJson(j === i ? applyWeaponHint(weapon, h) : weapon),
+                          ),
+                        })
+                      }
+                    >
+                      Appliquer
+                    </Button>
+                  </div>
+                );
+              })()}
               <Button
                 className="btn red"
                 onClick={async () => {

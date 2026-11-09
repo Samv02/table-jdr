@@ -24,7 +24,15 @@ import type { Json } from "@/integrations/supabase/types";
 import { useIdentity } from "@/lib/active-character";
 import { useTable } from "@/lib/table-context";
 import { createSaveQueue } from "@/lib/save-queue";
-import { dashboardAlerts, type DashboardRow, type DashboardState } from "@/lib/dashboard";
+import {
+  DASHBOARD_SECTIONS,
+  dashboardAlerts,
+  notesOf,
+  timeAgo,
+  type DashboardRow,
+  type DashboardState,
+} from "@/lib/dashboard";
+import { readDeckSlots, readPrograms, usedSlots, type Program } from "@/lib/programs";
 import {
   hpMax,
   hpStatus,
@@ -198,7 +206,7 @@ export function GmDashboard() {
     const { data, error } = await supabase
       .from("characters")
       .select(
-        "id,name,handle,owner_id,sheet,players_can_edit,character_state(hp_current,eddies,ammo,inventory)",
+        "id,name,handle,owner_id,sheet,players_can_edit,character_state(hp_current,eddies,ammo,inventory,programs,program_slots),character_notes(body,updated_at)",
       )
       .order("name");
     if (error) {
@@ -241,6 +249,7 @@ export function GmDashboard() {
       .channel(`gm-dashboard-${Math.random().toString(36).slice(2)}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "characters" }, refresh)
       .on("postgres_changes", { event: "*", schema: "public", table: "character_state" }, refresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "character_notes" }, refresh)
       .subscribe((status) => {
         if (status === "SUBSCRIBED") refresh();
       });
@@ -560,7 +569,13 @@ export function GmDashboard() {
       ) : (
         <div
           className={`dashboard-rail ${view.columns ? "tiled" : ""} ${layoutMode ? "editing" : ""} ${view.density}`}
-          style={view.columns ? ({ "--cols": view.columns } as CSSProperties) : undefined}
+          style={
+            {
+              // Une rangée pour l’en-tête, puis une par section
+              "--rows": DASHBOARD_SECTIONS.length + 1,
+              ...(view.columns ? { "--cols": view.columns } : {}),
+            } as CSSProperties
+          }
           ref={rail}
           onScroll={() => {
             if (window.innerWidth >= 1100 || !rail.current) return;
@@ -674,7 +689,16 @@ const arrowDelta = (key: string) =>
       ? 1
       : 0;
 
-function SectionTitle({ name, tools }: { name: string; tools: SectionTools | null }) {
+function SectionTitle({
+  name,
+  label,
+  tools,
+}: {
+  name: string;
+  /** Nom affiché, s'il diffère de la clé (mot de l'univers) */
+  label?: string;
+  tools: SectionTools | null;
+}) {
   return (
     <h3 className={tools ? "with-grip" : ""}>
       {tools && (
@@ -693,7 +717,7 @@ function SectionTitle({ name, tools }: { name: string; tools: SectionTools | nul
           <GripVertical size={14} aria-hidden="true" />
         </Button>
       )}
-      {name}
+      {label ?? name}
       {tools && (
         <Button
           className="grip-close"
@@ -1221,6 +1245,83 @@ function DashboardColumn({
         </form>
         {!s && <p className="note error">État du personnage indisponible.</p>}
       </section>
+      <section
+        className="dashboard-section"
+        hidden={!visible.has("Emplacements") || !u.modules.slots}
+        data-section="Emplacements"
+        style={sectionOrder(prefs, "Emplacements")}
+      >
+        <SectionTitle name="Emplacements" label={W.slots} tools={tools} />
+        <SlotSummary
+          programs={readPrograms(s?.programs)}
+          capacity={readDeckSlots(s?.program_slots)}
+        />
+      </section>
+      <section
+        className="dashboard-section"
+        hidden={!visible.has("Notes")}
+        data-section="Notes"
+        style={sectionOrder(prefs, "Notes")}
+      >
+        <SectionTitle name="Notes" label="Bloc-notes" tools={tools} />
+        <NotesReader row={r} />
+      </section>
     </article>
+  );
+}
+
+/** Emplacements d'un joueur, en un coup d'œil : la place prise, puis chaque élément. */
+function SlotSummary({ programs, capacity }: { programs: Program[]; capacity: number }) {
+  const used = usedSlots(programs);
+  const pending = programs.filter((p) => p.slots === null).length;
+  if (!programs.length && !capacity) return <p className="note plain">Rien d’installé.</p>;
+  return (
+    <div className="dashboard-slots">
+      <div
+        className={`dashboard-slotbar ${used > capacity ? "over" : ""}`}
+        role="img"
+        aria-label={`${used} sur ${capacity} occupés`}
+      >
+        {Array.from({ length: Math.max(capacity, used) }, (_, i) => (
+          <i key={i} className={i < used ? (i < capacity ? "on" : "over") : ""} />
+        ))}
+        <b>
+          {used}/{capacity}
+        </b>
+      </div>
+      {pending > 0 && (
+        <p className="dashboard-pending">
+          {pending} en attente de ton réglage (à fixer en Mode édition sur sa fiche)
+        </p>
+      )}
+      <ul className="dashboard-programs">
+        {programs.map((p) => (
+          <li key={p.id} className={p.active ? "on" : ""} title={p.effect || undefined}>
+            <i aria-hidden="true" />
+            <span>{p.name}</span>
+            {p.dice && <small>{p.dice}</small>}
+            <em>{p.slots === null ? "?" : p.slots}</em>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/** Bloc-notes du joueur, en lecture seule : le MJ le lit, il ne l'écrit jamais. */
+function NotesReader({ row }: { row: DashboardRow }) {
+  const [open, setOpen] = useState(false);
+  const notes = notesOf(row);
+  if (!notes) return <p className="note plain">Rien d’écrit pour l’instant.</p>;
+  return (
+    <div className={`dashboard-notes ${open ? "open" : ""}`}>
+      <small>Modifié {timeAgo(notes.updatedAt, Date.now())}</small>
+      <p>{notes.body}</p>
+      {notes.body.length > 280 && (
+        <Button className="btn" onClick={() => setOpen((o) => !o)}>
+          {open ? "Réduire" : "Tout lire"}
+        </Button>
+      )}
+    </div>
   );
 }

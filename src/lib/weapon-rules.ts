@@ -6,7 +6,7 @@ import {
   type SheetWeapon,
   type Stats,
 } from "./sheet";
-import { unarmedDamage, type Universe } from "./universe";
+import { unarmedDamage, type Universe, type WeaponHint } from "./universe";
 
 const normalize = (value: string) =>
   value
@@ -70,3 +70,46 @@ export function weaponAttack(
   const base = skillBase({ name, stat, level: learned?.level ?? 0 }, stats, u);
   return { name: learned?.name ?? name, stat, base, unlearned: !learned };
 }
+
+/**
+ * Suggestion pour une arme, d'après son nom et les suggestions de l'univers.
+ * Le mot le plus long qui se trouve dans le nom l'emporte (« fusil d'assaut » avant « fusil »).
+ */
+export function guessWeapon(name: string, u: Universe): { hint: WeaponHint; word: string } | null {
+  const n = ` ${normalize(name)} `;
+  let best: { hint: WeaponHint; word: string } | null = null;
+  for (const hint of u.rules.weaponHints)
+    for (const raw of hint.words.split(",")) {
+      const word = normalize(raw);
+      if (!word) continue;
+      // Un mot entier : « arc » ne se trouve pas dans « parc »
+      const at = n.indexOf(word);
+      const whole =
+        at > 0 && !/[a-z0-9]/.test(n[at - 1]!) && !/[a-z0-9]/.test(n[at + word.length] ?? " ");
+      if (whole && (!best || word.length > best.word.length)) best = { hint, word };
+    }
+  return best;
+}
+
+/** L'arme une fois la suggestion appliquée ; une valeur vide de la suggestion ne change rien. */
+export function applyWeaponHint(w: SheetWeapon, hint: WeaponHint): SheetWeapon {
+  return {
+    ...w,
+    ...(hint.skill ? { skill: hint.skill } : {}),
+    capacity: hint.capacity,
+    ammoRaw: hint.capacity ? String(hint.capacity) : "",
+    ...(hint.dmg ? { dmg: hint.dmg } : {}),
+    ...(hint.rof ? { rof: hint.rof } : {}),
+  };
+}
+
+/** La suggestion changerait-elle quelque chose ? */
+export const hintChanges = (w: SheetWeapon, hint: WeaponHint) => {
+  const next = applyWeaponHint(w, hint);
+  return (
+    next.skill !== w.skill ||
+    next.capacity !== w.capacity ||
+    next.dmg !== w.dmg ||
+    next.rof !== w.rof
+  );
+};

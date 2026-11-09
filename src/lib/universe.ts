@@ -114,7 +114,28 @@ export type Rules = {
   skillOrder: string[];
   /** Compétences prêtes à ajouter sur les fiches, liées à leur caractéristique */
   skillLibrary: TemplateSkill[];
+  /** Suggestions d'armes : d'après le nom, la compétence, les munitions, les dégâts et la cadence */
+  weaponHints: WeaponHint[];
 };
+
+/**
+ * Suggestion d'arme. `words` : des mots du nom, séparés par des virgules (« pistolet lourd, gros calibre »).
+ * Une valeur vide (ou 0 pour la cadence) ne change pas l'arme ; des munitions à 0 = arme sans munitions.
+ */
+export type WeaponHint = {
+  words: string;
+  skill: string;
+  capacity: number;
+  dmg: string;
+  rof: number;
+};
+const hint = (words: string, skill: string, capacity: number, dmg = "", rof = 0): WeaponHint => ({
+  words,
+  skill,
+  capacity,
+  dmg,
+  rof,
+});
 
 export type Modules = {
   ammo: boolean;
@@ -357,6 +378,13 @@ const NEUTRAL: Universe = {
     rangedStat: "AGI",
     meleeStat: "PHY",
     autofire: false,
+    weaponHints: [
+      hint("couteau, dague, épée, hache, lame, matraque, bâton, lance", "Bagarre", 0),
+      hint("poing, mains nues", "Bagarre", 0),
+      hint("pistolet, revolver", "Armes de poing", 6),
+      hint("fusil, carabine", "Armes de poing", 5),
+      hint("arc, arbalète", "Armes de poing", 1),
+    ],
     skillLibrary: [
       { name: "Athlétisme", stat: "PHY", level: 0 },
       { name: "Bagarre", stat: "PHY", level: 0 },
@@ -456,6 +484,20 @@ const FANTASY: Universe = {
     rangedStat: "DEX",
     meleeStat: "FOR",
     autofire: false,
+    weaponHints: [
+      hint("dague, poignard", "", 0, "1d4"),
+      hint("épée courte, cimeterre", "", 0, "1d6"),
+      hint("épée longue, épée", "", 0, "1d8"),
+      hint("épée à deux mains, espadon", "", 0, "2d6"),
+      hint("hache, hachette", "", 0, "1d6"),
+      hint("hache à deux mains, grande hache", "", 0, "1d12"),
+      hint("masse, marteau, gourdin, bâton", "", 0, "1d6"),
+      hint("lance, pique, hallebarde", "", 0, "1d8"),
+      hint("arc court", "", 20, "1d6"),
+      hint("arc long, arc", "", 20, "1d8"),
+      hint("arbalète", "", 20, "1d8"),
+      hint("fronde", "", 20, "1d4"),
+    ],
     skillLibrary: [
       { name: "Athlétisme", stat: "FOR", level: 0 },
       { name: "Acrobaties", stat: "DEX", level: 0 },
@@ -576,6 +618,15 @@ const GRIMDARK: Universe = {
     rangedStat: "CT",
     meleeStat: "CC",
     autofire: false,
+    weaponHints: [
+      hint(
+        "dague, couteau, épée, hache, masse, marteau, lance, hallebarde, gourdin",
+        "Corps à corps",
+        0,
+      ),
+      hint("arc, arbalète, fronde", "Tir", 1),
+      hint("pistolet, tromblon, mousquet, arquebuse", "Tir", 1),
+    ],
     skillLibrary: [
       { name: "Corps à corps", stat: "CC", level: 0 },
       { name: "Tir", stat: "CT", level: 0 },
@@ -681,6 +732,14 @@ const HORROR: Universe = {
     rangedStat: "DEX",
     meleeStat: "FOR",
     autofire: false,
+    weaponHints: [
+      hint("couteau, poignard, matraque, gourdin, hache, canne", "Corps à corps", 0),
+      hint("revolver", "Armes à feu", 6),
+      hint("pistolet, automatique", "Armes à feu", 8),
+      hint("fusil de chasse, fusil à pompe", "Armes à feu", 2),
+      hint("fusil, carabine", "Armes à feu", 5),
+      hint("mitraillette, thompson", "Armes à feu", 20),
+    ],
     skillLibrary: [
       { name: "Corps à corps", stat: "FOR", level: 25 },
       { name: "Armes à feu", stat: "DEX", level: 20 },
@@ -788,6 +847,22 @@ const CYBERPUNK: Universe = {
     rangedStat: "REF",
     meleeStat: "DEX",
     autofire: true,
+    weaponHints: [
+      hint("pistolet léger", "Pistolet", 8, "1d6", 2),
+      hint("pistolet moyen, pistolet", "Pistolet", 12, "2d6", 2),
+      hint("pistolet lourd", "Pistolet", 8, "3d6", 2),
+      hint("pistolet très lourd", "Pistolet", 8, "4d6", 1),
+      hint("mitraillette légère, mitraillette, smg", "Pistolet", 30, "2d6", 1),
+      hint("mitraillette lourde", "Pistolet", 40, "3d6", 1),
+      hint("fusil d'assaut", "Fusil", 25, "5d6", 1),
+      hint("fusil de précision, sniper", "Fusil", 4, "5d6", 1),
+      hint("fusil à pompe, shotgun", "Fusil", 4, "5d6", 1),
+      hint("arme de mêlée légère, couteau, dague", "Mêlée", 0, "1d6", 2),
+      hint("arme de mêlée moyenne, machette, matraque", "Mêlée", 0, "2d6", 2),
+      hint("arme de mêlée lourde, katana, épée, hache", "Mêlée", 0, "3d6", 2),
+      hint("arme de mêlée très lourde, masse, marteau", "Mêlée", 0, "4d6", 1),
+      hint("mains nues, poing", "Bagarre", 0, "", 2),
+    ],
     skillLibrary: [
       { name: "Pistolet", stat: "REF", level: 0 },
       { name: "Fusil", stat: "REF", level: 0 },
@@ -1001,6 +1076,9 @@ export function normalizeUniverse(raw: unknown): Universe {
     skillLibrary: Array.isArray(ru["skillLibrary"])
       ? readSkillList(ru["skillLibrary"])
       : base.rules.skillLibrary,
+    weaponHints: Array.isArray(ru["weaponHints"])
+      ? readWeaponHints(ru["weaponHints"])
+      : base.rules.weaponHints,
     skillOrder: Array.isArray(ru["skillOrder"])
       ? ru["skillOrder"].filter((s): s is string => isStr(s, 60)).slice(0, 60)
       : base.rules.skillOrder,
@@ -1018,6 +1096,23 @@ export function normalizeUniverse(raw: unknown): Universe {
     modules,
     template: readTemplate(r["template"]),
   };
+}
+function readWeaponHints(raw: unknown[]): WeaponHint[] {
+  return raw.slice(0, 80).flatMap((h) => {
+    const o = obj(h);
+    if (!isStr(o["words"], 200) || !o["words"].trim()) return [];
+    const capacity = Math.round(Number(o["capacity"]));
+    const rof = Math.round(Number(o["rof"]));
+    return [
+      {
+        words: o["words"],
+        skill: isStr(o["skill"], 60) ? o["skill"] : "",
+        capacity: Number.isFinite(capacity) ? Math.min(999, Math.max(0, capacity)) : 0,
+        dmg: isStr(o["dmg"], 30) ? o["dmg"] : "",
+        rof: Number.isFinite(rof) ? Math.min(20, Math.max(0, rof)) : 0,
+      },
+    ];
+  });
 }
 function readSkillList(raw: unknown[]): TemplateSkill[] {
   return raw.slice(0, 120).flatMap((s) => {

@@ -801,31 +801,43 @@ export type Database = {
       };
       scenes: {
         Row: {
+          ambiance: string;
           created_at: string;
+          folder: string;
           id: string;
           image_path: string;
+          music: Json | null;
           name: string;
           sort_order: number;
           subtitle: string;
           team_id: string;
+          transition: string;
         };
         Insert: {
+          ambiance?: string;
           created_at?: string;
+          folder?: string;
           id?: string;
           image_path: string;
+          music?: Json | null;
           name: string;
           sort_order?: number;
           subtitle?: string;
           team_id?: string;
+          transition?: string;
         };
         Update: {
+          ambiance?: string;
           created_at?: string;
+          folder?: string;
           id?: string;
           image_path?: string;
+          music?: Json | null;
           name?: string;
           sort_order?: number;
           subtitle?: string;
           team_id?: string;
+          transition?: string;
         };
         Relationships: [
           {

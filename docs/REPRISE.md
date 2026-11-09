@@ -28,7 +28,7 @@ Un vrai secret se met dans un **calque caché** (filtré par la base) ; la visio
 
 ## Sur un PC avec peu de mémoire
 `npm test` peut échouer par dépassement de temps sur des tests sans rapport. Lancer `npx vitest run --maxWorkers=2 --testTimeout=30000`.
-Si tous les fichiers échouent d’un coup sans message (« no tests »), relancer avec `--maxWorkers=1` : c’est arrivé quand le serveur et un navigateur de test tournaient en même temps.
+Si tous les fichiers échouent d’un coup sans message (« no tests »), relancer avec `--maxWorkers=1`, ou par dossier (`src/lib`, `src/components`, `src/test`) : c’est arrivé quand le serveur et un navigateur de test tournaient en même temps, et souvent juste après `npm run lint` : relancer les tests seuls suffit.
 
 ## Sur un nouveau PC
 1. `git clone https://github.com/Samv02/table-jdr.git C:\dev\table-jdr`, puis `npm install`.

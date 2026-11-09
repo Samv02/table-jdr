@@ -14,6 +14,7 @@ import type { Music } from "@/lib/table";
 import { Button } from "@/components/ui/button";
 import { Eye } from "lucide-react";
 import { TableContext, type Scene, type PartyMember } from "@/lib/table-context";
+import { readAmbiance, readTransition } from "@/lib/scenes";
 export function TableEnvironment({ children }: { children: ReactNode }) {
   const identity = useIdentity();
   const [scenes, setScenes] = useState<Scene[]>([]);
@@ -23,7 +24,7 @@ export function TableEnvironment({ children }: { children: ReactNode }) {
   const [online, setOnline] = useState<Set<string>>(new Set());
   const [clean, setClean] = useState(false);
   const [offset, setOffset] = useState(0);
-  const [layers, setLayers] = useState<{ url: string; id: string }[]>([]);
+  const [layers, setLayers] = useState<{ url: string; id: string; transition?: string }[]>([]);
   const [titleVisible, setTitleVisible] = useState(false);
   async function refresh() {
     const [s, state, members, team] = await Promise.all([
@@ -157,7 +158,10 @@ export function TableEnvironment({ children }: { children: ReactNode }) {
     const img = new Image();
     img.onload = () => {
       if (cancelled) return;
-      setLayers((old) => [...old.slice(-1), { url: img.src, id: activeScene.id }]);
+      setLayers((old) => [
+        ...old.slice(-1),
+        { url: img.src, id: activeScene.id, transition: readTransition(activeScene.transition) },
+      ]);
       setTitleVisible(true);
       titleTimer = setTimeout(() => setTitleVisible(false), 2800);
       cleanTimer = setTimeout(() => setLayers((old) => old.slice(-1)), 1500);
@@ -185,6 +189,15 @@ export function TableEnvironment({ children }: { children: ReactNode }) {
       }}
     >
       <SceneBackdrop layers={layers} clean={clean} />
+      {activeScene && readAmbiance(activeScene.ambiance) !== "none" && (
+        <div
+          className={`scene-weather map-weather w-${readAmbiance(activeScene.ambiance)}`}
+          aria-hidden="true"
+        >
+          <i />
+          <i />
+        </div>
+      )}
       {/* Ambiance animée de l'univers (pluie, braises, cendres…), choisie dans MJ → Univers */}
       <div className="atmo" aria-hidden="true" />
       {activeScene && (
@@ -219,7 +232,7 @@ function SceneBackdrop({
   layers,
   clean,
 }: {
-  layers: { url: string; id: string }[];
+  layers: { url: string; id: string; transition?: string }[];
   clean: boolean;
 }) {
   const box = useRef<HTMLDivElement>(null);
@@ -374,7 +387,11 @@ function SceneBackdrop({
                 n[layer.url] ? n : { ...n, [layer.url]: { w: t.naturalWidth, h: t.naturalHeight } },
               );
             }}
-            className={isTop ? "layer scene-image incoming" : "layer scene-image"}
+            className={
+              isTop
+                ? `layer scene-image incoming t-${layer.transition ?? "fade"}`
+                : "layer scene-image"
+            }
             alt=""
           />
         );

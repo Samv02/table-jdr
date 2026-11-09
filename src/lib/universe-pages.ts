@@ -113,6 +113,14 @@ export const UNIVERSE_GROUPS: { title: string; pages: UniversePage[] }[] = [
         value: (u) => [u.rules.rangedStat, u.rules.meleeStat, u.rules.autofire, u.rules.unarmed],
         errors: /^unarmed$/,
       },
+      {
+        id: "armes",
+        title: "Armes : suggestions",
+        hint: "D’après le nom d’une arme, la fiche propose sa compétence, ses munitions, ses dégâts.",
+        keywords:
+          "armes nom deviner suggestion munitions chargeur capacité compétence dégâts cadence pistolet fusil épée arc",
+        value: (u) => [u.rules.weaponHints],
+      },
     ],
   },
   {

@@ -7,6 +7,12 @@ export type Scene = {
   subtitle: string;
   image_path: string;
   sort_order: number;
+  /** Dossier du MJ ; vide : aucun */
+  folder: string;
+  transition: string;
+  ambiance: string;
+  /** Musique liée (lue par readSceneMusic) */
+  music: unknown;
   url?: string | null | undefined;
 };
 export type PartyMember = {

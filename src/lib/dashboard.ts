@@ -8,6 +8,9 @@ export type DashboardState = {
   eddies: number;
   ammo: Record<string, AmmoEntry>;
   inventory: InventoryItem[];
+  /** Emplacements (lus par readPrograms) et leur capacité */
+  programs?: unknown;
+  program_slots?: number;
 };
 export type DashboardRow = {
   id: string;
@@ -17,7 +20,26 @@ export type DashboardRow = {
   sheet: Sheet;
   players_can_edit: boolean;
   character_state: DashboardState | null;
+  /** Bloc-notes du joueur, lu par le MJ seulement (règles de la base) */
+  character_notes?:
+    { body: string; updated_at: string } | { body: string; updated_at: string }[] | null;
 };
+
+/** Le bloc-notes d'une fiche, quelle que soit la forme renvoyée par la base. */
+export function notesOf(row: Pick<DashboardRow, "character_notes">) {
+  const n = Array.isArray(row.character_notes) ? row.character_notes[0] : row.character_notes;
+  return n && n.body.trim() ? { body: n.body, updatedAt: n.updated_at } : null;
+}
+
+/** « à l'instant », « il y a 5 min », « il y a 3 h », « il y a 2 jours ». */
+export function timeAgo(iso: string, now: number) {
+  const s = Math.max(0, (now - Date.parse(iso)) / 1000);
+  if (!Number.isFinite(s) || s < 60) return "à l’instant";
+  if (s < 3600) return `il y a ${Math.floor(s / 60)} min`;
+  if (s < 86400) return `il y a ${Math.floor(s / 3600)} h`;
+  const d = Math.floor(s / 86400);
+  return `il y a ${d} jour${d > 1 ? "s" : ""}`;
+}
 export const loginDestination = (isGm: boolean) =>
   isGm ? ("/mj/tableau" as const) : ("/fiche" as const);
 export function hudParty(party: PartyMember[]): PartyMember[] {
@@ -47,7 +69,15 @@ export function dashboardAlerts(row: DashboardRow, u: Universe) {
 /* ------------------------------------------------------------------ */
 /* Disposition du tableau de bord, choisie par le MJ                   */
 /* ------------------------------------------------------------------ */
-export const DASHBOARD_SECTIONS = ["Vitaux", "Stats", "Compétences", "Combat", "Sac"] as const;
+export const DASHBOARD_SECTIONS = [
+  "Vitaux",
+  "Stats",
+  "Compétences",
+  "Combat",
+  "Sac",
+  "Emplacements",
+  "Notes",
+] as const;
 export type DashboardSection = (typeof DASHBOARD_SECTIONS)[number];
 export const DASHBOARD_SORTS = [
   { key: "manual", label: "Mon ordre" },
@@ -111,6 +141,7 @@ export const QUICK_VIEWS: { key: string; label: string; sections: DashboardSecti
   { key: "combat", label: "Combat", sections: ["Vitaux", "Combat"] },
   { key: "social", label: "Social", sections: ["Stats", "Compétences"] },
   { key: "inventory", label: "Inventaire", sections: ["Sac"] },
+  { key: "follow", label: "Suivi", sections: ["Emplacements", "Notes"] },
 ];
 
 export const applyQuickView = (prefs: DashboardPrefs, sections: DashboardSection[]) => ({

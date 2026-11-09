@@ -41,6 +41,7 @@ import {
   type Hue,
   type StatDef,
   type TemplateSkill,
+  type WeaponHint,
   type Universe,
   type Words,
 } from "@/lib/universe";
@@ -668,6 +669,78 @@ export function UniverseEditor({
               )}
             </div>
           </div>
+        </Section>
+
+        <Section id="armes" page={page}>
+          <p className="note plain">
+            Quand le nom d’une arme contient l’un de ces mots, sa fiche propose de remplir la
+            compétence, les munitions, les dégâts et la cadence d’un clic (en Mode édition). Le mot
+            le plus long l’emporte : « fusil d’assaut » avant « fusil ». Une case vide ne change
+            rien ; des munitions à 0 veulent dire « sans munitions ».
+          </p>
+          <ListEditor<WeaponHint>
+            items={draft.rules.weaponHints}
+            max={80}
+            columns={[
+              "Mots du nom (séparés par des virgules)",
+              "Compétence",
+              "Munitions",
+              "Dégâts",
+              "Cadence",
+            ]}
+            onChange={(weaponHints) => rule("weaponHints", weaponHints)}
+            make={() => ({ words: "", skill: "", capacity: 0, dmg: "", rof: 0 })}
+            render={(h, patch) => (
+              <>
+                <input
+                  className="field"
+                  aria-label="Mots du nom de l’arme"
+                  placeholder="Ex. : pistolet lourd, revolver"
+                  maxLength={200}
+                  value={h.words}
+                  onChange={(e) => patch({ words: e.target.value })}
+                />
+                <input
+                  className="field"
+                  aria-label="Compétence proposée"
+                  list="uni-weapon-skills"
+                  placeholder="Inchangée"
+                  maxLength={60}
+                  value={h.skill}
+                  onChange={(e) => patch({ skill: e.target.value })}
+                />
+                <input
+                  className="field"
+                  type="number"
+                  min={0}
+                  aria-label="Munitions proposées"
+                  value={h.capacity}
+                  onChange={(e) => patch({ capacity: Math.max(0, Number(e.target.value) || 0) })}
+                />
+                <input
+                  className="field"
+                  aria-label="Dégâts proposés"
+                  placeholder="Inchangés"
+                  maxLength={30}
+                  value={h.dmg}
+                  onChange={(e) => patch({ dmg: e.target.value })}
+                />
+                <input
+                  className="field"
+                  type="number"
+                  min={0}
+                  aria-label="Cadence proposée (0 = inchangée)"
+                  value={h.rof}
+                  onChange={(e) => patch({ rof: Math.max(0, Number(e.target.value) || 0) })}
+                />
+              </>
+            )}
+          />
+          <datalist id="uni-weapon-skills">
+            {draft.rules.skillLibrary.map((sk) => (
+              <option key={sk.name} value={sk.name} />
+            ))}
+          </datalist>
         </Section>
 
         <Section id="competences" page={page}>

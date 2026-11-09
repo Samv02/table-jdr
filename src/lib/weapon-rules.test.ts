@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { readStats, type SheetWeapon } from "./sheet";
-import { canDouble, canAutofire, weaponAttack, weaponDamage } from "./weapon-rules";
-import { presetById } from "./universe";
+import {
+  applyWeaponHint,
+  canDouble,
+  canAutofire,
+  guessWeapon,
+  hintChanges,
+  weaponAttack,
+  weaponDamage,
+} from "./weapon-rules";
+import { normalizeUniverse, presetById } from "./universe";
 
 const cp = presetById("cyberpunk");
 const fantasy = presetById("fantasy");
@@ -92,5 +100,82 @@ describe("weapon rules", () => {
     expect(
       weaponAttack({ ...weapon, name: "Arc court", skill: "Arcs" }, [], st, fantasy),
     ).toMatchObject({ base: 2, stat: "DEX", unlearned: true });
+  });
+});
+
+describe("suggestions d'armes d'après le nom", () => {
+  const blank = (name: string): SheetWeapon => ({
+    name,
+    dmg: "1d6",
+    ammoRaw: "",
+    capacity: 0,
+    rof: 1,
+    skill: "",
+    note: "",
+  });
+
+  it("le mot le plus précis l'emporte, sans accents ni majuscules", () => {
+    expect(guessWeapon("Fusil d'assaut Militech", cp)?.hint).toMatchObject({
+      skill: "Fusil",
+      capacity: 25,
+      dmg: "5d6",
+    });
+    expect(guessWeapon("PISTOLET TRES LOURD", cp)?.hint).toMatchObject({ capacity: 8, dmg: "4d6" });
+    expect(guessWeapon("Pistolet", cp)?.hint).toMatchObject({ capacity: 12, dmg: "2d6" });
+  });
+
+  it("un mot entier seulement : « arc » ne se trouve pas dans « parc »", () => {
+    expect(guessWeapon("Ticket de parc", fantasy)).toBeNull();
+    expect(guessWeapon("Arc long elfique", fantasy)?.hint).toMatchObject({
+      capacity: 20,
+      dmg: "1d8",
+    });
+  });
+
+  it("chaque préréglage propose ses propres compétences", () => {
+    expect(guessWeapon("Revolver", presetById("horreur"))?.hint).toMatchObject({
+      skill: "Armes à feu",
+      capacity: 6,
+    });
+    expect(guessWeapon("Arbalète", presetById("grimdark"))?.hint.skill).toBe("Tir");
+    expect(guessWeapon("Dague", presetById("neutre"))?.hint).toMatchObject({
+      skill: "Bagarre",
+      capacity: 0,
+    });
+    // Toutes les compétences proposées existent dans la bibliothèque du préréglage
+    for (const id of ["neutre", "fantasy", "grimdark", "horreur", "cyberpunk"]) {
+      const u = presetById(id);
+      for (const h of u.rules.weaponHints)
+        if (h.skill)
+          expect(
+            u.rules.skillLibrary.map((s) => s.name),
+            `${id} ${h.skill}`,
+          ).toContain(h.skill);
+    }
+  });
+
+  it("appliquer ne change que ce que la suggestion donne", () => {
+    const hint = guessWeapon("Katana", cp)!.hint;
+    const w = applyWeaponHint({ ...blank("Katana"), capacity: 12, ammoRaw: "12" }, hint);
+    expect(w).toMatchObject({ skill: "Mêlée", capacity: 0, ammoRaw: "", dmg: "3d6", rof: 2 });
+    expect(hintChanges(w, hint)).toBe(false);
+    const fantasyHint = guessWeapon("Dague", fantasy)!.hint;
+    expect(applyWeaponHint({ ...blank("Dague"), skill: "Lames" }, fantasyHint).skill).toBe("Lames");
+  });
+
+  it("l'univers relit ses suggestions et en borne les valeurs", () => {
+    const u = normalizeUniverse({
+      ...cp,
+      rules: {
+        ...cp.rules,
+        weaponHints: [
+          { words: "canon", skill: "Tir", capacity: 5000, dmg: "8d6", rof: -3 },
+          { words: "" },
+        ],
+      },
+    });
+    expect(u.rules.weaponHints).toEqual([
+      { words: "canon", skill: "Tir", capacity: 999, dmg: "8d6", rof: 0 },
+    ]);
   });
 });

@@ -145,18 +145,9 @@ Ouvre-le dès qu'une demande touche une partie existante, pour ne pas défaire u
   - [x] 2. thèmes de carte en un clic, de l’ancien au moderne, et panneau des réglages d’outil (HISTORIQUE 54) ;
   - [x] 3. caméras et champs de vision (HISTORIQUE 55), puis styles des symboles demandés en cours de route (HISTORIQUE 56) ;
   - [x] 4. ajouts de notre initiative : ambiance animée, lumières qui vacillent, glisser-déposer, journal des repérages (HISTORIQUE 57).
-- [ ] **Scènes** :
-  - réordonner par glisser-déposer ;
-  - musique liée à une scène ;
-  - transitions entre scènes ;
-  - effets d'ambiance par scène ;
-  - aperçu avant diffusion ;
-  - dossiers ;
-  - import de plusieurs images.
-- [ ] **Armes** : deviner la capacité et la compétence à partir du nom.
-- [ ] **Partie (ex-tableau de bord MJ)** :
-  - une section « Notes » pour lire les bloc-notes des joueurs ;
-  - une vue compacte des emplacements de chaque joueur.
+- [x] **Scènes** (09/11/2026, HISTORIQUE 58) : ordre au glisser-déposer, musique liée, transitions, ambiance, aperçu avant diffusion, dossiers, import de plusieurs images.
+- [x] **Armes** (09/11/2026, HISTORIQUE 60) : suggestions d’après le nom (compétence, munitions, dégâts, cadence), réglées dans l’univers, appliquées d’un clic.
+- [x] **Partie** (09/11/2026, HISTORIQUE 59) : sections « Emplacements » et « Bloc-notes » de chaque joueur, vue rapide « Suivi ».
 - [ ] **Support** : prévenir l'utilisateur par e-mail d'une réponse (besoin du service d'envoi).
 - [ ] Réactiver des notifications uniquement pour les **erreurs**. Proposé, pas demandé : Sam n'aime pas les pop-ups, donc à redemander.
 

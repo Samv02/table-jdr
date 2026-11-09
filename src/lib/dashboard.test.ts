@@ -13,6 +13,9 @@ import {
   moveCharacter,
   moveSection,
   readPrefs,
+  DASHBOARD_SECTIONS,
+  notesOf,
+  timeAgo,
   type DashboardPrefs,
 } from "./dashboard";
 import { presetById } from "./universe";
@@ -130,7 +133,7 @@ describe("dashboard layout", () => {
     expect(dropCharacter([], ["a", "b"], "a", "zzz")).toEqual(["a", "b"]);
     const moved = dropSection(DEFAULT_PREFS.sections, "Sac", "Vitaux").map((s) => s.key);
     expect(moved[0]).toBe("Sac");
-    expect(moved).toHaveLength(5);
+    expect(moved).toHaveLength(DASHBOARD_SECTIONS.length);
   });
   it("refuses an unknown grid size", () => {
     expect(readPrefs({ columns: 5, spans: { a: 9, b: 2 }, density: "x" })).toMatchObject({
@@ -180,7 +183,31 @@ describe("dashboard layout", () => {
     });
     expect(prefs.sort).toBe("manual");
     expect(prefs.sections[0]).toEqual({ key: "Sac", visible: false });
-    expect(prefs.sections).toHaveLength(5);
+    expect(prefs.sections).toHaveLength(DASHBOARD_SECTIONS.length);
     expect(readPrefs(null)).toEqual(DEFAULT_PREFS);
+  });
+});
+
+describe("emplacements et bloc-notes dans la Partie", () => {
+  it("les nouvelles sections arrivent, visibles, après celles déjà rangées", () => {
+    const prefs = readPrefs({ sections: [{ key: "Sac", visible: false }] });
+    expect(prefs.sections.map((s) => s.key).slice(-2)).toEqual(["Emplacements", "Notes"]);
+    expect(prefs.sections.find((s) => s.key === "Notes")?.visible).toBe(true);
+  });
+
+  it("lit le bloc-notes sous ses deux formes, et ignore un bloc-notes vide", () => {
+    const n = { body: "Planque au port", updated_at: "2026-11-09T10:00:00Z" };
+    expect(notesOf({ character_notes: n })?.body).toBe("Planque au port");
+    expect(notesOf({ character_notes: [n] })?.updatedAt).toBe(n.updated_at);
+    expect(notesOf({ character_notes: { ...n, body: "   " } })).toBeNull();
+    expect(notesOf({ character_notes: null })).toBeNull();
+  });
+
+  it("dit depuis quand le bloc-notes a changé", () => {
+    const t = Date.parse("2026-11-09T10:00:00Z");
+    expect(timeAgo("2026-11-09T09:59:30Z", t)).toBe("à l’instant");
+    expect(timeAgo("2026-11-09T09:55:00Z", t)).toBe("il y a 5 min");
+    expect(timeAgo("2026-11-09T07:00:00Z", t)).toBe("il y a 3 h");
+    expect(timeAgo("2026-11-07T10:00:00Z", t)).toBe("il y a 2 jours");
   });
 });
