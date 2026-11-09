@@ -96,13 +96,17 @@ import {
   SymbolTile,
   type ObjectSource,
 } from "@/components/MapObjects";
-import { MapGallery } from "@/components/MapGallery";
+import { MapGallery, MapThumb } from "@/components/MapGallery";
 import { DEFAULT_CONE, readTokenCone, type Spot, type TokenCone } from "@/lib/map-cones";
 import { ThemeArt } from "@/components/MapThemeArt";
 import {
   Actions,
   ConeControls,
   CornerArt,
+  CountArt,
+  PlanArt,
+  RoomArt,
+  WearArt,
   DotArt,
   Inspector,
   LineArt,
@@ -990,6 +994,12 @@ export function MapPage({ popup = false, onClose }: { popup?: boolean; onClose?:
   const [libLook, setLibLook] = useState<ObjectLook | "auto">("auto");
   const [fogBrush, setFogBrush] = useState<FogBrush>({ mode: "brush", reveal: true, size: 2 });
   const [dungeon, setDungeon] = useState<DungeonOptions>(DEFAULT_DUNGEON);
+  /** Tirage de l'aperçu : « Utiliser ce donjon » pose exactement celui qu'on voit */
+  const [dungeonSeed, setDungeonSeed] = useState(() => Math.floor(Math.random() * 2 ** 31));
+  const dungeonPreview = useMemo(
+    () => (panel === "dungeon" ? generateDungeon(dungeon, dungeonSeed) : null),
+    [panel, dungeon, dungeonSeed],
+  );
   /** Dernier donjon tiré : on peut en retirer un autre sans redemander confirmation */
   const lastDungeon = useRef<unknown>(null);
   const [zone, setZone] = useState<Zone | null>(null);
@@ -1337,7 +1347,7 @@ export function MapPage({ popup = false, onClose }: { popup?: boolean; onClose?:
    * Tire un donjon et remplace le dessin du calque principal (sols, murs, portes, objets).
    * Les pions et les autres calques restent ; Ctrl+Z ramène le dessin d'avant.
    */
-  async function drawDungeon() {
+  async function drawDungeon(seed: number) {
     if (!map) return;
     const drawn = baseShapes.length > 0 || edges.length > 0 || baseObjects.length > 0;
     if (drawn && lastDungeon.current !== map.shapes) {
@@ -1348,7 +1358,7 @@ export function MapPage({ popup = false, onClose }: { popup?: boolean; onClose?:
       });
       if (!ok) return;
     }
-    const d = generateDungeon(dungeon, Math.floor(Math.random() * 2 ** 31));
+    const d = generateDungeon(dungeon, seed);
     if (d.width !== map.width || d.height !== map.height)
       patchMap({ width: d.width, height: d.height });
     const after = { walls: d.edges, shapes: d.shapes, objects: d.objects };
@@ -3037,95 +3047,89 @@ export function MapPage({ popup = false, onClose }: { popup?: boolean; onClose?:
         )}
         {canEdit && map && panel === "dungeon" && (
           <Panel title="Donjon aléatoire" onClose={() => setPanel(null)}>
+            {dungeonPreview && (
+              <div className="map-dungeon-preview">
+                <MapThumb
+                  width={dungeonPreview.width}
+                  height={dungeonPreview.height}
+                  shapes={dungeonPreview.shapes}
+                  walls={dungeonPreview.edges}
+                  style={map.style}
+                />
+                <small>
+                  {dungeonPreview.rooms.length} salles · {dungeonPreview.width} ×{" "}
+                  {dungeonPreview.height} cases
+                </small>
+              </div>
+            )}
+            <div className="map-insp-actions">
+              <Button onClick={() => setDungeonSeed(Math.floor(Math.random() * 2 ** 31))}>
+                <Shuffle size={15} aria-hidden="true" /> Un autre tirage
+              </Button>
+              <Button className="map-dungeon-go" onClick={() => void drawDungeon(dungeonSeed)}>
+                <Check size={15} aria-hidden="true" /> Utiliser ce donjon
+              </Button>
+            </div>
             <p className="note plain">
-              Remplace le dessin du calque principal par un donjon tout prêt, à retoucher ensuite.
-              Chaque tirage est différent ; Ctrl+Z ramène le précédent.
+              Le donjon remplace le dessin de la carte (les pions restent). Ctrl+Z pour revenir en
+              arrière.
             </p>
-            <div className="map-gen">
-              <Pick
-                label="Taille"
-                value={dungeon.size}
-                options={[
-                  { value: "s" as const, label: "Petite" },
-                  { value: "m" as const, label: "Moyenne" },
-                  { value: "l" as const, label: "Grande" },
-                ]}
-                onChange={(size) => setDungeon((d) => ({ ...d, size }))}
-              />
-              <Pick
-                label="Pièces"
-                value={dungeon.rooms}
-                options={[
-                  { value: 4, label: "Peu" },
-                  { value: 7, label: "Quelques-unes" },
-                  { value: 11, label: "Nombreuses" },
-                  { value: 16, label: "Beaucoup" },
-                ]}
-                onChange={(rooms) => setDungeon((d) => ({ ...d, rooms }))}
-              />
-              <Pick
-                label="Taille des pièces"
-                value={dungeon.roomSize}
-                options={[
-                  { value: "tight" as const, label: "Exiguës" },
-                  { value: "normal" as const, label: "Normales" },
-                  { value: "wide" as const, label: "Spacieuses" },
-                ]}
-                onChange={(roomSize) => setDungeon((d) => ({ ...d, roomSize }))}
-              />
-              <Pick
-                label="Couloirs"
-                value={dungeon.corridor}
-                options={[
-                  { value: "short" as const, label: "Courts" },
-                  { value: "normal" as const, label: "Normaux" },
-                  { value: "long" as const, label: "Longs" },
-                ]}
-                onChange={(corridor) => setDungeon((d) => ({ ...d, corridor }))}
-              />
-              <Pick
-                label="Largeur des couloirs"
-                value={dungeon.corridorWidth}
-                options={[
-                  { value: 1 as const, label: "Étroits" },
-                  { value: 2 as const, label: "Larges", hint: "Sans portes" },
-                ]}
-                onChange={(corridorWidth) => setDungeon((d) => ({ ...d, corridorWidth }))}
-              />
-              <Pick
-                label="Disposition"
-                value={dungeon.layout}
-                options={[
-                  { value: "line" as const, label: "En ligne" },
-                  { value: "branch" as const, label: "Ramifiée" },
-                  { value: "balanced" as const, label: "Équilibrée", hint: "Avec des boucles" },
-                  { value: "winding" as const, label: "Sinueuse" },
-                ]}
-                onChange={(layout) => setDungeon((d) => ({ ...d, layout }))}
-              />
-              <Pick
-                label="Portes"
-                value={dungeon.doors}
-                options={[
-                  { value: 0, label: "Aucune" },
-                  { value: 0.25, label: "Peu" },
-                  { value: 0.5, label: "Quelques-unes" },
-                  { value: 0.9, label: "Nombreuses" },
-                ]}
-                onChange={(doors) => setDungeon((d) => ({ ...d, doors }))}
-              />
-              <div className="map-opt" role="group" aria-label="Formes des pièces">
-                <small aria-hidden="true">Formes</small>
+            <Tiles
+              label="Taille de la carte"
+              cols={3}
+              value={dungeon.size}
+              options={[
+                {
+                  value: "s" as const,
+                  label: "Petite",
+                  hint: "24 × 16 cases : une soirée courte.",
+                },
+                { value: "m" as const, label: "Moyenne", hint: "36 × 24 cases." },
+                {
+                  value: "l" as const,
+                  label: "Grande",
+                  hint: "50 × 34 cases : une vraie expédition.",
+                },
+              ]}
+              onChange={(size) => setDungeon((d) => ({ ...d, size }))}
+            />
+            <Tiles
+              label="Nombre de salles"
+              cols={4}
+              value={dungeon.rooms}
+              options={[4, 7, 11, 16].map((n) => ({
+                value: n,
+                label: `${n} salles`,
+                icon: <CountArt n={n} />,
+                hint: "Moins si la carte manque de place.",
+              }))}
+              onChange={(rooms) => setDungeon((d) => ({ ...d, rooms }))}
+            />
+            <Tiles
+              label="Taille des salles"
+              cols={3}
+              value={dungeon.roomSize}
+              options={[
+                { value: "tight" as const, label: "Petites", icon: <DotArt n={1} /> },
+                { value: "normal" as const, label: "Moyennes", icon: <DotArt n={2.5} /> },
+                { value: "wide" as const, label: "Grandes", icon: <DotArt n={4.5} /> },
+              ]}
+              onChange={(roomSize) => setDungeon((d) => ({ ...d, roomSize }))}
+            />
+            <section className="map-insp-sec">
+              <h4>Forme des salles</h4>
+              <div className="map-tiles" style={{ ["--cols" as string]: 3 }}>
                 {(
                   [
                     ["square", "Carrées"],
-                    ["irregular", "Irrégulières"],
+                    ["irregular", "Avec un coin"],
                     ["round", "Arrondies"],
                   ] as const
                 ).map(([k, label]) => (
                   <Button
                     key={k}
-                    aria-pressed={dungeon.shapes[k]}
+                    role="checkbox"
+                    aria-checked={dungeon.shapes[k]}
                     onClick={() =>
                       setDungeon((d) => {
                         const shapes = { ...d.shapes, [k]: !d.shapes[k] };
@@ -3134,30 +3138,114 @@ export function MapPage({ popup = false, onClose }: { popup?: boolean; onClose?:
                       })
                     }
                   >
-                    {label}
+                    <span className="map-tile-art" aria-hidden="true">
+                      <RoomArt shape={k} />
+                    </span>
+                    <span>{label}</span>
                   </Button>
                 ))}
               </div>
-              <Pick
-                label="Usure"
-                value={dungeon.wear}
+              <p className="map-insp-hint">Choisis-en une ou plusieurs : elles se mélangent.</p>
+            </section>
+            <Tiles
+              label="Comment les salles s’enchaînent"
+              cols={4}
+              value={dungeon.layout}
+              options={[
+                {
+                  value: "line" as const,
+                  label: "En file",
+                  hint: "Une salle après l’autre, du début à la fin.",
+                },
+                {
+                  value: "branch" as const,
+                  label: "En arbre",
+                  hint: "Des embranchements et des culs-de-sac.",
+                },
+                {
+                  value: "balanced" as const,
+                  label: "En boucles",
+                  hint: "Plusieurs chemins mènent au même endroit.",
+                },
+                {
+                  value: "winding" as const,
+                  label: "En zigzag",
+                  hint: "Des couloirs qui tournent sans cesse.",
+                },
+              ].map((o) => ({ ...o, icon: <PlanArt layout={o.value} /> }))}
+              onChange={(layout) => setDungeon((d) => ({ ...d, layout }))}
+            />
+            <Tiles
+              label="Couloirs"
+              cols={3}
+              value={dungeon.corridor}
+              options={[
+                { value: "short" as const, label: "Courts", hint: "Les salles sont proches." },
+                {
+                  value: "normal" as const,
+                  label: "Moyens",
+                  hint: "Un peu de marche entre les salles.",
+                },
+                {
+                  value: "long" as const,
+                  label: "Longs",
+                  hint: "De longs passages entre les salles.",
+                },
+              ]}
+              onChange={(corridor) => setDungeon((d) => ({ ...d, corridor }))}
+            />
+            <Tiles
+              label="Largeur des couloirs"
+              cols={2}
+              value={dungeon.corridorWidth}
+              options={[
+                {
+                  value: 1 as const,
+                  label: "1 case",
+                  icon: <WidthArt w={1} />,
+                  hint: "Étroits, avec des portes.",
+                },
+                {
+                  value: 2 as const,
+                  label: "2 cases",
+                  icon: <WidthArt w={2.5} />,
+                  hint: "Larges, sans portes.",
+                },
+              ]}
+              onChange={(corridorWidth) => setDungeon((d) => ({ ...d, corridorWidth }))}
+            />
+            {dungeon.corridorWidth === 1 && (
+              <Tiles
+                label="Portes"
+                cols={4}
+                value={dungeon.doors}
                 options={[
                   { value: 0, label: "Aucune" },
-                  { value: 1, label: "Légère" },
-                  { value: 2, label: "Moyenne" },
-                  { value: 3, label: "Marquée" },
+                  { value: 0.25, label: "Quelques" },
+                  { value: 0.5, label: "La moitié" },
+                  { value: 0.9, label: "Partout" },
                 ]}
-                onChange={(wear) => setDungeon((d) => ({ ...d, wear }))}
+                onChange={(doors) => setDungeon((d) => ({ ...d, doors }))}
               />
-            </div>
+            )}
+            <Tiles
+              label="État des murs"
+              cols={4}
+              value={dungeon.wear}
+              options={[
+                { value: 0, label: "Neufs", icon: <WearArt n={0} /> },
+                { value: 1, label: "Usés", icon: <WearArt n={1} /> },
+                { value: 2, label: "Abîmés", icon: <WearArt n={2} /> },
+                { value: 3, label: "En ruine", icon: <WearArt n={3} /> },
+              ]}
+              onChange={(wear) => setDungeon((d) => ({ ...d, wear }))}
+            />
             <Switch
               label="Numéroter les salles"
+              hint="Un numéro au centre de chaque salle, pour tes notes."
               value={dungeon.numbers}
               onChange={(numbers) => setDungeon((d) => ({ ...d, numbers }))}
             />
-            <Button className="btn y" onClick={() => void drawDungeon()}>
-              <Dices size={15} aria-hidden="true" /> Générer
-            </Button>
           </Panel>
         )}
         {canEdit && map && panel === "layers" && (

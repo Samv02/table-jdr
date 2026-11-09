@@ -374,3 +374,88 @@ export function ConeControls({
     </>
   );
 }
+
+/** Plan d'un donjon : comment les salles s'enchaînent. */
+export function PlanArt({ layout }: { layout: "line" | "branch" | "balanced" | "winding" }) {
+  const room = (x: number, y: number) => <rect x={x} y={y} width="5" height="5" rx="1" />;
+  return (
+    <Box>
+      {layout === "line" && (
+        <>
+          {room(1, 9.5)}
+          {room(9.5, 9.5)}
+          {room(18, 9.5)}
+          <path d="M6 12 H9.5 M14.5 12 H18" />
+        </>
+      )}
+      {layout === "branch" && (
+        <>
+          {room(9.5, 2)}
+          {room(2, 17)}
+          {room(17, 17)}
+          <path d="M12 7 V12 M4.5 17 V12 H19.5 V17" />
+        </>
+      )}
+      {layout === "balanced" && (
+        <>
+          {room(2, 2)}
+          {room(17, 2)}
+          {room(2, 17)}
+          {room(17, 17)}
+          <path d="M7 4.5 H17 M7 19.5 H17 M4.5 7 V17 M19.5 7 V17" />
+        </>
+      )}
+      {layout === "winding" && (
+        <>
+          {room(1, 2)}
+          {room(18, 17)}
+          <path d="M6 4.5 H12 V12 H8 V19.5 H18" strokeLinejoin="round" />
+        </>
+      )}
+    </Box>
+  );
+}
+/** Forme des salles. */
+export function RoomArt({ shape }: { shape: "square" | "irregular" | "round" }) {
+  return (
+    <Box>
+      {shape === "square" && <rect x="4" y="5" width="16" height="14" />}
+      {shape === "irregular" && <path d="M4 5 H14 V10 H20 V19 H4 Z" strokeLinejoin="round" />}
+      {shape === "round" && <rect x="4" y="5" width="16" height="14" rx="5" />}
+    </Box>
+  );
+}
+/** Murs plus ou moins abîmés. */
+export function WearArt({ n }: { n: number }) {
+  const pts = Array.from(
+    { length: 10 },
+    (_, i) => `${3 + i * 2},${12 + (i % 2 ? 1 : -1) * n * 1.5}`,
+  );
+  return (
+    <Box>
+      <polyline points={pts.join(" ")} strokeLinejoin="round" />
+    </Box>
+  );
+}
+/** Nombre de salles, en petits carrés. */
+export function CountArt({ n }: { n: number }) {
+  const cells = Array.from({ length: n }, (_, i) => i);
+  const side = n <= 4 ? 2 : n <= 9 ? 3 : 4;
+  const step = 20 / side;
+  return (
+    <Box>
+      {cells.map((i) => (
+        <rect
+          key={i}
+          x={2 + (i % side) * step + 1}
+          y={2 + Math.floor(i / side) * step + 1}
+          width={step - 2}
+          height={step - 2}
+          rx="0.8"
+          fill="currentColor"
+          stroke="none"
+        />
+      ))}
+    </Box>
+  );
+}
