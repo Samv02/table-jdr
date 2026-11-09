@@ -66,6 +66,14 @@ import {
   type StampSettings,
 } from "@/lib/map-objects";
 import { TERRAINS, hatchTile, styleVars, type MapStyle } from "@/lib/map-style";
+import {
+  lookAt,
+  readTokenCone,
+  sectorPoints,
+  spotted,
+  type ConeSource,
+  type Spot,
+} from "@/lib/map-cones";
 import { zoneFrom, type Zone } from "@/lib/map-zone";
 import {
   hiddenCells,
@@ -101,10 +109,14 @@ export type MapToken = {
   hidden: boolean;
   size: number;
   color: string | null;
+  /** Champ de vision (ennemi, allié) ; null : aucun */
+  cone?: unknown;
 };
 export type Ping = { id: number; x: number; y: number; color: string };
 
 const CELL = 40;
+/** Type des données d'un symbole glissé depuis la bibliothèque */
+export const SYMBOL_DRAG = "application/x-map-symbol";
 /** Les murs d'une pièce visible restent entiers au bord du brouillard */
 const WALL_BLEED = 3;
 const GUTTER = 22;
@@ -143,6 +155,60 @@ const trapBox = (e: MapEdge) => ({
 });
 
 /** Dessin d'un mur ou d'une porte. Une porte secrète fermée n'est un mur que pour les joueurs. */
+/** Motifs de texture : un carreau qui se répète sans couture (bruit « stitch »). */
+function TextureDefs({ texture }: { texture: MapStyle["texture"] }) {
+  if (texture === "none") return null;
+  if (texture === "scan")
+    return (
+      <pattern id="map-tex" patternUnits="userSpaceOnUse" width={8} height={6}>
+        <rect className="map-tex-ink" width={8} height={1.5} />
+      </pattern>
+    );
+  if (texture === "dots")
+    return (
+      <pattern id="map-tex" patternUnits="userSpaceOnUse" width={10} height={10}>
+        <circle className="map-tex-ink" cx={5} cy={5} r={1.1} />
+      </pattern>
+    );
+  const noise = {
+    paper: {
+      type: "fractalNoise",
+      freq: 0.012,
+      oct: 4,
+      matrix: "0 0 0 0 0.25  0 0 0 0 0.16  0 0 0 0 0.05  1.1 0 0 0 -0.45",
+    },
+    grain: {
+      type: "fractalNoise",
+      freq: 0.85,
+      oct: 1,
+      matrix: "0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  1.6 0 0 0 -0.75",
+    },
+    stone: {
+      type: "turbulence",
+      freq: 0.045,
+      oct: 3,
+      matrix: "0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  1.3 0 0 0 -0.25",
+    },
+  }[texture];
+  return (
+    <>
+      <filter id="map-tex-noise" x="0" y="0" width="100%" height="100%">
+        <feTurbulence
+          type={noise.type as "fractalNoise" | "turbulence"}
+          baseFrequency={noise.freq}
+          numOctaves={noise.oct}
+          seed={11}
+          stitchTiles="stitch"
+        />
+        <feColorMatrix type="matrix" values={noise.matrix} />
+      </filter>
+      <pattern id="map-tex" patternUnits="userSpaceOnUse" width={240} height={240}>
+        <rect width={240} height={240} filter="url(#map-tex-noise)" />
+      </pattern>
+    </>
+  );
+}
+
 export function EdgeMark({ edge: e, gm }: { edge: MapEdge; gm: boolean }) {
   if (e.door === "trap") {
     const box = trapBox(e);
@@ -272,6 +338,8 @@ export function MapBoard({
   onSelect,
   onPlace,
   onPing,
+  onSpotted,
+  onDropSymbol,
   onObjects,
   onSelectObject,
   onPlaceObject,
@@ -340,6 +408,10 @@ export function MapBoard({
   onSelect: (id: string | null) => void;
   onPlace: (p: Point) => void;
   onPing: (p: Point) => void;
+  /** Qui est repéré par une caméra ou un pion, à chaque changement (affichage seulement) */
+  onSpotted?: (spots: Spot[]) => void;
+  /** Un symbole de la bibliothèque glissé sur la carte (MJ) */
+  onDropSymbol?: (sym: string, p: Point) => void;
   onObjects: (next: MapObject[]) => void;
   onSelectObject: (id: string | null) => void;
   onPlaceObject: (p: Point) => void;
@@ -863,6 +935,64 @@ export function MapBoard({
     }));
   }, [light, litObjects, eyes, viewBlockers, width, height]);
 
+  // Champs de vision : caméras des calques visibles et pions qui en ont un
+  const coneBase = useMemo(() => {
+    const out: (Omit<ConeSource, "sight"> & { secret: boolean })[] = [];
+    for (const o of litObjects)
+      if (o.k === "camera" && o.cone && (editable || o.cone.show))
+        out.push({
+          id: `o:${o.id}`,
+          label: o.text ?? "Caméra",
+          origin: { x: o.x, y: o.y },
+          dir: o.r,
+          cone: o.cone,
+          secret: !o.cone.show,
+        });
+    for (const t of tokens) {
+      if (t.kind === "party") continue;
+      const c = readTokenCone(t.cone);
+      if (!c || (!editable && (!c.show || t.hidden))) continue;
+      const p = drag?.id === t.id ? drag.p : clampToken(t, width, height);
+      out.push({
+        id: `t:${t.id}`,
+        label: t.label,
+        origin: p,
+        dir: c.dir,
+        cone: c,
+        secret: !c.show || t.hidden,
+      });
+    }
+    return out;
+  }, [litObjects, tokens, drag, editable, width, height]);
+  const coneSources = useMemo(
+    () => coneBase.map((c) => ({ ...c, sight: visibility(c.origin, viewBlockers, width, height) })),
+    [coneBase, viewBlockers, width, height],
+  );
+  const sweeping = coneSources.some((c) => c.cone.speed > 0 && c.cone.sweep > 0);
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!sweeping) return;
+    const timer = setInterval(() => setNow(Date.now()), 80);
+    return () => clearInterval(timer);
+  }, [sweeping]);
+  const targets = tokens
+    .filter((t) => t.kind === "party")
+    .map((t) => ({
+      id: t.id,
+      label: t.label,
+      ...(drag?.id === t.id ? drag.p : clampToken(t, width, height)),
+    }));
+  const spots = spotted(coneSources, targets, now);
+  const spotKey = spots.map((p) => `${p.source}>${p.target}`).join("|");
+  const spottedIds = new Set(spots.map((p) => p.target));
+  const spotsRef = useRef(spots);
+  spotsRef.current = spots;
+  const reportSpots = useRef(onSpotted);
+  reportSpots.current = onSpotted;
+  useEffect(() => {
+    reportSpots.current?.(spotsRef.current);
+  }, [spotKey]);
+
   const zoomBy = (factor: number) =>
     setCam((c) => (c ? zoomAt(c, view.w / 2, view.h / 2, factor) : c));
   const lines = (n: number) => Array.from({ length: n + 1 }, (_, i) => i);
@@ -892,7 +1022,7 @@ export function MapBoard({
   const showHandles = editable && tool === "object";
   const drawObject = ({ o, ghost }: { o: MapObject; ghost: boolean }) =>
     // Une lumière se voit à son effet ; son petit soleil n'est montré qu'au MJ
-    o.k === "light" && !editable ? null : (
+    (o.k === "light" || (o.k === "camera" && !o.cone?.show)) && !editable ? null : (
       <ObjectView
         key={o.id}
         o={ghost ? { ...o, op: (o.op ?? 1) * 0.4 } : o}
@@ -901,6 +1031,7 @@ export function MapBoard({
         url={o.src ? objectUrls[o.src] : undefined}
         selected={showHandles && o.id === selectedObject}
         handle={handle}
+        look={mapStyle.objLook}
       />
     );
   const zoneShown =
@@ -918,6 +1049,18 @@ export function MapBoard({
       onPointerDown={down}
       onPointerMove={move}
       onPointerUp={up}
+      onDragOver={(e) => {
+        if (editable && onDropSymbol && e.dataTransfer.types.includes(SYMBOL_DRAG)) {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "copy";
+        }
+      }}
+      onDrop={(e) => {
+        const sym = e.dataTransfer.getData(SYMBOL_DRAG);
+        if (!sym || !editable || !onDropSymbol) return;
+        e.preventDefault();
+        onDropSymbol(sym, cells(e));
+      }}
       onPointerCancel={(e) => {
         touches.current.delete(e.pointerId);
         pinch.current = null;
@@ -925,12 +1068,39 @@ export function MapBoard({
       }}
     >
       <svg
-        className="map-board"
+        className={`map-board tex-${mapStyle.texture} wall-${mapStyle.wallLine} grid-${mapStyle.gridLine} ${mapStyle.glow > 0 ? "glow" : ""}`}
         role="img"
         aria-label="Carte de la table"
         style={styleVars(mapStyle) as CSSProperties}
       >
         <defs>
+          <TextureDefs texture={mapStyle.texture} />
+          <filter id="map-obj-ink" x="-10%" y="-10%" width="120%" height="120%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.08" numOctaves="2" seed="3" />
+            <feDisplacementMap
+              in="SourceGraphic"
+              scale="3.5"
+              xChannelSelector="R"
+              yChannelSelector="G"
+            />
+          </filter>
+          {mapStyle.wallLine === "sketch" && (
+            <filter id="map-sketch" x="-2%" y="-2%" width="104%" height="104%">
+              <feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="7" />
+              <feDisplacementMap
+                in="SourceGraphic"
+                scale="5"
+                xChannelSelector="R"
+                yChannelSelector="G"
+              />
+            </filter>
+          )}
+          {mapStyle.vignette && (
+            <radialGradient id="map-vignette" cx="50%" cy="50%" r="72%">
+              <stop offset="0.55" stopColor="black" stopOpacity="0" />
+              <stop offset="1" stopColor="black" stopOpacity="0.55" />
+            </radialGradient>
+          )}
           {ground && mapStyle.hatch && (
             <>
               <pattern
@@ -1032,6 +1202,8 @@ export function MapBoard({
               {lights.map((l, i) => (
                 <g key={i} clipPath={`url(#map-lc-${i})`}>
                   <circle
+                    className={l.flicker ? "map-flicker" : undefined}
+                    style={l.flicker ? { animationDelay: `${-((i * 0.37) % 2)}s` } : undefined}
                     cx={l.x * CELL}
                     cy={l.y * CELL}
                     r={l.rad * CELL}
@@ -1114,6 +1286,14 @@ export function MapBoard({
               .map(({ t, d }) => (
                 <Terrain key={t} t={t} d={d} />
               ))}
+            {mapStyle.texture !== "none" && (
+              <rect
+                className="map-texture"
+                width={width * CELL}
+                height={height * CELL}
+                fill="url(#map-tex)"
+              />
+            )}
             {showGrid && (!ground || mapStyle.gridOutside) && (
               <g className="map-grid">{gridLines}</g>
             )}
@@ -1127,7 +1307,17 @@ export function MapBoard({
               </g>
             )}
             {allObjects.filter(({ o }) => o.k !== "text").map(drawObject)}
+            {ground && mapStyle.wallLine === "sketch" && (
+              <path
+                className="map-ground-wall sketch-echo"
+                d={ground}
+                transform="translate(1.6 -1.2)"
+              />
+            )}
             {ground && <path className="map-ground-wall" d={ground} />}
+            {ground && mapStyle.wallLine === "double" && (
+              <path className="map-ground-wall-inner" d={ground} />
+            )}
             {ghostGround && (
               <path className="map-ground-hidden" d={ghostGround} fillRule="evenodd" />
             )}
@@ -1141,34 +1331,44 @@ export function MapBoard({
                 {y + 1}
               </text>
             ))}
-            {shown.map((e) => {
-              const key = edgeKey(e);
-              const hit = {
-                className: "map-door-hit",
-                "aria-label": e.open ? "Fermer la porte" : "Ouvrir la porte",
-                onPointerDown: (ev: ReactPointerEvent) => ev.stopPropagation(),
-                onClick: () => onDoor(key),
-              };
-              return (
-                <g key={key}>
-                  {walls.onWall.has(key) &&
-                    e.door !== "trap" &&
-                    (e.door !== "secret" || e.open) && (
-                      <line className="map-door-gap" {...edgeLine(e)} />
-                    )}
-                  <EdgeMark edge={e} gm={editable} />
-                  {e.kind === "door" &&
-                    editable &&
-                    tool === "move" &&
-                    (e.door === "trap" ? (
-                      <rect {...trapBox(e)} {...hit} />
-                    ) : (
-                      <line {...edgeLine(e)} {...hit} />
-                    ))}
-                </g>
-              );
-            })}
+            <g className="map-edges">
+              {shown.map((e) => {
+                const key = edgeKey(e);
+                const hit = {
+                  className: "map-door-hit",
+                  "aria-label": e.open ? "Fermer la porte" : "Ouvrir la porte",
+                  onPointerDown: (ev: ReactPointerEvent) => ev.stopPropagation(),
+                  onClick: () => onDoor(key),
+                };
+                return (
+                  <g key={key}>
+                    {walls.onWall.has(key) &&
+                      e.door !== "trap" &&
+                      (e.door !== "secret" || e.open) && (
+                        <line className="map-door-gap" {...edgeLine(e)} />
+                      )}
+                    <EdgeMark edge={e} gm={editable} />
+                    {e.kind === "door" &&
+                      editable &&
+                      tool === "move" &&
+                      (e.door === "trap" ? (
+                        <rect {...trapBox(e)} {...hit} />
+                      ) : (
+                        <line {...edgeLine(e)} {...hit} />
+                      ))}
+                  </g>
+                );
+              })}
+            </g>
             {allObjects.filter(({ o }) => o.k === "text").map(drawObject)}
+            {mapStyle.vignette && (
+              <rect
+                className="map-vignette"
+                width={width * CELL}
+                height={height * CELL}
+                fill="url(#map-vignette)"
+              />
+            )}
             {zoneShown && (
               <rect
                 className="map-zone"
@@ -1206,6 +1406,8 @@ export function MapBoard({
                 l.color && (
                   <g key={i} clipPath={`url(#map-lc-${i})`} className="map-light-tint">
                     <circle
+                      className={l.flicker ? "map-flicker" : undefined}
+                      style={l.flicker ? { animationDelay: `${-((i * 0.37) % 2)}s` } : undefined}
                       cx={l.x * CELL}
                       cy={l.y * CELL}
                       r={l.rad * CELL}
@@ -1225,6 +1427,35 @@ export function MapBoard({
                 opacity={editable ? light.dark * 0.55 : light.dark}
               />
             )}
+            {coneSources.map((c, i) => {
+              const look = lookAt(c.dir, c.cone, now);
+              const alert = spots.some((p) => p.source === c.id);
+              return (
+                <g
+                  key={c.id}
+                  className={`map-cone ${alert ? "alert" : ""} ${c.secret ? "secret" : ""}`}
+                >
+                  <clipPath id={`map-cs-${i}`}>
+                    <polygon points={polygonPoints(c.sight)} />
+                  </clipPath>
+                  <radialGradient
+                    id={`map-cg-${i}`}
+                    gradientUnits="userSpaceOnUse"
+                    cx={c.origin.x * CELL}
+                    cy={c.origin.y * CELL}
+                    r={c.cone.range * CELL}
+                  >
+                    <stop offset="0" className="near" />
+                    <stop offset="1" className="far" />
+                  </radialGradient>
+                  <polygon
+                    clipPath={`url(#map-cs-${i})`}
+                    points={polygonPoints(sectorPoints(c.origin, look, c.cone))}
+                    fill={`url(#map-cg-${i})`}
+                  />
+                </g>
+              );
+            })}
             {fogHidden && fogHidden.size > 0 && (
               <g className={`map-handfog ${editable ? "preview" : ""}`}>
                 {cellRuns(fogHidden).map((r) => (
@@ -1271,6 +1502,7 @@ export function MapBoard({
                     drag?.id === t.id ? "dragging" : "",
                     canDrag(t) && tool === "move" ? "movable" : "",
                     t.character_id && mine.has(t.character_id) ? "me" : "",
+                    spottedIds.has(t.id) ? "spotted" : "",
                   ].join(" ")}
                   style={{
                     ["--t" as string]: tokenColor(t, member),
@@ -1332,6 +1564,16 @@ export function MapBoard({
           </g>
         )}
       </svg>
+      {light.weather !== "none" && (
+        <div
+          className={`map-weather w-${light.weather}`}
+          style={{ ["--wp" as string]: light.weatherPower }}
+          aria-hidden="true"
+        >
+          <i />
+          <i />
+        </div>
+      )}
       {draft && clicking && (
         <div className="map-draft" role="group" aria-label="Tracé en cours">
           <Button className="btn" onClick={() => setDraft(null)}>

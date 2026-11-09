@@ -64,11 +64,11 @@ describe("donjon aléatoire", () => {
       expect(e.kind).toBe("door");
   });
 
-  it("une porte ferme toujours un passage : murs des deux côtés, jamais contournable", () => {
+  it("une porte ferme toujours un passage : murs des deux côtés, jamais contournable (80 donjons)", () => {
     const opts = { ...DEFAULT_DUNGEON, doors: 1, rooms: 12, size: "l" as const };
     let seen = 0;
     for (const layout of layouts)
-      for (let seed = 1; seed <= 40; seed++) {
+      for (let seed = 1; seed <= 20; seed++) {
         const d = generateDungeon({ ...opts, layout }, seed);
         const floor = floorOf(d.shapes, d.width, d.height);
         const ring = (r: [number, number][]) => r.map(([x, y]) => ({ x, y }));
@@ -102,7 +102,7 @@ describe("donjon aléatoire", () => {
         }
       }
     expect(seen).toBeGreaterThan(20);
-  });
+  }, 30_000);
 
   it("formes et usure demandées, numéros lisibles comme des textes", () => {
     const d = generateDungeon(

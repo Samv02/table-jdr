@@ -39,7 +39,7 @@ describe("éclairage", () => {
     ]);
     const party = [{ x: 5, y: 5 }];
     expect(lightSources(objects, party, DEFAULT_LIGHT)).toEqual([
-      { x: 2, y: 2, rad: 3, bright: 0.5, color: null, power: 0.5 },
+      { x: 2, y: 2, rad: 3, bright: 0.5, color: null, power: 0.5, flicker: false },
     ]);
     expect(lightSources(objects, party, { ...DEFAULT_LIGHT, party: 4 })).toHaveLength(2);
   });
@@ -80,5 +80,24 @@ describe("brouillard à la main", () => {
   it("tout révéler, tout cacher", () => {
     expect(hiddenCells(fillMask(true, 8, 8), 8, 8).size).toBe(0);
     expect(hiddenCells(fillMask(false, 8, 8), 8, 8).size).toBe(64);
+  });
+});
+
+describe("ambiance et flammes", () => {
+  it("garde l'ambiance choisie, refuse l'inconnue, borne sa force", () => {
+    expect(readLight({ weather: "storm", weatherPower: 3 })).toMatchObject({
+      weather: "storm",
+      weatherPower: 1,
+    });
+    expect(readLight({ weather: "tornade" }).weather).toBe("none");
+  });
+
+  it("une lumière qui vacille le reste, les pions du groupe jamais", () => {
+    const objects = readObjects([
+      { id: "t", k: "light", x: 1, y: 1, w: 1, h: 1, r: 0, flicker: true },
+      { id: "l", k: "light", x: 3, y: 1, w: 1, h: 1, r: 0, flicker: "oui" },
+    ]);
+    const sources = lightSources(objects, [{ x: 5, y: 5 }], { ...DEFAULT_LIGHT, party: 2 });
+    expect(sources.map((s) => s.flicker)).toEqual([true, false, false]);
   });
 });

@@ -370,6 +370,7 @@ export type Database = {
         Row: {
           character_id: string | null;
           color: string | null;
+          cone: Json | null;
           hidden: boolean;
           id: string;
           kind: string;
@@ -384,6 +385,7 @@ export type Database = {
         Insert: {
           character_id?: string | null;
           color?: string | null;
+          cone?: Json | null;
           hidden?: boolean;
           id?: string;
           kind: string;
@@ -398,6 +400,7 @@ export type Database = {
         Update: {
           character_id?: string | null;
           color?: string | null;
+          cone?: Json | null;
           hidden?: boolean;
           id?: string;
           kind?: string;

@@ -5,6 +5,7 @@
 import { readEdges, type MapEdge } from "@/lib/map";
 import { readObjects, type MapObject } from "@/lib/map-objects";
 import { readShapes, type MapShape } from "@/lib/map-shapes";
+import { readTokenCone, type TokenCone } from "@/lib/map-cones";
 
 /** Ce qui ne sert qu'à dessiner : jamais dans l'image. */
 const EDITOR_ONLY = [
@@ -46,6 +47,8 @@ const STYLE_PROPS = [
   "clip-rule",
   "display",
   "visibility",
+  "filter",
+  "vector-effect",
 ];
 
 export type ImageOptions = {
@@ -226,6 +229,7 @@ export type MapFile = {
     hidden: boolean;
     size: number;
     color: string | null;
+    cone: TokenCone | null;
   }[];
 };
 
@@ -303,6 +307,7 @@ export function readMapFile(text: string): MapFile | null {
           size: numIn(o["size"], 0.5, 4, 1),
           color:
             typeof o["color"] === "string" && TOKEN_COLORS.includes(o["color"]) ? o["color"] : null,
+          cone: readTokenCone(o["cone"]),
         },
       ];
     }),

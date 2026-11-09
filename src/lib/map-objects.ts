@@ -3,11 +3,13 @@
  * Chaque objet a son centre, sa taille et sa rotation, en cases ; il ne bloque jamais la vue.
  */
 import type { Point } from "@/lib/map";
+import { readConeFields, type Cone } from "@/lib/map-cones";
+import { OBJECT_LOOKS, type ObjectLook } from "@/lib/map-style";
 
 export const OBJECTS_MAX = 2000;
 export const TEXT_MAX = 80;
 
-export type ObjectKind = "symbol" | "image" | "stairs" | "text" | "light";
+export type ObjectKind = "symbol" | "image" | "stairs" | "text" | "light" | "camera";
 export type MapObject = {
   id: string;
   k: ObjectKind;
@@ -34,8 +36,14 @@ export type MapObject = {
   rad?: number;
   /** Lumière : part de la portée en pleine lumière, de 0 à 1 ; au-delà, elle décline */
   bright?: number;
+  /** Lumière : vacille comme une flamme */
+  flicker?: boolean;
   /** Carte où mène cet objet (escalier, échelle, portail) ; vide : nulle part */
   link?: string;
+  /** Caméra : son champ de vision ; elle regarde dans la direction de sa rotation */
+  cone?: Cone;
+  /** Symbole : son dessin ; absent, il suit le style d'objets de la carte */
+  look?: ObjectLook;
 };
 
 export const SYMBOL_GROUPS: { label: string; ids: string[] }[] = [
@@ -164,6 +172,24 @@ export const SYMBOL_GROUPS: { label: string; ids: string[] }[] = [
 ];
 export const SYMBOL_IDS = new Set(SYMBOL_GROUPS.flatMap((g) => g.ids));
 
+/** Couleur de chaque famille, pour les pastilles (variables du thème). */
+export const GROUP_COLORS: Record<string, string> = {
+  Mobilier: "var(--orange)",
+  Nature: "var(--green)",
+  Trésors: "var(--yellow)",
+  Danger: "var(--red)",
+  Lieux: "var(--violet)",
+  Technologie: "var(--cyan)",
+  Créatures: "var(--pink)",
+  Magie: "var(--violet)",
+};
+const GROUP_OF = new Map(SYMBOL_GROUPS.flatMap((g) => g.ids.map((id) => [id, g.label] as const)));
+/** Famille d'un symbole (Mobilier, Nature…). */
+export const symbolGroup = (sym: string | undefined) => (sym ? GROUP_OF.get(sym) : undefined);
+/** Couleur de pastille d'un symbole. */
+export const symbolColor = (sym: string | undefined) =>
+  GROUP_COLORS[symbolGroup(sym) ?? ""] ?? "var(--cyan)";
+
 const num = (v: unknown, min: number, max: number, fallback: number) =>
   typeof v === "number" && Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : fallback;
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -182,7 +208,14 @@ export function readObjects(raw: unknown): MapObject[] {
     const id = typeof o["id"] === "string" ? o["id"].slice(0, 24) : "";
     const k = o["k"];
     if (!id || seen.has(id)) continue;
-    if (k !== "symbol" && k !== "image" && k !== "stairs" && k !== "text" && k !== "light")
+    if (
+      k !== "symbol" &&
+      k !== "image" &&
+      k !== "stairs" &&
+      k !== "text" &&
+      k !== "light" &&
+      k !== "camera"
+    )
       continue;
     const obj: MapObject = {
       id,
@@ -196,6 +229,7 @@ export function readObjects(raw: unknown): MapObject[] {
     if (k === "symbol") {
       if (typeof o["sym"] !== "string" || !SYMBOL_IDS.has(o["sym"])) continue;
       obj.sym = o["sym"];
+      if (OBJECT_LOOKS.some((l) => l.id === o["look"])) obj.look = o["look"] as ObjectLook;
     }
     if (k === "image") {
       if (typeof o["src"] !== "string" || !PATH.test(o["src"])) continue;
@@ -210,6 +244,13 @@ export function readObjects(raw: unknown): MapObject[] {
     if (k === "light") {
       obj.rad = round2(num(o["rad"], 0.5, 60, 4));
       obj.bright = round2(num(o["bright"], 0, 1, 0.5));
+      if (o["flicker"] === true) obj.flicker = true;
+    }
+    if (k === "camera") {
+      const c = o["cone"];
+      obj.cone = readConeFields(c && typeof c === "object" ? (c as Record<string, unknown>) : {});
+      // Une caméra peut porter un nom, montré quand elle repère quelqu'un
+      if (typeof o["text"] === "string" && o["text"].trim()) obj.text = o["text"].slice(0, 40);
     }
     if (k === "stairs") obj.steps = Math.round(num(o["steps"], 1, 8, 3));
     if (typeof o["color"] === "string" && COLOR.test(o["color"])) obj.color = o["color"];
@@ -288,8 +329,18 @@ export function resizeTo(o: MapObject, p: Point, free: boolean): Pick<MapObject,
   return { w: round2(o.w * k), h: round2(o.h * k) };
 }
 
-export const updateObject = (list: MapObject[], id: string, patch: Partial<MapObject>) =>
-  list.map((o) => (o.id === id ? { ...o, ...patch } : o));
+/** Retouche d'un objet ; `look: "auto"` le rend au style d'objets de la carte. */
+export type ObjectPatch = Partial<Omit<MapObject, "look">> & { look?: ObjectLook | "auto" };
+export function updateObject(list: MapObject[], id: string, patch: ObjectPatch): MapObject[] {
+  return list.map((o) => {
+    if (o.id !== id) return o;
+    const { look, ...rest } = patch;
+    const next: MapObject = { ...o, ...rest };
+    if (look === "auto") delete next.look;
+    else if (look) next.look = look;
+    return next;
+  });
+}
 
 /** Devant (à la fin de la liste) ou derrière (au début). */
 export function restack(list: MapObject[], id: string, front: boolean) {

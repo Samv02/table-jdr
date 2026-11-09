@@ -13,6 +13,9 @@ import {
   rotationTo,
   snapObjectCenter,
   stampAt,
+  symbolColor,
+  symbolGroup,
+  updateObject,
   type MapObject,
 } from "./map-objects";
 import { clearZone, copyZone, pasteClip, zoneFrom } from "./map-zone";
@@ -138,5 +141,40 @@ describe("zones", () => {
     expect(r.edges).toEqual([]);
     expect(r.objects).toEqual([]);
     expect(r.shapes.at(-1)).toMatchObject({ t: "rect", erase: true });
+  });
+});
+
+describe("styles des symboles et caméras", () => {
+  const sym: MapObject = { id: "a", k: "symbol", sym: "Barrel", x: 1, y: 1, w: 1, h: 1, r: 0 };
+
+  it("garde le style choisi, ignore un style inconnu, revient à celui de la carte", () => {
+    expect(readObjects([{ ...sym, look: "ink" }])[0]?.look).toBe("ink");
+    expect(readObjects([{ ...sym, look: "paillettes" }])[0]?.look).toBeUndefined();
+    const inked = updateObject([sym], "a", { look: "neon" });
+    expect(inked[0]?.look).toBe("neon");
+    expect(updateObject(inked, "a", { look: "auto" })[0]).toEqual(sym);
+  });
+
+  it("chaque famille a sa couleur de pastille", () => {
+    for (const g of SYMBOL_GROUPS) expect(symbolColor(g.ids[0])).toMatch(/^var\(--/);
+    expect(symbolGroup("Barrel")).toBe("Mobilier");
+  });
+
+  it("une caméra garde son champ de vision, borné", () => {
+    const [cam] = readObjects([
+      {
+        id: "c",
+        k: "camera",
+        x: 2,
+        y: 2,
+        w: 1,
+        h: 1,
+        r: 90,
+        cone: { fov: 500, range: 3 },
+        text: "Hall",
+      },
+    ]);
+    expect(cam?.cone).toMatchObject({ fov: 360, range: 3, show: true });
+    expect(cam?.text).toBe("Hall");
   });
 });

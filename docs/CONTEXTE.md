@@ -140,6 +140,11 @@ Ouvre-le dès qu'une demande touche une partie existante, pour ne pas défaire u
   - [x] 6. donjon aléatoire (HISTORIQUE 51) ;
   - [x] 7. export PNG, JPG, PDF, sauvegarde en fichier, mode écran de table (HISTORIQUE 52).
   Écartés : Roll20, galerie publique, langues, isométrique, packs d’images d’autres sites (droits).
+- [x] **Refonte de la carte** (demandée le 08/11/2026, Sam : « plus moderne et user friendly… surprends-moi ») :
+  - [x] 1. interface pour tous : galerie, assistant à modèles, mode Simple / Avancé, bulles d’aide, visite guidée (HISTORIQUE 53) ;
+  - [x] 2. thèmes de carte en un clic, de l’ancien au moderne, et panneau des réglages d’outil (HISTORIQUE 54) ;
+  - [x] 3. caméras et champs de vision (HISTORIQUE 55), puis styles des symboles demandés en cours de route (HISTORIQUE 56) ;
+  - [x] 4. ajouts de notre initiative : ambiance animée, lumières qui vacillent, glisser-déposer, journal des repérages (HISTORIQUE 57).
 - [ ] **Scènes** :
   - réordonner par glisser-déposer ;
   - musique liée à une scène ;

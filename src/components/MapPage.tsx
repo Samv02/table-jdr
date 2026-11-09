@@ -29,6 +29,32 @@ import {
   Eye,
   Hand,
   Hexagon,
+  Cctv,
+  ScanEye,
+  Palette,
+  ArrowDownToLine,
+  ChevronsUp,
+  Circle,
+  Columns2,
+  Fence,
+  Grid3x3,
+  Grip,
+  Library,
+  Minus,
+  Move,
+  MousePointer2,
+  Paintbrush,
+  Pentagon,
+  Scissors,
+  Shuffle,
+  Spline,
+  Square,
+  Sun,
+  Type,
+  HelpCircle,
+  LayoutGrid,
+  Lightbulb,
+  SlidersHorizontal,
   ChevronDown,
   ChevronUp,
   ImagePlus,
@@ -67,8 +93,26 @@ import {
   ObjectEditor,
   ObjectLibrary,
   SourcePreview,
+  SymbolTile,
   type ObjectSource,
 } from "@/components/MapObjects";
+import { MapGallery } from "@/components/MapGallery";
+import { DEFAULT_CONE, readTokenCone, type Spot, type TokenCone } from "@/lib/map-cones";
+import { ThemeArt } from "@/components/MapThemeArt";
+import {
+  Actions,
+  ConeControls,
+  CornerArt,
+  DotArt,
+  Inspector,
+  LineArt,
+  Section,
+  SidesArt,
+  Slider,
+  Swatch,
+  Tiles,
+  WidthArt,
+} from "@/components/MapInspector";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
@@ -96,12 +140,21 @@ import {
 } from "@/lib/map";
 import {
   MAP_LAYERS,
+  GRID_LINES,
+  MAP_FONTS,
   MAP_STYLES,
   STYLE_COLORS,
+  STYLE_ERAS,
+  TEXTURES,
+  WALL_LINES,
   applyPreset,
   isTweaked,
+  OBJECT_LOOKS,
   readMapStyle,
   styleToJson,
+  styleVars,
+  type ObjectLook,
+  type MapLayer,
   type MapStyle,
 } from "@/lib/map-style";
 import {
@@ -113,10 +166,13 @@ import {
   snapObjectCenter,
   updateObject,
   type MapObject,
+  type ObjectPatch,
   type StampSettings,
 } from "@/lib/map-objects";
 import { clearZone, copyZone, pasteClip, type Clip, type Zone } from "@/lib/map-zone";
 import { DEFAULT_DUNGEON, generateDungeon, type DungeonOptions } from "@/lib/map-dungeon";
+import type { MapDraft } from "@/lib/map-templates";
+import type { StyleId } from "@/lib/map-style";
 import {
   FILE_FORMAT,
   FILE_VERSION,
@@ -127,7 +183,14 @@ import {
   readMapFile,
   type MapFile,
 } from "@/lib/map-export";
-import { fillMask, maskToText, readLight, readMask, type LightSettings } from "@/lib/map-light";
+import {
+  WEATHERS,
+  fillMask,
+  maskToText,
+  readLight,
+  readMask,
+  type LightSettings,
+} from "@/lib/map-light";
 import {
   LAYERS_MAX,
   MAIN_LAYER,
@@ -146,7 +209,7 @@ import { useTable } from "@/lib/table-context";
 
 const MAP_COLUMNS =
   "id,name,width,height,place,level,walls,shapes,style,objects,light,manual_fog,fog_mask,background_path,background_opacity,cell_value,cell_unit,show_grid,fog,players_move,vision_mode,vision_range,vision_corners";
-const TOKEN_COLUMNS = "id,map_id,kind,character_id,label,x,y,hidden,size,color";
+const TOKEN_COLUMNS = "id,map_id,kind,character_id,label,x,y,hidden,size,color,cone";
 const LAYER_COLUMNS = "id,map_id,name,position,hidden,locked,shapes,objects";
 type LayerRow = {
   id: string;
@@ -194,20 +257,162 @@ type Op =
   | { kind: "content"; map: string; layer: string | null; before: Content; after: Content }
   | { kind: "token"; id: string; before: Point; after: Point };
 
-const TOOLS: { id: MapTool; label: string; key: string; icon: LucideIcon; gm?: boolean }[] = [
-  { id: "move", label: "Déplacer", key: "v", icon: Hand },
-  { id: "wall", label: "Mur", key: "m", icon: Pencil, gm: true },
-  { id: "shape", label: "Sol", key: "b", icon: Hexagon, gm: true },
-  { id: "door", label: "Porte", key: "p", icon: DoorOpen, gm: true },
-  { id: "object", label: "Objet", key: "o", icon: Armchair, gm: true },
-  { id: "stamp", label: "Tampon", key: "t", icon: Stamp, gm: true },
-  { id: "zone", label: "Zone", key: "c", icon: BoxSelect, gm: true },
-  { id: "fog", label: "Brouillard", key: "f", icon: CloudFog, gm: true },
-  { id: "erase", label: "Gomme", key: "e", icon: Eraser, gm: true },
-  { id: "enemy", label: "Ennemi", key: "n", icon: Skull, gm: true },
-  { id: "ally", label: "Allié", key: "a", icon: Shield, gm: true },
-  { id: "measure", label: "Mesurer", key: "r", icon: Ruler },
-  { id: "ping", label: "Signaler", key: "g", icon: MapPin },
+/** `expert` : seulement en mode avancé ; `hint` : la bulle d'aide de l'outil, pour le MJ. */
+const TOOLS: {
+  id: MapTool;
+  label: string;
+  key: string;
+  icon: LucideIcon;
+  gm?: boolean;
+  expert?: boolean;
+  hint: string;
+}[] = [
+  {
+    id: "move",
+    label: "Déplacer",
+    key: "v",
+    icon: Hand,
+    hint: "Glisse pour te déplacer, molette ou deux doigts pour zoomer. Glisse un pion pour le bouger.",
+  },
+  {
+    id: "shape",
+    label: "Pièce",
+    key: "b",
+    icon: Hexagon,
+    gm: true,
+    hint: "Glisse pour dessiner une pièce : les murs se tracent tout seuls. Deux pièces qui se touchent n’en font qu’une ; « Creuser » retire du sol.",
+  },
+  {
+    id: "door",
+    label: "Porte",
+    key: "p",
+    icon: DoorOpen,
+    gm: true,
+    hint: "Touche un mur pour y poser une porte. Touche une porte pour l’ouvrir ou la fermer.",
+  },
+  {
+    id: "object",
+    label: "Objet",
+    key: "o",
+    icon: Armchair,
+    gm: true,
+    hint: "Choisis un symbole dans la Bibliothèque, puis touche la carte. Touche un objet pour le déplacer ; ses coins l’agrandissent.",
+  },
+  {
+    id: "wall",
+    label: "Mur",
+    key: "m",
+    icon: Pencil,
+    gm: true,
+    expert: true,
+    hint: "Glisse le long de la grille pour tracer un mur à la main, par exemple une cloison dans une pièce.",
+  },
+  {
+    id: "stamp",
+    label: "Tampon",
+    key: "t",
+    icon: Stamp,
+    gm: true,
+    expert: true,
+    hint: "Glisse pour semer un symbole en quantité : forêt, rochers, caisses…",
+  },
+  {
+    id: "zone",
+    label: "Zone",
+    key: "c",
+    icon: BoxSelect,
+    gm: true,
+    expert: true,
+    hint: "Glisse pour choisir une zone, puis copie-la, coupe-la ou vide-la. Ctrl+C, Ctrl+X, Suppr.",
+  },
+  {
+    id: "fog",
+    label: "Brouillard",
+    key: "f",
+    icon: CloudFog,
+    gm: true,
+    expert: true,
+    hint: "Glisse pour révéler ou cacher des cases aux joueurs. « Pièce » révèle d’un coup jusqu’aux murs.",
+  },
+  {
+    id: "erase",
+    label: "Gomme",
+    key: "e",
+    icon: Eraser,
+    gm: true,
+    hint: "Touche un mur, une porte ou un pion pour l’effacer. Ctrl+Z si tu te trompes.",
+  },
+  {
+    id: "enemy",
+    label: "Ennemi",
+    key: "n",
+    icon: Skull,
+    gm: true,
+    hint: "Touche la carte pour poser un ennemi. En « Caché », les joueurs ne le voient pas.",
+  },
+  {
+    id: "ally",
+    label: "Allié",
+    key: "a",
+    icon: Shield,
+    gm: true,
+    hint: "Touche la carte pour poser un allié ou un personnage neutre.",
+  },
+  {
+    id: "measure",
+    label: "Mesurer",
+    key: "r",
+    icon: Ruler,
+    hint: "Glisse d’un point à un autre : la distance s’affiche.",
+  },
+  {
+    id: "ping",
+    label: "Signaler",
+    key: "g",
+    icon: MapPin,
+    hint: "Touche la carte : un signal apparaît chez tout le monde.",
+  },
+];
+
+/** Outils qui ont des réglages, montrés dans le panneau à côté des outils */
+const INSPECTED: MapTool[] = ["shape", "door", "object", "stamp", "fog", "zone", "enemy", "ally"];
+const INSPECTOR_KEY = "table:map-inspector-closed";
+const SIMPLE_KEY = "table:map-simple";
+const HINTS_KEY = "table:map-hints";
+const TOUR_KEY = "table:map-tour";
+function readFlag(key: string, fallback: boolean) {
+  try {
+    const v = localStorage.getItem(key);
+    return v === null ? fallback : v === "1";
+  } catch {
+    return fallback;
+  }
+}
+function saveFlag(key: string, v: boolean) {
+  try {
+    localStorage.setItem(key, v ? "1" : "0");
+  } catch {
+    /* rien : simple confort */
+  }
+}
+
+const TOUR = [
+  {
+    title: "Bienvenue dans l’atelier de cartes",
+    text: "Dessine des lieux, pose des pions, montre-les aux joueurs en direct. Tout s’enregistre tout seul, et Ctrl+Z annule.",
+  },
+  {
+    title: "Tes cartes",
+    text: "Le bouton avec le nom de la carte, en haut à gauche, ouvre toutes tes cartes : en créer une à partir d’un modèle, la renommer, la dupliquer.",
+  },
+  {
+    title: "Les outils",
+    text: "Ils sont sur le côté (en bas sur téléphone). Une bulle explique celui que tu tiens. Le mode Avancé, en bas des outils, en débloque d’autres.",
+  },
+  {
+    title: "Montrer aux joueurs",
+    text: "Le bouton « Montrer aux joueurs » affiche la carte chez eux, en direct. Les pions et calques cachés restent invisibles pour eux.",
+  },
 ];
 const SIZES = [
   { value: 0.75, label: "P" },
@@ -224,18 +429,13 @@ const ROUNDS = [
   { value: 1, label: "1" },
   { value: 2, label: "2" },
 ];
-const SNAPS = [
-  { value: 1, label: "Case", hint: "Sur la grille" },
-  { value: 0.5, label: "½", hint: "Sur la demi-case" },
-  { value: 0, label: "Libre", hint: "Sans aimant" },
-];
 
 const STAMP_SIZES = [
   { value: "s", label: "P", min: 0.5, max: 0.9 },
   { value: "m", label: "M", min: 0.8, max: 1.4 },
   { value: "l", label: "G", min: 1.3, max: 2.2 },
 ];
-type PlaceKind = "select" | "source" | "stairs" | "text" | "light";
+type PlaceKind = "select" | "source" | "stairs" | "text" | "light" | "camera";
 
 /** Choix d'une valeur dans une petite rangée de boutons. */
 function Pick<T extends string | number | boolean>({
@@ -267,108 +467,196 @@ function Pick<T extends string | number | boolean>({
   );
 }
 
-/** Réglages de l'outil Sol : la forme, puis ses options. */
-function ShapeBar({
+const SHAPE_ICONS: Record<ShapeSettings["kind"], LucideIcon> = {
+  rect: Square,
+  ellipse: Circle,
+  path: Spline,
+  poly: Pentagon,
+};
+const LAYER_COLORS: Record<MapLayer, string> = {
+  floor: "var(--map-ground, var(--panel))",
+  water: "var(--map-water, var(--cyan))",
+  lava: "var(--map-lava, var(--orange))",
+  plants: "var(--map-plants, var(--green))",
+  road: "var(--map-road, var(--mute))",
+};
+const CORNER_LABELS = ["Droits", "Doux", "Ronds", "Très ronds"];
+const SIDE_LABELS: Record<number, string> = {
+  0: "Rond",
+  3: "Triangle",
+  4: "Losange",
+  5: "Pentagone",
+  6: "Hexagone",
+  8: "Octogone",
+};
+const WEAR_LABELS = ["Bords nets", "Légère", "Moyenne", "Marquée"];
+const SNAP_OPTIONS = [
+  {
+    value: 1,
+    label: "Grille",
+    icon: <Grid3x3 size={18} />,
+    hint: "Tout se cale sur les croisements de la grille.",
+  },
+  {
+    value: 0.5,
+    label: "Demi-case",
+    icon: <Grip size={18} />,
+    hint: "Plus précis : se cale aussi au milieu des cases.",
+  },
+  { value: 0, label: "Libre", icon: <Move size={18} />, hint: "Aucun aimant : là où tu lâches." },
+];
+const DOOR_ICONS: Record<DoorType, LucideIcon> = {
+  simple: DoorOpen,
+  double: Columns2,
+  secret: EyeOff,
+  bars: Fence,
+  trap: ArrowDownToLine,
+};
+
+/** Réglages de l'outil Pièce : la forme, ajouter ou creuser, puis (en avancé) le reste. */
+function ShapeOptions({
   value: o,
   onChange,
+  simple,
 }: {
   value: ShapeSettings;
   onChange: (patch: Partial<ShapeSettings>) => void;
+  simple: boolean;
 }) {
   return (
     <>
-      <div className="map-door-types" role="radiogroup" aria-label="Forme du sol">
-        {SHAPE_KINDS.map((k) => (
-          <Button
-            key={k.id}
-            role="radio"
-            aria-checked={o.kind === k.id}
-            title={k.hint}
-            onClick={() => onChange({ kind: k.id })}
-          >
-            {k.label}
-          </Button>
-        ))}
-        <span className="map-sep" aria-hidden="true" />
-        <Button
-          role="switch"
-          aria-checked={o.erase}
-          className={`map-erase ${o.erase ? "on" : ""}`}
-          title="Creuser : la forme retire du sol (piliers, alcôves). Touche X"
-          onClick={() => onChange({ erase: !o.erase })}
-        >
-          {o.erase ? "Creuser" : "Ajouter"}
-        </Button>
-      </div>
-      <div className="map-door-types map-shape-opts" aria-label="Options du sol">
-        <Pick
-          label="Matière"
-          value={o.layer}
-          options={MAP_LAYERS.map((l) => ({ value: l.id, label: l.label, hint: l.hint }))}
-          onChange={(layer) => onChange({ layer })}
-        />
-        {o.kind === "rect" && (
-          <Pick
-            label="Coins"
-            value={o.round}
-            options={ROUNDS}
-            onChange={(round) => onChange({ round })}
+      <Tiles
+        label="Forme"
+        cols={4}
+        value={o.kind}
+        options={SHAPE_KINDS.map((k) => {
+          const Icon = SHAPE_ICONS[k.id];
+          return { value: k.id, label: k.label, icon: <Icon size={18} />, hint: k.hint };
+        })}
+        onChange={(kind) => onChange({ kind })}
+      />
+      <Tiles
+        label="Action"
+        cols={2}
+        compact
+        value={o.erase}
+        options={[
+          {
+            value: false,
+            label: "Ajouter",
+            icon: <Plus size={16} />,
+            hint: "La forme ajoute du sol.",
+          },
+          {
+            value: true,
+            label: "Creuser",
+            icon: <Minus size={16} />,
+            hint: "La forme retire du sol : piliers, alcôves, trous. Touche X.",
+          },
+        ]}
+        onChange={(erase) => onChange({ erase })}
+      />
+      {simple ? (
+        <p className="map-insp-hint">
+          Eau, lave, coins arrondis, aimant, usure : passe en mode Avancé (en bas des outils).
+        </p>
+      ) : (
+        <>
+          <Tiles
+            label="Matière"
+            cols={3}
+            value={o.layer}
+            options={MAP_LAYERS.map((l) => ({
+              value: l.id,
+              label: l.label,
+              icon: <Swatch color={LAYER_COLORS[l.id]} />,
+              hint: l.hint,
+            }))}
+            onChange={(layer) => onChange({ layer })}
           />
-        )}
-        {o.kind === "ellipse" && (
-          <Pick
-            label="Côtés"
-            value={o.sides}
-            options={SIDES.map((n) => ({ value: n, label: n ? String(n) : "Rond" }))}
-            onChange={(sides) => onChange({ sides })}
-          />
-        )}
-        {o.kind === "path" && (
-          <>
-            <Pick
-              label="Largeur"
-              value={o.width}
-              options={[1, 2, 3, 4].map((n) => ({ value: n, label: String(n) }))}
-              onChange={(width) => onChange({ width })}
+          {o.kind === "rect" && (
+            <Tiles
+              label="Coins"
+              cols={4}
+              value={o.round}
+              options={ROUNDS.map((r, i) => ({
+                value: r.value,
+                label: CORNER_LABELS[i] ?? r.label,
+                icon: <CornerArt r={r.value} />,
+              }))}
+              onChange={(round) => onChange({ round })}
             />
-            <Pick
-              label="Tracé"
-              value={o.curve}
+          )}
+          {o.kind === "ellipse" && (
+            <Tiles
+              label="Côtés"
+              cols={3}
+              value={o.sides}
+              options={SIDES.map((n) => ({
+                value: n,
+                label: SIDE_LABELS[n] ?? String(n),
+                icon: <SidesArt n={n} />,
+              }))}
+              onChange={(sides) => onChange({ sides })}
+            />
+          )}
+          {o.kind === "path" && (
+            <>
+              <Tiles
+                label="Largeur du couloir"
+                cols={4}
+                value={o.width}
+                options={[1, 2, 3, 4].map((n) => ({
+                  value: n,
+                  label: `${n} case${n > 1 ? "s" : ""}`,
+                  icon: <WidthArt w={n} />,
+                }))}
+                onChange={(width) => onChange({ width })}
+              />
+              <Tiles
+                label="Tracé"
+                cols={2}
+                compact
+                value={o.curve}
+                options={[
+                  { value: false, label: "Droit", icon: <LineArt curve={false} /> },
+                  { value: true, label: "Courbe", icon: <LineArt curve /> },
+                ]}
+                onChange={(curve) => onChange({ curve })}
+              />
+            </>
+          )}
+          {o.kind === "poly" && (
+            <Tiles
+              label="Contour"
+              cols={2}
+              compact
+              value={o.round > 0}
               options={[
-                { value: false, label: "Droit" },
-                { value: true, label: "Courbe" },
+                { value: false, label: "Droit", icon: <LineArt curve={false} /> },
+                { value: true, label: "Arrondi", icon: <LineArt curve /> },
               ]}
-              onChange={(curve) => onChange({ curve })}
+              onChange={(r) => onChange({ round: r ? 1 : 0 })}
             />
-          </>
-        )}
-        {o.kind === "poly" && (
-          <Pick
-            label="Contour"
-            value={o.round > 0}
-            options={[
-              { value: false, label: "Droit" },
-              { value: true, label: "Arrondi" },
-            ]}
-            onChange={(r) => onChange({ round: r ? 1 : 0 })}
+          )}
+          <Tiles
+            label="Aimant"
+            cols={3}
+            value={o.snap}
+            options={SNAP_OPTIONS}
+            onChange={(snap) => onChange({ snap })}
           />
-        )}
-        <Pick
-          label="Aimant"
-          value={o.snap}
-          options={SNAPS}
-          onChange={(snap) => onChange({ snap })}
-        />
-        <Pick
-          label="Usure"
-          value={o.wear}
-          options={Array.from({ length: WEAR_MAX + 1 }, (_, n) => ({
-            value: n,
-            label: n ? String(n) : "Net",
-          }))}
-          onChange={(wear) => onChange({ wear })}
-        />
-      </div>
+          <Slider
+            label="Usure des bords"
+            value={o.wear}
+            min={0}
+            max={WEAR_MAX}
+            step={1}
+            format={(v) => WEAR_LABELS[v] ?? String(v)}
+            onChange={(wear) => onChange({ wear })}
+          />
+        </>
+      )}
     </>
   );
 }
@@ -400,7 +688,7 @@ function Switch({
   );
 }
 
-/** Apparence de la carte : un style de départ, puis les retouches. */
+/** Thème de la carte : un thème en un clic, rangé par époque, puis les retouches. */
 function StyleSection({
   value: st,
   onChange,
@@ -409,97 +697,172 @@ function StyleSection({
   onChange: (s: MapStyle) => void;
 }) {
   const set = (patch: Partial<MapStyle>) => onChange({ ...st, ...patch });
+  const [tweak, setTweak] = useState(false);
   return (
     <>
-      <div className="map-styles" role="radiogroup" aria-label="Style de la carte">
-        {MAP_STYLES.map((p) => (
-          <Button
-            key={p.id}
-            role="radio"
-            aria-checked={st.preset === p.id}
-            title={p.hint}
-            className="map-style-pick"
-            onClick={() => onChange(applyPreset(p.id))}
-          >
-            <span
-              className="map-style-swatch"
-              aria-hidden="true"
-              style={
-                {
-                  "--sw-rock": p.value.rock ?? "var(--ink)",
-                  "--sw-floor": p.value.floor ?? "var(--panel)",
-                  "--sw-wall": p.value.wall ?? "var(--text)",
-                } as CSSProperties
-              }
-            >
-              <i />
-            </span>
-            {p.label}
-          </Button>
-        ))}
-      </div>
-      <div className="map-style-colors">
-        {STYLE_COLORS.map(({ key, label }) => {
-          const v = st[key] as string | null;
-          return (
-            <label key={key} className="map-color" title={v ? v : "Couleur du thème"}>
-              <input
-                type="color"
-                value={v ?? "#808080"}
-                onChange={(e) => set({ [key]: e.target.value })}
-              />
-              <span>
-                {label}
-                {!v && <small>thème</small>}
-              </span>
-            </label>
-          );
-        })}
-      </div>
-      <label className="uni-field">
-        <span>Épaisseur des murs : {st.wallWidth}</span>
-        <input
-          type="range"
-          min={1}
-          max={20}
-          step={1}
-          value={st.wallWidth}
-          onChange={(e) => set({ wallWidth: Number(e.target.value) })}
-        />
-      </label>
-      <Switch
-        label="Hachures autour des murs"
-        value={st.hatch}
-        onChange={(hatch) => set({ hatch })}
-      />
-      {st.hatch && (
-        <label className="uni-field">
-          <span>Largeur des hachures</span>
-          <input
-            type="range"
-            min={0.25}
-            max={2}
-            step={0.25}
-            value={st.hatchSize}
-            onChange={(e) => set({ hatchSize: Number(e.target.value) })}
+      {STYLE_ERAS.map((era) => (
+        <section key={era.id} className="map-themes-era">
+          <h4>{era.label}</h4>
+          <div className="map-themes" role="radiogroup" aria-label={`Thèmes : ${era.label}`}>
+            {MAP_STYLES.filter((p) => p.era === era.id).map((p) => (
+              <Button
+                key={p.id}
+                role="radio"
+                aria-checked={st.preset === p.id}
+                title={p.hint}
+                className="map-theme"
+                onClick={() => onChange(applyPreset(p.id))}
+              >
+                <ThemeArt theme={st.preset === p.id ? st : p.id} />
+                <b>
+                  {p.label}
+                  {st.preset === p.id && isTweaked(st) && <small> · retouché</small>}
+                </b>
+              </Button>
+            ))}
+          </div>
+        </section>
+      ))}
+      <p className="note plain">
+        {MAP_STYLES.find((p) => p.id === st.preset)?.hint} Le thème change toute la carte d’un coup
+        ; les joueurs le voient aussitôt.
+      </p>
+      <Button
+        className="btn map-insp-wide"
+        aria-expanded={tweak}
+        onClick={() => setTweak((t) => !t)}
+      >
+        <SlidersHorizontal size={15} aria-hidden="true" />
+        {tweak ? "Masquer les retouches" : "Retoucher ce thème"}
+      </Button>
+      {tweak && (
+        <div className="map-tweaks">
+          <Section label="Couleurs">
+            <div className="map-style-colors">
+              {STYLE_COLORS.map(({ key, label }) => {
+                const v = st[key] as string | null;
+                return (
+                  <label key={key} className="map-color" title={v ? v : "Couleur du thème"}>
+                    <input
+                      type="color"
+                      value={v ?? "#808080"}
+                      onChange={(e) => set({ [key]: e.target.value })}
+                    />
+                    <span>
+                      {label}
+                      {!v && <small>thème</small>}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          </Section>
+          <Tiles
+            label="Texture"
+            cols={3}
+            value={st.texture}
+            options={TEXTURES.map((t) => ({ value: t.id, label: t.label, hint: t.hint }))}
+            onChange={(texture) => set({ texture })}
           />
-        </label>
-      )}
-      <Switch
-        label="Ombre sous les salles"
-        value={st.shadow}
-        onChange={(shadow) => set({ shadow })}
-      />
-      <Switch
-        label="Grille hors des salles"
-        hint="Sinon, la grille ne se voit que dans les salles."
-        value={st.gridOutside}
-        onChange={(gridOutside) => set({ gridOutside })}
-      />
-      {isTweaked(st) && (
-        <Button className="btn" onClick={() => onChange(applyPreset(st.preset))}>
-          Revenir au style d’origine
-        </Button>
+          <Tiles
+            label="Trait des murs"
+            cols={3}
+            value={st.wallLine}
+            options={WALL_LINES.map((t) => ({ value: t.id, label: t.label, hint: t.hint }))}
+            onChange={(wallLine) => set({ wallLine })}
+          />
+          <Slider
+            label="Épaisseur des murs"
+            value={st.wallWidth}
+            min={1}
+            max={20}
+            step={1}
+            format={(v) => String(v)}
+            onChange={(wallWidth) => set({ wallWidth })}
+          />
+          <Slider
+            label="Lueur des murs"
+            value={st.glow}
+            min={0}
+            max={1}
+            step={0.1}
+            format={(v) => (v ? `${Math.round(v * 100)} %` : "Aucune")}
+            onChange={(glow) => set({ glow })}
+          />
+          <Tiles
+            label="Grille"
+            cols={3}
+            value={st.gridLine}
+            options={GRID_LINES.map((t) => ({ value: t.id, label: t.label }))}
+            onChange={(gridLine) => set({ gridLine })}
+          />
+          <Tiles
+            label="Style des objets"
+            cols={3}
+            value={st.objLook}
+            options={OBJECT_LOOKS.map((l) => ({
+              value: l.id,
+              label: l.label,
+              hint: l.hint,
+              icon: <SymbolTile sym="Barrel" look={l.id} size={26} />,
+            }))}
+            onChange={(objLook) => set({ objLook })}
+          />
+          <Tiles
+            label="Lettres"
+            cols={2}
+            compact
+            value={st.font}
+            options={MAP_FONTS.map((t) => ({
+              value: t.id,
+              label: t.label,
+              icon: (
+                <span className="map-font-art" style={{ fontFamily: t.css ?? "var(--head)" }}>
+                  Aa
+                </span>
+              ),
+            }))}
+            onChange={(font) => set({ font })}
+          />
+          <Switch
+            label="Hachures autour des murs"
+            value={st.hatch}
+            onChange={(hatch) => set({ hatch })}
+          />
+          {st.hatch && (
+            <Slider
+              label="Largeur des hachures"
+              value={st.hatchSize}
+              min={0.25}
+              max={2}
+              step={0.25}
+              format={(v) => `${v.toLocaleString("fr-FR")} case${v > 1 ? "s" : ""}`}
+              onChange={(hatchSize) => set({ hatchSize })}
+            />
+          )}
+          <Switch
+            label="Ombre sous les salles"
+            value={st.shadow}
+            onChange={(shadow) => set({ shadow })}
+          />
+          <Switch
+            label="Bords assombris"
+            hint="Un vignettage autour de la carte, pour l’ambiance."
+            value={st.vignette}
+            onChange={(vignette) => set({ vignette })}
+          />
+          <Switch
+            label="Grille hors des salles"
+            hint="Sinon, la grille ne se voit que dans les salles."
+            value={st.gridOutside}
+            onChange={(gridOutside) => set({ gridOutside })}
+          />
+          {isTweaked(st) && (
+            <Button className="btn map-insp-wide" onClick={() => onChange(applyPreset(st.preset))}>
+              Revenir au thème d’origine
+            </Button>
+          )}
+        </div>
       )}
     </>
   );
@@ -573,19 +936,58 @@ export function MapPage({ popup = false, onClose }: { popup?: boolean; onClose?:
   /** Calque où l'on dessine ; null : le calque principal */
   const [activeLayer, setActiveLayer] = useState<string | null>(null);
   const [tool, setTool] = useState<MapTool>("move");
+  const [simple, setSimple] = useState(() => readFlag(SIMPLE_KEY, true));
+  const [hints, setHints] = useState(() => readFlag(HINTS_KEY, true));
+  /** Visite guidée : ouverte d’office tant que le MJ ne l’a pas vue sur cet appareil */
+  const [tourSeen, setTourSeen] = useState(() => readFlag(TOUR_KEY, false));
+  const [tourStep, setTour] = useState<number | null>(null);
+  const tour = tourStep ?? (canEdit && !popup && !tourSeen ? 0 : null);
+  const [gallery, setGallery] = useState(false);
+  /** Qui est repéré en ce moment : calculé à l'écran, jamais enregistré */
+  const [spots, setSpots] = useState<Spot[]>([]);
+  /** Journal des repérages de la séance, pour le MJ (sur cet écran seulement) */
+  const [spotLog, setSpotLog] = useState<{ id: number; at: string; text: string }[]>([]);
+  const [logOpen, setLogOpen] = useState(false);
+  const lastSpots = useRef(new Set<string>());
+  const logId = useRef(0);
+  const onSpots = useCallback((next: Spot[]) => {
+    setSpots(next);
+    const keys = new Set(next.map((p) => `${p.source}>${p.target}`));
+    const fresh = next.filter((p) => !lastSpots.current.has(`${p.source}>${p.target}`));
+    lastSpots.current = keys;
+    if (!fresh.length) return;
+    const at = new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+    setSpotLog((log) =>
+      [
+        ...fresh.map((p) => ({
+          id: ++logId.current,
+          at,
+          text: `${p.targetLabel} repéré par ${p.sourceLabel}`,
+        })),
+        ...log,
+      ].slice(0, 40),
+    );
+  }, []);
+  const [inspectorClosed, setInspectorClosed] = useState(() => readFlag(INSPECTOR_KEY, false));
+  function chooseInspector(next: boolean) {
+    setInspectorClosed(next);
+    saveFlag(INSPECTOR_KEY, next);
+  }
   const [doorType, setDoorType] = useState<DoorType>("simple");
   const [shapeSettings, setShapeSettings] = useState<ShapeSettings>(DEFAULT_SHAPE_SETTINGS);
   const shapeOpt = (patch: Partial<ShapeSettings>) => setShapeSettings((o) => ({ ...o, ...patch }));
   const [placeHidden, setPlaceHidden] = useState(readPlaceHidden);
   const [selected, setSelected] = useState<string | null>(null);
   const [panel, setPanel] = useState<
-    "map" | "tokens" | "library" | "layers" | "dungeon" | "export" | null
+    "map" | "tokens" | "library" | "layers" | "dungeon" | "export" | "theme" | null
   >(null);
   const [selectedObject, setSelectedObject] = useState<string | null>(null);
   const [placeKind, setPlaceKind] = useState<PlaceKind>("select");
   const [source, setSource] = useState<ObjectSource | null>(null);
   const [objectSnap, setObjectSnap] = useState(0.5);
   const [stamp, setStamp] = useState<StampSettings>(DEFAULT_STAMP);
+  /** Style des prochains symboles posés ; « auto » : celui du thème de la carte */
+  const [libLook, setLibLook] = useState<ObjectLook | "auto">("auto");
   const [fogBrush, setFogBrush] = useState<FogBrush>({ mode: "brush", reveal: true, size: 2 });
   const [dungeon, setDungeon] = useState<DungeonOptions>(DEFAULT_DUNGEON);
   /** Dernier donjon tiré : on peut en retirer un autre sans redemander confirmation */
@@ -1048,6 +1450,7 @@ export function MapPage({ popup = false, onClose }: { popup?: boolean; onClose?:
                 hidden: t.hidden,
                 size: t.size,
                 color: t.color,
+                cone: readTokenCone(t.cone),
               },
             ]
           : [],
@@ -1102,7 +1505,9 @@ export function MapPage({ popup = false, onClose }: { popup?: boolean; onClose?:
     if (file.tokens.length) {
       const { error: e3 } = await supabase
         .from("map_tokens")
-        .insert(file.tokens.map((t) => ({ ...t, map_id: data.id })));
+        .insert(
+          file.tokens.map((t) => ({ ...t, cone: t.cone as unknown as Json, map_id: data.id })),
+        );
       if (e3) setErr(e3.message);
     }
     await load();
@@ -1125,7 +1530,7 @@ export function MapPage({ popup = false, onClose }: { popup?: boolean; onClose?:
    * Retouche d'un objet depuis sa barre (couleur, opacité…) : l'écran suit tout de suite,
    * les retouches rapprochées d'un même objet forment une seule annulation et une seule écriture.
    */
-  function patchObject(objectId: string, patch: Partial<MapObject>) {
+  function patchObject(objectId: string, patch: ObjectPatch) {
     if (!map) return;
     const target = map.id;
     const next = updateObject(objects, objectId, patch);
@@ -1168,10 +1573,16 @@ export function MapPage({ popup = false, onClose }: { popup?: boolean; onClose?:
     else if (placeKind === "light")
       base = { k: "light", w: 0.8, h: 0.8, rad: 4, bright: 0.5, color: "#ffc766" };
     else if (placeKind === "text") base = { k: "text", text: "Texte", ...size("text") };
+    else if (placeKind === "camera") base = { k: "camera", w: 1, h: 1, cone: DEFAULT_CONE };
     else if (placeKind === "source" && source)
       base =
         source.k === "symbol"
-          ? { k: "symbol", sym: source.sym, ...size("symbol") }
+          ? {
+              k: "symbol",
+              sym: source.sym,
+              ...size("symbol"),
+              ...(libLook !== "auto" ? { look: libLook } : {}),
+            }
           : { k: "image", src: source.src, ...size("image") };
     if (!base || !map) return;
     const draft: MapObject = { ...base, id: newObjectId(objects), x: p.x, y: p.y, r: 0 };
@@ -1180,6 +1591,27 @@ export function MapPage({ popup = false, onClose }: { popup?: boolean; onClose?:
     setSelectedObject(placed.id);
     // Un texte se règle aussitôt : on repasse en sélection pour le modifier
     if (placeKind === "text") setPlaceKind("select");
+  }
+  /** Un symbole glissé depuis la bibliothèque : posé là où on le lâche, puis choisi. */
+  function dropSymbol(sym: string, p: Point) {
+    if (!map) return;
+    const draft: MapObject = {
+      id: newObjectId(objects),
+      k: "symbol",
+      sym,
+      x: p.x,
+      y: p.y,
+      w: 1,
+      h: 1,
+      r: 0,
+      ...(libLook !== "auto" ? { look: libLook } : {}),
+    };
+    const placed = { ...draft, ...snapObjectCenter(p, draft, objectSnap, map.width, map.height) };
+    saveObjects([...objects, placed]);
+    setSource({ k: "symbol", sym });
+    setTool("object");
+    setPlaceKind("select");
+    setSelectedObject(placed.id);
   }
   function removeObject(objectId: string) {
     saveObjects(objects.filter((o) => o.id !== objectId));
@@ -1287,10 +1719,22 @@ export function MapPage({ popup = false, onClose }: { popup?: boolean; onClose?:
   }
   function patchToken(
     tokenId: string,
-    patch: { label?: string; hidden?: boolean; size?: number; color?: string | null },
+    patch: {
+      label?: string;
+      hidden?: boolean;
+      size?: number;
+      color?: string | null;
+      cone?: TokenCone | null;
+    },
   ) {
     setTokens((list) => list.map((t) => (t.id === tokenId ? { ...t, ...patch } : t)));
-    write(() => supabase.from("map_tokens").update(patch).eq("id", tokenId));
+    const { cone, ...rest } = patch;
+    write(() =>
+      supabase
+        .from("map_tokens")
+        .update(cone === undefined ? rest : { ...rest, cone: cone as unknown as Json })
+        .eq("id", tokenId),
+    );
     // Un pion masqué n'envoie plus rien au joueur : la carte, elle, le prévient de recharger
     if (patch.hidden !== undefined && mapId)
       write(() =>
@@ -1519,7 +1963,11 @@ export function MapPage({ popup = false, onClose }: { popup?: boolean; onClose?:
     if (from) {
       const copies = tokens
         .filter((t) => t.map_id === from.id)
-        .map(({ id: _id, map_id: _map, ...t }) => ({ ...t, map_id: data.id }));
+        .map(({ id: _id, map_id: _map, cone, ...t }) => ({
+          ...t,
+          cone: (cone ?? null) as Json,
+          map_id: data.id,
+        }));
       if (copies.length) {
         const { error: e2 } = await supabase.from("map_tokens").insert(copies);
         if (e2) setErr(e2.message);
@@ -1539,6 +1987,27 @@ export function MapPage({ popup = false, onClose }: { popup?: boolean; onClose?:
     }
     setCurrentId(data.id);
     setSelected(null);
+    await load();
+  }
+  /** Nouvelle carte à partir d'un modèle de l'assistant. */
+  async function createFromDraft(d: MapDraft, name: string, style: StyleId) {
+    const { data, error } = await supabase
+      .from("maps")
+      .insert({
+        name,
+        width: d.width,
+        height: d.height,
+        walls: d.edges as unknown as Json,
+        shapes: shapesToJson(d.shapes) as unknown as Json,
+        objects: objectsToJson(d.objects) as unknown as Json,
+        style: styleToJson(applyPreset(style)) as Json,
+      })
+      .select("id")
+      .single();
+    if (error) return setErr(error.message);
+    setGallery(false);
+    setTool("move");
+    goToMap(data.id);
     await load();
   }
   async function deleteMap(m: MapRow) {
@@ -1579,7 +2048,47 @@ export function MapPage({ popup = false, onClose }: { popup?: boolean; onClose?:
     if (old) void supabase.storage.from("maps").remove([old]);
   }
 
-  const tools = TOOLS.filter((t) => canEdit || !t.gm);
+  /** Champ de vision d'un pion : interrupteur, puis ses réglages. */
+  function tokenCone(t: MapToken) {
+    if (!map) return null;
+    const c = readTokenCone(t.cone);
+    return (
+      <div className="map-token-cone">
+        <Switch
+          label={`Champ de vision de « ${t.label} »`}
+          hint="Un cône qui montre ce que ce pion surveille ; il rougit quand un joueur y entre."
+          value={!!c}
+          onChange={(on) => patchToken(t.id, { cone: on ? { dir: 90, ...DEFAULT_CONE } : null })}
+        />
+        {c && (
+          <ConeControls
+            cone={c}
+            dir={c.dir}
+            onCone={(patch) => patchToken(t.id, { cone: { ...c, ...patch } })}
+            onDir={(dir) => patchToken(t.id, { cone: { ...c, dir } })}
+            cellValue={map.cell_value}
+            cellUnit={map.cell_unit}
+          />
+        )}
+      </div>
+    );
+  }
+  const tools = TOOLS.filter((t) => (canEdit || !t.gm) && !(canEdit && simple && t.expert));
+  const toolInfo = TOOLS.find((t) => t.id === tool);
+  function chooseSimple(next: boolean) {
+    setSimple(next);
+    saveFlag(SIMPLE_KEY, next);
+    if (next && TOOLS.find((t) => t.id === tool)?.expert) setTool("move");
+  }
+  function chooseHints(next: boolean) {
+    setHints(next);
+    saveFlag(HINTS_KEY, next);
+  }
+  function endTour() {
+    setTour(null);
+    setTourSeen(true);
+    saveFlag(TOUR_KEY, true);
+  }
   // Raccourcis : refait à chaque rendu pour lire l'état du moment
   const keys = useRef<(e: KeyboardEvent) => void>(() => undefined);
   keys.current = (e) => {
@@ -1598,6 +2107,12 @@ export function MapPage({ popup = false, onClose }: { popup?: boolean; onClose?:
       e.preventDefault();
       return;
     }
+    if (e.key === "Escape" && (gallery || tour !== null)) {
+      if (gallery && map) setGallery(false);
+      if (tour !== null) endTour();
+      return;
+    }
+    if (gallery) return;
     if (e.key === "Escape") {
       if (popup) onClose?.();
       if (full) setFull(false);
@@ -1756,20 +2271,12 @@ export function MapPage({ popup = false, onClose }: { popup?: boolean; onClose?:
             onSelect={selectToken}
             onPlace={place}
             onPing={ping}
+            onSpotted={onSpots}
+            onDropSymbol={dropSymbol}
           />
         ) : (
           <div className="map-empty">
-            {canEdit ? (
-              <>
-                <h1>Ta première carte</h1>
-                <p>Trace des pièces, pose tes portes et place tes pions.</p>
-                <Button className="btn y" onClick={() => void createMap()}>
-                  <Plus size={16} /> Créer une carte
-                </Button>
-              </>
-            ) : (
-              <p>Le MJ n’affiche aucune carte pour l’instant.</p>
-            )}
+            {canEdit ? null : <p>Le MJ n’affiche aucune carte pour l’instant.</p>}
           </div>
         )}
 
@@ -1786,24 +2293,16 @@ export function MapPage({ popup = false, onClose }: { popup?: boolean; onClose?:
         )}
         <div className="map-top">
           {canEdit && maps.length > 0 ? (
-            <label className="map-pick">
-              <span className="sr-only">Carte ouverte</span>
-              <select
-                className="field"
-                value={map?.id ?? ""}
-                onChange={(e) => {
-                  setCurrentId(e.target.value);
-                  setSelected(null);
-                }}
-              >
-                {maps.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.name}
-                    {m.id === liveId ? " (affichée)" : ""}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <Button
+              className="map-pick"
+              title="Mes cartes : ouvrir, créer, renommer, dupliquer"
+              aria-pressed={gallery}
+              onClick={() => setGallery(true)}
+            >
+              <LayoutGrid size={16} aria-hidden="true" />
+              <span>{map?.name ?? "Mes cartes"}</span>
+              <ChevronDown size={14} aria-hidden="true" />
+            </Button>
           ) : (
             map && <b className="map-title">{map.name}</b>
           )}
@@ -1814,8 +2313,24 @@ export function MapPage({ popup = false, onClose }: { popup?: boolean; onClose?:
                 aria-pressed={isLive}
                 onClick={() => void setLive(isLive ? null : map.id)}
               >
-                <Radio size={15} /> {isLive ? "Affichée" : "Afficher à la table"}
+                <Radio size={15} aria-hidden="true" />
+                <span>{isLive ? "Vue par les joueurs" : "Montrer aux joueurs"}</span>
               </Button>
+              {(spots.length > 0 || spotLog.length > 0) && (
+                <Button
+                  className={`map-spotted ${spots.length ? "" : "calm"}`}
+                  aria-expanded={logOpen}
+                  title="Journal des repérages"
+                  onClick={() => setLogOpen((o) => !o)}
+                >
+                  <ScanEye size={15} aria-hidden="true" />
+                  <span>
+                    {spots.length
+                      ? `${[...new Set(spots.map((p) => p.targetLabel))].join(", ")} repéré${new Set(spots.map((p) => p.targetLabel)).size > 1 ? "s" : ""}`
+                      : `${spotLog.length} repérage${spotLog.length > 1 ? "s" : ""}`}
+                  </span>
+                </Button>
+              )}
               <span className="map-saved" role="status">
                 {saving > 0 ? (
                   <Loader2 size={14} className="spin" aria-label="Enregistrement" />
@@ -1866,15 +2381,26 @@ export function MapPage({ popup = false, onClose }: { popup?: boolean; onClose?:
                   </Button>
                 </span>
               )}
+              {(!simple || mapLayers.length > 0) && (
+                <Button
+                  className={`map-layer-chip ${layerId ? "on" : ""}`}
+                  title="Calques : choisir où dessiner, cacher aux joueurs, verrouiller"
+                  aria-pressed={panel === "layers"}
+                  onClick={() => setPanel((p) => (p === "layers" ? null : "layers"))}
+                >
+                  <Layers size={15} aria-hidden="true" />
+                  {activeView.locked && <Lock size={12} aria-label="verrouillé" />}
+                  <span>{activeView.name}</span>
+                </Button>
+              )}
               <Button
-                className={`map-layer-chip ${layerId ? "on" : ""}`}
-                title="Calques : choisir où dessiner, cacher aux joueurs, verrouiller"
-                aria-pressed={panel === "layers"}
-                onClick={() => setPanel((p) => (p === "layers" ? null : "layers"))}
+                className="map-theme-chip"
+                title="Thème de la carte : de l’ancien au moderne"
+                aria-pressed={panel === "theme"}
+                onClick={() => setPanel((p) => (p === "theme" ? null : "theme"))}
               >
-                <Layers size={15} aria-hidden="true" />
-                {activeView.locked && <Lock size={12} aria-label="verrouillé" />}
-                <span>{activeView.name}</span>
+                <Palette size={16} aria-hidden="true" />
+                <span>Thème</span>
               </Button>
               <Button
                 aria-label="Pions"
@@ -1892,14 +2418,16 @@ export function MapPage({ popup = false, onClose }: { popup?: boolean; onClose?:
               >
                 <Download size={16} />
               </Button>
-              <Button
-                aria-label="Donjon aléatoire"
-                title="Donjon aléatoire"
-                aria-pressed={panel === "dungeon"}
-                onClick={() => setPanel((p) => (p === "dungeon" ? null : "dungeon"))}
-              >
-                <Dices size={16} />
-              </Button>
+              {!simple && (
+                <Button
+                  aria-label="Donjon aléatoire"
+                  title="Donjon aléatoire"
+                  aria-pressed={panel === "dungeon"}
+                  onClick={() => setPanel((p) => (p === "dungeon" ? null : "dungeon"))}
+                >
+                  <Dices size={16} />
+                </Button>
+              )}
               <Button
                 aria-label="Réglages de la carte"
                 title="Réglages de la carte"
@@ -1955,240 +2483,457 @@ export function MapPage({ popup = false, onClose }: { popup?: boolean; onClose?:
             </Button>
           )}
         </div>
+        {canEdit && logOpen && (
+          <div className="map-spotlog" role="dialog" aria-label="Journal des repérages">
+            <header>
+              <b>Repérages</b>
+              <Button aria-label="Vider le journal" title="Vider" onClick={() => setSpotLog([])}>
+                <Trash2 size={14} />
+              </Button>
+              <Button aria-label="Fermer" onClick={() => setLogOpen(false)}>
+                <X size={15} />
+              </Button>
+            </header>
+            {spotLog.length ? (
+              <ol>
+                {spotLog.map((e) => (
+                  <li key={e.id}>
+                    <time>{e.at}</time> {e.text}
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <p className="note plain">Personne n’a encore été repéré.</p>
+            )}
+            <p className="note plain">Noté sur ton écran seulement, le temps de la séance.</p>
+          </div>
+        )}
         {err && (
           <div className="map-error">
             <InlineError message={err} onClear={() => setErr(null)} />
           </div>
         )}
 
-        {map && (
-          <div className="map-tools" role="radiogroup" aria-label="Outil">
-            {tools.map(({ id: toolId, label, key, icon: Icon }) => (
-              <Button
-                key={toolId}
-                role="radio"
-                aria-checked={tool === toolId}
-                aria-label={label}
-                title={`${label} (${key.toUpperCase()})`}
-                className={tool === toolId ? "on" : ""}
-                onClick={() => setTool(toolId)}
-              >
-                <Icon size={18} aria-hidden="true" />
-                <span>{label}</span>
-              </Button>
-            ))}
+        {map && !gallery && (
+          <div className={`map-tools ${canEdit ? "labeled" : ""}`} aria-label="Outils">
+            <div role="radiogroup" aria-label="Outil" className="map-tools-list">
+              {tools.map(({ id: toolId, label, key, icon: Icon }) => (
+                <Button
+                  key={toolId}
+                  role="radio"
+                  aria-checked={tool === toolId}
+                  aria-label={label}
+                  title={`${label} (${key.toUpperCase()})`}
+                  className={tool === toolId ? "on" : ""}
+                  onClick={() => setTool(toolId)}
+                >
+                  <Icon size={18} aria-hidden="true" />
+                  <span>{label}</span>
+                </Button>
+              ))}
+            </div>
+            {canEdit && (
+              <div className="map-tools-foot">
+                <Button
+                  className={`map-mode ${simple ? "" : "on"}`}
+                  aria-pressed={!simple}
+                  title={
+                    simple
+                      ? "Passer en mode avancé : murs à la main, tampon, zone, brouillard, calques, donjon"
+                      : "Revenir au mode simple"
+                  }
+                  onClick={() => chooseSimple(!simple)}
+                >
+                  <SlidersHorizontal size={16} aria-hidden="true" />
+                  <span>{simple ? "Simple" : "Avancé"}</span>
+                </Button>
+                <Button
+                  aria-label="Aide"
+                  title="Revoir la visite guidée"
+                  onClick={() => setTour(0)}
+                >
+                  <HelpCircle size={16} aria-hidden="true" />
+                  <span>Aide</span>
+                </Button>
+              </div>
+            )}
           </div>
         )}
 
-        {canEdit && map && (tool === "enemy" || tool === "ally") && (
-          <div className="map-door-types" role="radiogroup" aria-label="Pose des pions">
+        {canEdit && map && !gallery && toolInfo && (
+          <div className={`map-hint-bar ${hints ? "" : "off"}`} role="note">
             <Button
-              role="radio"
-              aria-checked={!placeHidden}
-              title="Les joueurs verront ce pion"
-              onClick={() => choosePlaceHidden(false)}
+              className="map-hint-toggle"
+              aria-label={hints ? "Masquer les astuces" : "Afficher les astuces"}
+              title={hints ? "Masquer les astuces" : "Afficher les astuces"}
+              aria-pressed={hints}
+              onClick={() => chooseHints(!hints)}
             >
-              <Eye size={15} aria-hidden="true" /> Visible
+              <Lightbulb size={15} aria-hidden="true" />
             </Button>
-            <Button
-              role="radio"
-              aria-checked={placeHidden}
-              title="Caché aux joueurs jusqu’à ce que tu le révèles (H)"
-              onClick={() => choosePlaceHidden(true)}
-            >
-              <EyeOff size={15} aria-hidden="true" /> Caché
-            </Button>
+            {hints && (
+              <p>
+                <b>{toolInfo.label}</b> {toolInfo.hint}
+              </p>
+            )}
           </div>
         )}
-        {canEdit && map && tool === "object" && (
-          <>
-            <div className="map-door-types" role="radiogroup" aria-label="Poser un objet">
-              <Button
-                role="radio"
-                aria-checked={placeKind === "select"}
-                title="Choisir, déplacer, agrandir (coin) ou tourner (poignée du haut) un objet"
-                onClick={() => setPlaceKind("select")}
-              >
-                Choisir
-              </Button>
-              <Button
-                role="radio"
-                aria-checked={placeKind === "source"}
-                title="Poser le symbole ou l’image de la bibliothèque"
-                onClick={() => (source ? setPlaceKind("source") : setPanel("library"))}
-              >
-                <SourcePreview source={source} urls={objectUrls} /> Symbole
-              </Button>
-              <Button
-                role="radio"
-                aria-checked={placeKind === "stairs"}
-                title="Poser un escalier"
-                onClick={() => setPlaceKind("stairs")}
-              >
-                Escalier
-              </Button>
-              <Button
-                role="radio"
-                aria-checked={placeKind === "text"}
-                title="Poser un texte : nom de lieu, numéro de salle"
-                onClick={() => setPlaceKind("text")}
-              >
-                Texte
-              </Button>
-              <Button
-                role="radio"
-                aria-checked={placeKind === "light"}
-                title="Poser une lumière (visible quand l’éclairage est allumé)"
-                onClick={() => setPlaceKind("light")}
-              >
-                Lumière
-              </Button>
-              <span className="map-sep" aria-hidden="true" />
-              <Button title="Symboles et images" onClick={() => setPanel("library")}>
-                Bibliothèque
-              </Button>
-              <span className="map-sep" aria-hidden="true" />
-              <Pick label="Aimant" value={objectSnap} options={SNAPS} onChange={setObjectSnap} />
-            </div>
-            {chosenObject && (
-              <ObjectEditor
-                o={chosenObject}
-                onChange={(patch) => patchObject(chosenObject.id, patch)}
-                onFront={() => saveObjects(restack(objects, chosenObject.id, true))}
-                onBack={() => saveObjects(restack(objects, chosenObject.id, false))}
-                onDuplicate={() => duplicateObject(chosenObject)}
-                onRemove={() => removeObject(chosenObject.id)}
-                maps={maps.filter((m) => m.id !== map.id).map((m) => ({ id: m.id, name: m.name }))}
-                onGo={goToMap}
-                onBring={(target) => void bringParty(target)}
-                cellValue={map.cell_value}
-                cellUnit={map.cell_unit}
-              />
-            )}
-          </>
+
+        {canEdit && (gallery || !map) && (
+          <MapGallery
+            maps={maps}
+            liveId={liveId}
+            currentId={map?.id ?? null}
+            onOpen={(target) => {
+              goToMap(target);
+              setGallery(false);
+            }}
+            onLive={(target) => void setLive(target)}
+            onRename={(target, name) => {
+              setMaps((list) => list?.map((m) => (m.id === target ? { ...m, name } : m)) ?? list);
+              write(() => supabase.from("maps").update({ name }).eq("id", target));
+            }}
+            onDuplicate={(target) => {
+              const from = maps.find((m) => m.id === target);
+              if (from) void createMap(from).then(() => setGallery(false));
+            }}
+            onDelete={(target) => {
+              const m = maps.find((x) => x.id === target);
+              if (m) void deleteMap(m);
+            }}
+            onCreate={(d, name, style) => void createFromDraft(d, name, style)}
+            onImport={(file) => void importFile(file).then(() => setGallery(false))}
+            onClose={map ? () => setGallery(false) : null}
+          />
         )}
-        {canEdit && map && tool === "stamp" && (
-          <div className="map-door-types" aria-label="Réglages du tampon">
-            <Button
-              title="Choisir le symbole ou l’image à répéter"
-              onClick={() => setPanel("library")}
-            >
-              <SourcePreview source={source} urls={objectUrls} /> {source ? "Changer" : "Choisir"}
-            </Button>
-            <span className="map-sep" aria-hidden="true" />
-            <Pick
-              label="Écart"
-              value={stamp.spacing}
-              options={[0.5, 1, 2].map((v) => ({ value: v, label: String(v).replace(".", ",") }))}
-              onChange={(spacing) => setStamp((st) => ({ ...st, spacing }))}
-            />
-            <Pick
-              label="Taille"
-              value={STAMP_SIZES.find((z) => z.min === stamp.min)?.value ?? "m"}
-              options={STAMP_SIZES}
-              onChange={(v) => {
-                const z = STAMP_SIZES.find((x) => x.value === v) ?? STAMP_SIZES[1]!;
-                setStamp((st) => ({ ...st, min: z.min, max: z.max }));
-              }}
-            />
-            <Pick
-              label="Rotation"
-              value={stamp.spin}
-              options={[
-                { value: true, label: "Au hasard" },
-                { value: false, label: "Droite" },
-              ]}
-              onChange={(spin) => setStamp((st) => ({ ...st, spin }))}
-            />
-            <Pick
-              label="Dispersion"
-              value={stamp.scatter}
-              options={[
-                { value: 0, label: "0" },
-                { value: 0.4, label: "Un peu" },
-                { value: 1, label: "Beaucoup" },
-              ]}
-              onChange={(scatter) => setStamp((st) => ({ ...st, scatter }))}
-            />
-          </div>
-        )}
-        {canEdit && map && tool === "fog" && (
-          <div className="map-door-types" aria-label="Brouillard à la main">
-            {!map.manual_fog && (
-              <>
-                <span className="note plain map-hint">Le brouillard à la main est éteint.</span>
-                <Button onClick={() => patchMap({ manual_fog: true })}>Allumer</Button>
-                <span className="map-sep" aria-hidden="true" />
-              </>
-            )}
-            <Pick
-              label="Outil"
-              value={fogBrush.mode}
-              options={[
-                { value: "brush" as const, label: "Pinceau", hint: "Glisse sur les cases" },
-                {
-                  value: "room" as const,
-                  label: "Pièce",
-                  hint: "Touche une pièce : jusqu’aux murs et portes fermées",
-                },
-              ]}
-              onChange={(mode) => setFogBrush((b) => ({ ...b, mode }))}
-            />
-            <Pick
-              label="Action"
-              value={fogBrush.reveal}
-              options={[
-                { value: true, label: "Révéler" },
-                { value: false, label: "Cacher" },
-              ]}
-              onChange={(reveal) => setFogBrush((b) => ({ ...b, reveal }))}
-            />
-            {fogBrush.mode === "brush" && (
-              <Pick
-                label="Taille"
-                value={fogBrush.size}
-                options={[1, 2, 3, 5].map((n) => ({ value: n, label: String(n) }))}
-                onChange={(size) => setFogBrush((b) => ({ ...b, size }))}
-              />
-            )}
-            <Button onClick={() => saveFog(fillMask(true, map.width, map.height))}>
-              Tout révéler
-            </Button>
-            <Button onClick={() => saveFog(fillMask(false, map.width, map.height))}>
-              Tout cacher
-            </Button>
-          </div>
-        )}
-        {canEdit && map && tool === "zone" && (
-          <div className="map-door-types" aria-label="Zone">
-            {zone ? (
-              <>
-                <Button title="Copier la zone (Ctrl+C)" onClick={() => copyArea(false)}>
-                  Copier
-                </Button>
-                <Button title="Copier puis vider la zone (Ctrl+X)" onClick={() => copyArea(true)}>
-                  Couper
+
+        {canEdit && tour !== null && TOUR[tour] && (
+          <div className="map-tour" role="dialog" aria-label="Visite guidée">
+            <div className="map-tour-box">
+              <small>
+                {tour + 1} / {TOUR.length}
+              </small>
+              <h2>{TOUR[tour].title}</h2>
+              <p>{TOUR[tour].text}</p>
+              <div className="map-tour-dots" aria-hidden="true">
+                {TOUR.map((_, i) => (
+                  <i key={i} className={i === tour ? "on" : ""} />
+                ))}
+              </div>
+              <div className="map-row">
+                <Button className="btn" onClick={endTour}>
+                  Passer
                 </Button>
                 <Button
-                  title="Retirer sols, murs, portes et objets de la zone (Suppr)"
-                  onClick={clearArea}
+                  className="btn y"
+                  onClick={() => (tour + 1 < TOUR.length ? setTour(tour + 1) : endTour())}
                 >
-                  Vider
+                  {tour + 1 < TOUR.length ? "Suivant" : "C’est parti"}
                 </Button>
-              </>
-            ) : (
-              <span className="note plain map-hint">Glisse pour choisir une zone.</span>
-            )}
-            {clip && (
-              <>
-                <span className="map-sep" aria-hidden="true" />
-                <span className="note plain map-hint">
-                  Copie de {clip.w} × {clip.h} : touche la carte pour la coller.
-                </span>
-                <Button onClick={() => setClip(null)}>Oublier</Button>
-              </>
-            )}
+              </div>
+            </div>
           </div>
+        )}
+
+        {canEdit && map && !gallery && toolInfo && INSPECTED.includes(tool) && (
+          <Inspector
+            icon={toolInfo.icon}
+            title={toolInfo.label}
+            collapsed={inspectorClosed}
+            onCollapse={() => chooseInspector(!inspectorClosed)}
+            style={styleVars(mapStyle) as CSSProperties}
+          >
+            {tool === "shape" && (
+              <ShapeOptions value={shapeSettings} onChange={shapeOpt} simple={simple} />
+            )}
+            {tool === "door" && (
+              <Tiles
+                label="Type de porte"
+                cols={3}
+                value={doorType}
+                options={DOOR_TYPES.map((d) => {
+                  const Icon = DOOR_ICONS[d.id];
+                  return { value: d.id, label: d.label, icon: <Icon size={18} />, hint: d.hint };
+                })}
+                onChange={setDoorType}
+              />
+            )}
+            {(tool === "enemy" || tool === "ally") && (
+              <Tiles
+                label="Les joueurs le voient ?"
+                cols={2}
+                compact
+                value={placeHidden}
+                options={[
+                  {
+                    value: false,
+                    label: "Visible",
+                    icon: <Eye size={16} />,
+                    hint: "Les joueurs voient ce pion dès qu’il est posé.",
+                  },
+                  {
+                    value: true,
+                    label: "Caché",
+                    icon: <EyeOff size={16} />,
+                    hint: "Invisible pour les joueurs jusqu’à ce que tu le révèles (touche H, ou dans la liste des pions).",
+                  },
+                ]}
+                onChange={choosePlaceHidden}
+              />
+            )}
+            {(tool === "enemy" || tool === "ally") &&
+              chosen &&
+              chosen.kind !== "party" &&
+              tokenCone(chosen)}
+            {tool === "object" && (
+              <>
+                <Tiles
+                  label="Que faire ?"
+                  cols={3}
+                  value={placeKind}
+                  options={[
+                    {
+                      value: "select" as const,
+                      label: "Choisir",
+                      icon: <MousePointer2 size={18} />,
+                      hint: "Touche un objet pour le régler. Glisse-le pour le déplacer ; son coin l’agrandit, sa poignée du haut le tourne.",
+                    },
+                    {
+                      value: "source" as const,
+                      label: "Symbole",
+                      icon: <SourcePreview source={source} urls={objectUrls} />,
+                      hint: "Touche la carte pour poser le symbole choisi dans la bibliothèque.",
+                    },
+                    {
+                      value: "stairs" as const,
+                      label: "Escalier",
+                      icon: <ChevronsUp size={18} />,
+                      hint: "Touche la carte pour poser un escalier. Il peut mener à un autre étage.",
+                    },
+                    {
+                      value: "text" as const,
+                      label: "Texte",
+                      icon: <Type size={18} />,
+                      hint: "Touche la carte pour écrire : nom de lieu, numéro de salle.",
+                    },
+                    {
+                      value: "camera" as const,
+                      label: "Caméra",
+                      icon: <Cctv size={18} />,
+                      hint: "Touche la carte pour poser une caméra. Son cône rougit quand un joueur y entre ; tourne-la avec sa poignée ou dans ses réglages.",
+                    },
+                    {
+                      value: "light" as const,
+                      label: "Lumière",
+                      icon: <Sun size={18} />,
+                      hint: "Touche la carte pour poser une lumière. Elle se voit quand la nuit est allumée (Réglages → Éclairage).",
+                    },
+                  ]}
+                  onChange={(k) =>
+                    k === "source" && !source ? setPanel("library") : setPlaceKind(k)
+                  }
+                />
+                <Button className="btn map-insp-wide" onClick={() => setPanel("library")}>
+                  <Library size={15} aria-hidden="true" />
+                  {source ? "Changer de symbole" : "Ouvrir la bibliothèque"}
+                </Button>
+                {!simple && (
+                  <Tiles
+                    label="Aimant"
+                    cols={3}
+                    value={objectSnap}
+                    options={SNAP_OPTIONS}
+                    onChange={setObjectSnap}
+                  />
+                )}
+                {chosenObject && (
+                  <ObjectEditor
+                    o={chosenObject}
+                    onChange={(patch) => patchObject(chosenObject.id, patch)}
+                    onFront={() => saveObjects(restack(objects, chosenObject.id, true))}
+                    onBack={() => saveObjects(restack(objects, chosenObject.id, false))}
+                    onDuplicate={() => duplicateObject(chosenObject)}
+                    onRemove={() => removeObject(chosenObject.id)}
+                    maps={maps
+                      .filter((m) => m.id !== map.id)
+                      .map((m) => ({ id: m.id, name: m.name }))}
+                    onGo={goToMap}
+                    onBring={(target) => void bringParty(target)}
+                    cellValue={map.cell_value}
+                    cellUnit={map.cell_unit}
+                    mapLook={mapStyle.objLook}
+                  />
+                )}
+              </>
+            )}
+            {tool === "stamp" && (
+              <>
+                <Section label="Ce que tu sèmes">
+                  <Button className="btn map-insp-wide" onClick={() => setPanel("library")}>
+                    <SourcePreview source={source} urls={objectUrls} />
+                    {source ? "Changer" : "Choisir un symbole"}
+                  </Button>
+                </Section>
+                <Tiles
+                  label="Écart"
+                  cols={3}
+                  value={stamp.spacing}
+                  options={[
+                    { value: 0.5, label: "Serré", icon: <DotArt n={0.5} /> },
+                    { value: 1, label: "Normal", icon: <DotArt n={1} /> },
+                    { value: 2, label: "Espacé", icon: <DotArt n={2} /> },
+                  ]}
+                  onChange={(spacing) => setStamp((st) => ({ ...st, spacing }))}
+                />
+                <Tiles
+                  label="Taille"
+                  cols={3}
+                  value={STAMP_SIZES.find((z) => z.min === stamp.min)?.value ?? "m"}
+                  options={STAMP_SIZES.map((z, i) => ({
+                    value: z.value,
+                    label: ["Petits", "Moyens", "Grands"][i] ?? z.label,
+                    icon: <DotArt n={i * 2 + 1} />,
+                  }))}
+                  onChange={(v) => {
+                    const z = STAMP_SIZES.find((x) => x.value === v) ?? STAMP_SIZES[1]!;
+                    setStamp((st) => ({ ...st, min: z.min, max: z.max }));
+                  }}
+                />
+                <Tiles
+                  label="Orientation"
+                  cols={2}
+                  compact
+                  value={stamp.spin}
+                  options={[
+                    { value: true, label: "Au hasard", icon: <Shuffle size={16} /> },
+                    { value: false, label: "Droite", icon: <ArrowUp size={16} /> },
+                  ]}
+                  onChange={(spin) => setStamp((st) => ({ ...st, spin }))}
+                />
+                <Tiles
+                  label="Dispersion"
+                  cols={3}
+                  value={stamp.scatter}
+                  options={[
+                    { value: 0, label: "Alignés" },
+                    { value: 0.4, label: "Un peu" },
+                    { value: 1, label: "Beaucoup" },
+                  ]}
+                  onChange={(scatter) => setStamp((st) => ({ ...st, scatter }))}
+                />
+              </>
+            )}
+            {tool === "fog" && (
+              <>
+                {!map.manual_fog && (
+                  <Section
+                    label="Brouillard éteint"
+                    hint="Allumé, les joueurs ne voient que les cases que tu révèles."
+                  >
+                    <Button
+                      className="btn y map-insp-wide"
+                      onClick={() => patchMap({ manual_fog: true })}
+                    >
+                      <CloudFog size={15} aria-hidden="true" /> Allumer le brouillard
+                    </Button>
+                  </Section>
+                )}
+                <Tiles
+                  label="Comment"
+                  cols={2}
+                  compact
+                  value={fogBrush.mode}
+                  options={[
+                    {
+                      value: "brush" as const,
+                      label: "Pinceau",
+                      icon: <Paintbrush size={16} />,
+                      hint: "Glisse sur les cases à révéler ou cacher.",
+                    },
+                    {
+                      value: "room" as const,
+                      label: "Pièce",
+                      icon: <DoorOpen size={16} />,
+                      hint: "Touche une pièce : elle se révèle d’un coup, jusqu’aux murs et portes fermées.",
+                    },
+                  ]}
+                  onChange={(mode) => setFogBrush((b) => ({ ...b, mode }))}
+                />
+                <Tiles
+                  label="Action"
+                  cols={2}
+                  compact
+                  value={fogBrush.reveal}
+                  options={[
+                    { value: true, label: "Révéler", icon: <Eye size={16} /> },
+                    { value: false, label: "Cacher", icon: <EyeOff size={16} /> },
+                  ]}
+                  onChange={(reveal) => setFogBrush((b) => ({ ...b, reveal }))}
+                />
+                {fogBrush.mode === "brush" && (
+                  <Tiles
+                    label="Taille du pinceau"
+                    cols={4}
+                    value={fogBrush.size}
+                    options={[1, 2, 3, 5].map((n) => ({
+                      value: n,
+                      label: `${n} case${n > 1 ? "s" : ""}`,
+                      icon: <DotArt n={n} />,
+                    }))}
+                    onChange={(size) => setFogBrush((b) => ({ ...b, size }))}
+                  />
+                )}
+                <Actions>
+                  <Button onClick={() => saveFog(fillMask(true, map.width, map.height))}>
+                    <Eye size={15} aria-hidden="true" /> Tout révéler
+                  </Button>
+                  <Button onClick={() => saveFog(fillMask(false, map.width, map.height))}>
+                    <EyeOff size={15} aria-hidden="true" /> Tout cacher
+                  </Button>
+                </Actions>
+              </>
+            )}
+            {tool === "zone" && (
+              <>
+                <Section
+                  label="Zone choisie"
+                  hint={zone ? undefined : "Glisse sur la carte pour choisir une zone."}
+                >
+                  {zone && (
+                    <Actions>
+                      <Button title="Copier la zone (Ctrl+C)" onClick={() => copyArea(false)}>
+                        <Copy size={15} aria-hidden="true" /> Copier
+                      </Button>
+                      <Button
+                        title="Copier puis vider la zone (Ctrl+X)"
+                        onClick={() => copyArea(true)}
+                      >
+                        <Scissors size={15} aria-hidden="true" /> Couper
+                      </Button>
+                      <Button
+                        title="Retirer sols, murs, portes et objets de la zone (Suppr)"
+                        onClick={clearArea}
+                      >
+                        <Trash2 size={15} aria-hidden="true" /> Vider
+                      </Button>
+                    </Actions>
+                  )}
+                </Section>
+                {clip && (
+                  <Section
+                    label={`Copie de ${clip.w} × ${clip.h} cases`}
+                    hint="Touche la carte pour la coller : son coin haut-gauche va sur la case touchée."
+                  >
+                    <Actions>
+                      <Button onClick={() => setClip(null)}>
+                        <X size={15} aria-hidden="true" /> Oublier la copie
+                      </Button>
+                    </Actions>
+                  </Section>
+                )}
+              </>
+            )}
+          </Inspector>
         )}
         {canEdit && map && panel === "export" && (
           <Panel title="Exporter" onClose={() => setPanel(null)}>
@@ -2504,6 +3249,34 @@ export function MapPage({ popup = false, onClose }: { popup?: boolean; onClose?:
             </Button>
           </Panel>
         )}
+        {canEdit && map && panel === "theme" && (
+          <Panel title="Thème et ambiance" onClose={() => setPanel(null)}>
+            <Tiles
+              label="Ambiance animée"
+              cols={4}
+              value={lightSettings.weather}
+              options={WEATHERS.map((w) => ({
+                value: w.id,
+                label: w.label,
+                hint: `${w.hint}${w.id === "none" ? "" : " Les joueurs la voient aussi."}`,
+                icon: <i className={`map-weather-art w-${w.id}`} />,
+              }))}
+              onChange={(weather) => saveLight({ ...lightSettings, weather })}
+            />
+            {lightSettings.weather !== "none" && (
+              <Slider
+                label="Force de l’ambiance"
+                value={lightSettings.weatherPower}
+                min={0.2}
+                max={1}
+                step={0.1}
+                format={(v) => (v < 0.45 ? "Légère" : v < 0.8 ? "Moyenne" : "Forte")}
+                onChange={(weatherPower) => saveLight({ ...lightSettings, weatherPower })}
+              />
+            )}
+            <StyleSection value={mapStyle} onChange={saveStyle} />
+          </Panel>
+        )}
         {canEdit && map && panel === "library" && (
           <Panel title="Bibliothèque" onClose={() => setPanel(null)}>
             <ObjectLibrary
@@ -2513,28 +3286,12 @@ export function MapPage({ popup = false, onClose }: { popup?: boolean; onClose?:
               onPick={chooseSource}
               onUpload={(f) => void uploadObjectImage(f)}
               onRemoveImage={(src) => void removeObjectImage(src)}
+              look={libLook}
+              mapLook={mapStyle.objLook}
+              onLook={setLibLook}
             />
           </Panel>
         )}
-        {canEdit && map && tool === "shape" && (
-          <ShapeBar value={shapeSettings} onChange={shapeOpt} />
-        )}
-        {canEdit && map && tool === "door" && (
-          <div className="map-door-types" role="radiogroup" aria-label="Type de porte">
-            {DOOR_TYPES.map((d) => (
-              <Button
-                key={d.id}
-                role="radio"
-                aria-checked={doorType === d.id}
-                title={d.hint}
-                onClick={() => setDoorType(d.id)}
-              >
-                {d.label}
-              </Button>
-            ))}
-          </div>
-        )}
-
         {canEdit && map && panel === "map" && (
           <Panel title="Réglages de la carte" onClose={() => setPanel(null)}>
             <label className="uni-field" key={`name-${map.id}`}>
@@ -2736,7 +3493,9 @@ export function MapPage({ popup = false, onClose }: { popup?: boolean; onClose?:
               onChange={(manual_fog) => patchMap({ manual_fog })}
             />
             <h3>Apparence</h3>
-            <StyleSection value={mapStyle} onChange={saveStyle} />
+            <Button className="btn" onClick={() => setPanel("theme")}>
+              <Palette size={15} aria-hidden="true" /> Changer de thème
+            </Button>
             <h3>Image de fond</h3>
             <div className="map-row">
               <input
@@ -2883,6 +3642,7 @@ export function MapPage({ popup = false, onClose }: { popup?: boolean; onClose?:
                     />
                   ))}
                 </div>
+                {chosen.kind !== "party" && tokenCone(chosen)}
                 <div className="map-row">
                   <Button
                     className="btn"

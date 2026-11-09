@@ -1,4 +1,5 @@
-import type { CSSProperties } from "react";
+import { useState, type CSSProperties } from "react";
+import type { LucideIcon } from "lucide-react";
 import {
   BringToFront,
   Copy,
@@ -11,6 +12,8 @@ import {
   Trash2,
 } from "lucide-react";
 import { SYMBOL_ICONS } from "@/components/map-symbols";
+import { Actions, ConeControls, Section, Slider, Stepper, Tiles } from "@/components/MapInspector";
+import { DEFAULT_CONE } from "@/lib/map-cones";
 import { Button } from "@/components/ui/button";
 import { LIGHT_SIZES } from "@/lib/map-light";
 import {
@@ -19,11 +22,102 @@ import {
   SYMBOL_LABELS,
   TEXT_MAX,
   boxOf,
+  symbolColor,
   type MapObject,
+  type ObjectPatch,
 } from "@/lib/map-objects";
+import { OBJECT_LOOKS, type ObjectLook } from "@/lib/map-style";
 
 /** Ce que pose l'outil Objet ou le tampon. */
 export type ObjectSource = { k: "symbol"; sym: string } | { k: "image"; src: string };
+
+/** Un symbole dans l'un des styles d'objets, centré sur l'origine. */
+export function SymbolArt({
+  Icon,
+  pw,
+  ph,
+  look,
+  color,
+}: {
+  Icon: LucideIcon;
+  pw: number;
+  ph: number;
+  look: ObjectLook;
+  color: string;
+}) {
+  const m = Math.min(pw, ph);
+  const glyph = (k: number) => (
+    <Icon className="glyph" x={(-pw * k) / 2} y={(-ph * k) / 2} width={pw * k} height={ph * k} />
+  );
+  const style = { "--grp": color } as CSSProperties;
+  if (look === "flat")
+    return (
+      <g className="sym look-flat" style={style}>
+        <rect
+          className="sym-badge"
+          x={-pw / 2 + m * 0.04}
+          y={-ph / 2 + m * 0.04}
+          width={pw - m * 0.08}
+          height={ph - m * 0.08}
+          rx={m * 0.26}
+        />
+        {glyph(0.6)}
+      </g>
+    );
+  if (look === "token")
+    return (
+      <g className="sym look-token" style={style}>
+        <circle className="sym-disc" r={m * 0.47} />
+        <circle className="sym-ring" r={m * 0.39} />
+        {glyph(0.54)}
+      </g>
+    );
+  if (look === "plan")
+    return (
+      <g className="sym look-plan">
+        <rect className="sym-frame" x={-pw / 2} y={-ph / 2} width={pw} height={ph} />
+        {glyph(0.78)}
+      </g>
+    );
+  if (look === "ink")
+    return (
+      <g className="sym look-ink">
+        <ellipse className="sym-wash" rx={pw * 0.46} ry={ph * 0.4} />
+        <g filter="url(#map-obj-ink)">
+          <g className="sym-echo" transform={`translate(${m * 0.03} ${-m * 0.025})`}>
+            {glyph(1)}
+          </g>
+          {glyph(1)}
+        </g>
+      </g>
+    );
+  return <g className={`sym look-${look}`}>{glyph(1)}</g>;
+}
+
+/** Petit aperçu d'un symbole dans un style, pour les boutons. */
+export function SymbolTile({
+  sym,
+  look,
+  size = 34,
+}: {
+  sym: string;
+  look: ObjectLook;
+  size?: number;
+}) {
+  const Icon = SYMBOL_ICONS[sym];
+  if (!Icon) return null;
+  return (
+    <svg
+      className="map-sym-tile"
+      viewBox="-22 -22 44 44"
+      width={size}
+      height={size}
+      aria-hidden="true"
+    >
+      <SymbolArt Icon={Icon} pw={36} ph={36} look={look} color={symbolColor(sym)} />
+    </svg>
+  );
+}
 
 /** Un objet dessiné dans son repère : centré, tourné, à l'échelle d'une case de `cell` pixels. */
 export function ObjectView({
@@ -33,7 +127,10 @@ export function ObjectView({
   selected,
   ghost = false,
   handle,
+  look = "line",
 }: {
+  /** Dessin des symboles de la carte, si l'objet n'en choisit pas un */
+  look?: ObjectLook;
   o: MapObject;
   cell: number;
   url?: string | undefined;
@@ -55,7 +152,9 @@ export function ObjectView({
       opacity={o.op}
       style={o.color ? ({ "--obj": o.color } as CSSProperties) : undefined}
     >
-      {Icon && <Icon x={-pw / 2} y={-ph / 2} width={pw} height={ph} />}
+      {Icon && (
+        <SymbolArt Icon={Icon} pw={pw} ph={ph} look={o.look ?? look} color={symbolColor(o.sym)} />
+      )}
       {o.k === "image" &&
         (url ? (
           <image
@@ -101,6 +200,16 @@ export function ObjectView({
           />
         </>
       )}
+      {o.k === "camera" && (
+        <g className="map-camera-icon">
+          <circle r={Math.min(pw, ph) * 0.42} className="base" />
+          <path
+            className="body"
+            d={`M${-pw * 0.17} ${ph * 0.22} L${pw * 0.17} ${ph * 0.22} L${pw * 0.11} ${-ph * 0.36} L${-pw * 0.11} ${-ph * 0.36} Z`}
+          />
+          <circle className="lens" cy={-ph * 0.27} r={Math.min(pw, ph) * 0.07} />
+        </g>
+      )}
       {o.k === "text" && (
         <text y={ph * 0.36} fontSize={ph}>
           {o.text}
@@ -126,6 +235,9 @@ export function ObjectLibrary({
   onPick,
   onUpload,
   onRemoveImage,
+  look,
+  mapLook,
+  onLook,
 }: {
   images: string[];
   urls: Record<string, string>;
@@ -133,9 +245,64 @@ export function ObjectLibrary({
   onPick: (s: ObjectSource) => void;
   onUpload: (f: File) => void;
   onRemoveImage: (src: string) => void;
+  /** Style des prochains symboles posés ; « auto » : celui de la carte */
+  look: ObjectLook | "auto";
+  mapLook: ObjectLook;
+  onLook: (look: ObjectLook | "auto") => void;
 }) {
+  const [query, setQuery] = useState("");
+  const [group, setGroup] = useState<string | null>(null);
+  const q = query.trim().toLowerCase();
+  const shown = look === "auto" ? mapLook : look;
   return (
     <div className="map-library">
+      <section className="map-insp-sec">
+        <h4>Style des symboles</h4>
+        <div className="map-looks" role="radiogroup" aria-label="Style des symboles">
+          {[
+            { id: "auto" as const, label: "Comme la carte" },
+            ...OBJECT_LOOKS.map((l) => ({ id: l.id, label: l.label })),
+          ].map((l) => (
+            <Button
+              key={l.id}
+              role="radio"
+              aria-checked={look === l.id}
+              title={
+                l.id === "auto"
+                  ? "Le style d’objets du thème de la carte"
+                  : OBJECT_LOOKS.find((x) => x.id === l.id)?.hint
+              }
+              onClick={() => onLook(l.id)}
+            >
+              <SymbolTile sym="Barrel" look={l.id === "auto" ? mapLook : l.id} size={30} />
+              <span>{l.label}</span>
+            </Button>
+          ))}
+        </div>
+      </section>
+      <input
+        className="field"
+        type="search"
+        placeholder="Chercher : coffre, arbre, table…"
+        aria-label="Chercher un symbole"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+      />
+      <div className="map-groups" role="radiogroup" aria-label="Famille">
+        <Button role="radio" aria-checked={group === null} onClick={() => setGroup(null)}>
+          Tout
+        </Button>
+        {SYMBOL_GROUPS.map((g) => (
+          <Button
+            key={g.label}
+            role="radio"
+            aria-checked={group === g.label}
+            onClick={() => setGroup(group === g.label ? null : g.label)}
+          >
+            {g.label}
+          </Button>
+        ))}
+      </div>
       <h3>Mes images</h3>
       <p className="note plain">
         Tes propres images (PNG transparent de préférence), visibles par ta table seulement.
@@ -179,28 +346,34 @@ export function ObjectLibrary({
           ))}
         </div>
       )}
-      {SYMBOL_GROUPS.map((g) => (
-        <section key={g.label}>
-          <h3>{g.label}</h3>
-          <div className="map-library-grid">
-            {g.ids.map((id) => {
-              const Icon = SYMBOL_ICONS[id];
-              if (!Icon) return null;
-              return (
+      {SYMBOL_GROUPS.filter((g) => !group || g.label === group).map((g) => {
+        const ids = g.ids.filter((id) => !q || (SYMBOL_LABELS[id] ?? id).toLowerCase().includes(q));
+        if (!ids.length) return null;
+        return (
+          <section key={g.label}>
+            <h3>{g.label}</h3>
+            <div className="map-library-grid symbols">
+              {ids.map((id) => (
                 <Button
                   key={id}
                   aria-label={SYMBOL_LABELS[id] ?? id}
-                  title={SYMBOL_LABELS[id] ?? id}
+                  title={`${SYMBOL_LABELS[id] ?? id} : touche pour choisir, ou glisse sur la carte`}
                   aria-pressed={chosen?.k === "symbol" && chosen.sym === id}
+                  draggable
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData("application/x-map-symbol", id);
+                    e.dataTransfer.effectAllowed = "copy";
+                  }}
                   onClick={() => onPick({ k: "symbol", sym: id })}
                 >
-                  <Icon size={22} aria-hidden="true" />
+                  <SymbolTile sym={id} look={shown} />
+                  <span>{SYMBOL_LABELS[id] ?? id}</span>
                 </Button>
-              );
-            })}
-          </div>
-        </section>
-      ))}
+              ))}
+            </div>
+          </section>
+        );
+      })}
     </div>
   );
 }
@@ -237,9 +410,10 @@ export function ObjectEditor({
   onBring,
   cellValue,
   cellUnit,
+  mapLook,
 }: {
   o: MapObject;
-  onChange: (patch: Partial<MapObject>) => void;
+  onChange: (patch: ObjectPatch) => void;
   onFront: () => void;
   onBack: () => void;
   onDuplicate: () => void;
@@ -251,6 +425,8 @@ export function ObjectEditor({
   /** Échelle de la carte : la portée d'une lumière s'affiche dans son unité */
   cellValue: number;
   cellUnit: string;
+  /** Style d'objets de la carte */
+  mapLook: ObjectLook;
 }) {
   const isLight = o.k === "light";
   const rad = o.rad ?? 4;
@@ -267,135 +443,209 @@ export function ObjectEditor({
           },
     );
   const turn = (d: number) => onChange({ r: (((o.r + d) % 360) + 360) % 360 });
+  const names: Record<MapObject["k"], string> = {
+    symbol: "Symbole choisi",
+    image: "Image choisie",
+    stairs: "Escalier choisi",
+    text: "Texte choisi",
+    light: "Lumière choisie",
+    camera: "Caméra choisie",
+  };
   return (
-    <div className="map-door-types map-shape-opts map-object-bar" aria-label="Objet choisi">
-      {o.k === "text" && (
-        <input
-          key={o.id}
-          className="field map-object-text"
-          aria-label="Texte"
-          defaultValue={o.text}
-          maxLength={TEXT_MAX}
-          onBlur={(e) => {
-            const text = e.target.value.trim();
-            if (text && text !== o.text) onChange({ text });
-            else e.target.value = o.text ?? "";
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-          }}
+    <div className="map-object-edit" aria-label="Objet choisi">
+      <h3>{names[o.k]}</h3>
+      {o.k === "symbol" && o.sym && (
+        <Tiles
+          label="Style"
+          cols={4}
+          value={o.look ?? "auto"}
+          options={[
+            {
+              value: "auto" as const,
+              label: "Carte",
+              icon: <SymbolTile sym={o.sym} look={mapLook} size={26} />,
+              hint: "Suit le style d'objets du thème de la carte.",
+            },
+            ...OBJECT_LOOKS.map((l) => ({
+              value: l.id,
+              label: l.label,
+              icon: <SymbolTile sym={o.sym!} look={l.id} size={26} />,
+              hint: l.hint,
+            })),
+          ]}
+          onChange={(look) => onChange({ look })}
         />
+      )}
+      {o.k === "camera" && (
+        <>
+          <Section label="Nom" hint="Montré quand la caméra repère quelqu'un.">
+            <input
+              key={o.id}
+              className="field"
+              aria-label="Nom de la caméra"
+              placeholder="Caméra"
+              defaultValue={o.text ?? ""}
+              maxLength={40}
+              onBlur={(e) => {
+                const text = e.target.value.trim();
+                if (text !== (o.text ?? "")) onChange(text ? { text } : { text: "" });
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+              }}
+            />
+          </Section>
+          <ConeControls
+            cone={o.cone ?? DEFAULT_CONE}
+            dir={o.r}
+            onCone={(patch) => onChange({ cone: { ...(o.cone ?? DEFAULT_CONE), ...patch } })}
+            onDir={(r) => onChange({ r })}
+            cellValue={cellValue}
+            cellUnit={cellUnit}
+          />
+        </>
+      )}
+      {o.k === "text" && (
+        <Section label="Texte">
+          <input
+            key={o.id}
+            className="field"
+            aria-label="Texte"
+            defaultValue={o.text}
+            maxLength={TEXT_MAX}
+            onBlur={(e) => {
+              const text = e.target.value.trim();
+              if (text && text !== o.text) onChange({ text });
+              else e.target.value = o.text ?? "";
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+            }}
+          />
+        </Section>
       )}
       {isLight && (
         <>
-          <div className="map-opt" role="group" aria-label="Portée">
-            <small aria-hidden="true">Portée</small>
-            <Button
-              aria-label="Moins loin"
-              onClick={() => onChange({ rad: Math.max(0.5, Math.round((rad - 1) * 2) / 2) })}
-            >
-              −
-            </Button>
-            <span className="map-opt-value">{reach(rad)}</span>
-            <Button
-              aria-label="Plus loin"
-              onClick={() => onChange({ rad: Math.min(60, Math.round((rad + 1) * 2) / 2) })}
-            >
-              +
-            </Button>
-            {LIGHT_SIZES.map((z) => (
-              <Button
-                key={z.label}
-                aria-pressed={rad === z.rad}
-                title={`${z.label} : ${reach(z.rad)}`}
-                onClick={() => onChange({ rad: z.rad })}
-              >
-                {z.label}
-              </Button>
-            ))}
-          </div>
-          <label className="map-opt" title="Part de la portée en pleine lumière">
-            <small aria-hidden="true">Pleine lumière</small>
-            <input
-              type="range"
-              aria-label="Pleine lumière"
-              min={0}
-              max={1}
-              step={0.05}
-              value={o.bright ?? 0.5}
-              onChange={(e) => onChange({ bright: Number(e.target.value) })}
-            />
-          </label>
+          <Stepper
+            label="Portée"
+            value={reach(rad)}
+            minusLabel="Moins loin"
+            plusLabel="Plus loin"
+            onMinus={() => onChange({ rad: Math.max(0.5, Math.round((rad - 1) * 2) / 2) })}
+            onPlus={() => onChange({ rad: Math.min(60, Math.round((rad + 1) * 2) / 2) })}
+          />
+          <Tiles
+            label="Portée rapide"
+            cols={3}
+            value={LIGHT_SIZES.find((z) => z.rad === rad)?.rad ?? -1}
+            options={LIGHT_SIZES.map((z) => ({ value: z.rad, label: z.label, hint: reach(z.rad) }))}
+            onChange={(r) => onChange({ rad: r })}
+          />
+          <Tiles
+            label="Flamme"
+            cols={2}
+            compact
+            value={o.flicker === true}
+            options={[
+              { value: false, label: "Fixe", hint: "Une lumière stable : lampe, néon." },
+              {
+                value: true,
+                label: "Vacille",
+                hint: "Elle tremble comme une torche ou une bougie.",
+              },
+            ]}
+            onChange={(flicker) => onChange({ flicker })}
+          />
+          <Slider
+            label="Pleine lumière"
+            value={o.bright ?? 0.5}
+            min={0}
+            max={1}
+            step={0.05}
+            format={(v) => `${Math.round(v * 100)} % de la portée`}
+            onChange={(bright) => onChange({ bright })}
+          />
         </>
       )}
       {!isLight && (
-        <div className="map-opt" role="group" aria-label="Taille">
-          <small aria-hidden="true">Taille</small>
-          <Button aria-label="Plus petit" onClick={() => scale(1 / 1.25)}>
-            −
-          </Button>
-          <Button aria-label="Plus grand" onClick={() => scale(1.25)}>
-            +
-          </Button>
-        </div>
-      )}
-      {!isLight && (
-        <div className="map-opt" role="group" aria-label="Rotation">
-          <small aria-hidden="true">Tourner</small>
-          <Button aria-label="Tourner à gauche" title="Tourner à gauche" onClick={() => turn(-90)}>
-            <RotateCcw size={15} />
-          </Button>
-          <Button aria-label="Tourner à droite" title="Tourner à droite" onClick={() => turn(90)}>
-            <RotateCw size={15} />
-          </Button>
+        <div className="map-insp-pair">
+          <Stepper
+            label="Taille"
+            value={
+              o.k === "text"
+                ? o.h.toLocaleString("fr-FR")
+                : `${o.w.toLocaleString("fr-FR")} × ${o.h.toLocaleString("fr-FR")}`
+            }
+            minusLabel="Plus petit"
+            plusLabel="Plus grand"
+            onMinus={() => scale(1 / 1.25)}
+            onPlus={() => scale(1.25)}
+          />
+          <section className="map-insp-sec">
+            <h4>Tourner</h4>
+            <div className="map-stepper" role="group" aria-label="Rotation">
+              <Button
+                aria-label="Tourner à gauche"
+                title="Tourner à gauche"
+                onClick={() => turn(-90)}
+              >
+                <RotateCcw size={15} />
+              </Button>
+              <output>{Math.round(o.r)}°</output>
+              <Button
+                aria-label="Tourner à droite"
+                title="Tourner à droite"
+                onClick={() => turn(90)}
+              >
+                <RotateCw size={15} />
+              </Button>
+            </div>
+          </section>
         </div>
       )}
       {o.k === "stairs" && (
-        <div className="map-opt" role="group" aria-label="Marches par case">
-          <small aria-hidden="true">Marches</small>
-          <Button
-            aria-label="Moins de marches"
-            onClick={() => onChange({ steps: Math.max(1, (o.steps ?? 3) - 1) })}
-          >
-            −
-          </Button>
-          <span className="map-opt-value">{o.steps ?? 3}</span>
-          <Button
-            aria-label="Plus de marches"
-            onClick={() => onChange({ steps: Math.min(8, (o.steps ?? 3) + 1) })}
-          >
-            +
-          </Button>
-        </div>
+        <Stepper
+          label="Marches par case"
+          value={o.steps ?? 3}
+          minusLabel="Moins de marches"
+          plusLabel="Plus de marches"
+          onMinus={() => onChange({ steps: Math.max(1, (o.steps ?? 3) - 1) })}
+          onPlus={() => onChange({ steps: Math.min(8, (o.steps ?? 3) + 1) })}
+        />
       )}
       {o.k !== "image" && (
-        <label className="map-opt map-color" title="Couleur">
-          <small aria-hidden="true">Couleur</small>
-          <input
-            type="color"
-            aria-label="Couleur"
-            value={o.color ?? "#808080"}
-            onChange={(e) => onChange({ color: e.target.value })}
-          />
-        </label>
+        <Section label={isLight ? "Teinte" : "Couleur"}>
+          <label className="map-color map-insp-color">
+            <input
+              type="color"
+              aria-label="Couleur"
+              value={o.color ?? "#808080"}
+              onChange={(e) => onChange({ color: e.target.value })}
+            />
+            <span>{o.color ?? "Couleur du thème"}</span>
+          </label>
+        </Section>
       )}
-      <label className="map-opt" title="Opacité">
-        <small aria-hidden="true">{isLight ? "Intensité" : "Opacité"}</small>
-        <input
-          type="range"
-          aria-label="Opacité"
-          min={0.1}
-          max={1}
-          step={0.05}
-          value={o.op ?? 1}
-          onChange={(e) => onChange({ op: Number(e.target.value) })}
-        />
-      </label>
-      {o.k !== "text" && !isLight && maps.length > 0 && (
-        <div className="map-opt" role="group" aria-label="Mène à">
-          <small aria-hidden="true">Mène à</small>
+      <Slider
+        label={isLight ? "Intensité" : "Opacité"}
+        value={o.op ?? 1}
+        min={0.1}
+        max={1}
+        step={0.05}
+        format={(v) => `${Math.round(v * 100)} %`}
+        onChange={(op) => onChange({ op })}
+      />
+      {o.k !== "text" && o.k !== "camera" && !isLight && maps.length > 0 && (
+        <Section
+          label="Mène à une autre carte"
+          hint={
+            target
+              ? "« Emmener le groupe » déplace les pions du groupe sur cette carte."
+              : "Pour un escalier, une échelle, un portail."
+          }
+        >
           <select
-            className="field map-object-link"
+            className="field"
             aria-label="Carte où mène cet objet"
             value={target ? target.id : ""}
             onChange={(e) => onChange({ link: e.target.value })}
@@ -408,34 +658,29 @@ export function ObjectEditor({
             ))}
           </select>
           {target && (
-            <>
+            <Actions>
               <Button title={`Ouvrir « ${target.name} »`} onClick={() => onGo(target.id)}>
                 Y aller
               </Button>
-              <Button
-                title="Les pions du groupe passent sur l'autre carte, près de l'objet qui ramène ici"
-                onClick={() => onBring(target.id)}
-              >
-                Emmener le groupe
-              </Button>
-            </>
+              <Button onClick={() => onBring(target.id)}>Emmener le groupe</Button>
+            </Actions>
           )}
-        </div>
+        </Section>
       )}
-      <div className="map-opt" role="group" aria-label="Ordre et actions">
-        <Button aria-label="Mettre devant" title="Mettre devant" onClick={onFront}>
-          <BringToFront size={15} />
+      <Actions>
+        <Button title="Mettre devant" onClick={onFront}>
+          <BringToFront size={15} aria-hidden="true" /> Devant
         </Button>
-        <Button aria-label="Mettre derrière" title="Mettre derrière" onClick={onBack}>
-          <SendToBack size={15} />
+        <Button title="Mettre derrière" onClick={onBack}>
+          <SendToBack size={15} aria-hidden="true" /> Derrière
         </Button>
-        <Button aria-label="Dupliquer" title="Dupliquer (Ctrl+D)" onClick={onDuplicate}>
-          <Copy size={15} />
+        <Button title="Dupliquer (Ctrl+D)" onClick={onDuplicate}>
+          <Copy size={15} aria-hidden="true" /> Dupliquer
         </Button>
-        <Button aria-label="Supprimer l’objet" title="Supprimer (Suppr)" onClick={onRemove}>
-          <Trash2 size={15} />
+        <Button className="danger" title="Supprimer (Suppr)" onClick={onRemove}>
+          <Trash2 size={15} aria-hidden="true" /> Supprimer
         </Button>
-      </div>
+      </Actions>
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { floorOf, readShapes, type MapShape } from "./map-shapes";
 import {
   DEFAULT_MAP_STYLE,
   MAP_STYLES,
+  STYLE_ERAS,
   applyPreset,
   hatchTile,
   isTweaked,
@@ -49,6 +50,31 @@ describe("apparence de la carte", () => {
     expect(readMapStyle(styleToJson(st)).floor).toBeNull();
     expect(styleVars(st)["--map-ground"]).toBeUndefined();
     expect(styleVars(st)["--map-wall"]).toBe("#111111");
+  });
+
+  it("thèmes : chacun a son époque, et un effet illisible reprend celui du thème", () => {
+    expect(new Set(MAP_STYLES.map((p) => p.id)).size).toBe(MAP_STYLES.length);
+    for (const era of STYLE_ERAS) expect(MAP_STYLES.some((p) => p.era === era.id)).toBe(true);
+    const neon = applyPreset("neon");
+    const st = readMapStyle({
+      preset: "neon",
+      texture: "velours",
+      wallLine: 3,
+      font: "comic",
+      glow: 9,
+      vignette: "oui",
+    });
+    expect(st).toMatchObject({
+      texture: neon.texture,
+      wallLine: neon.wallLine,
+      font: neon.font,
+      glow: 1,
+      vignette: neon.vignette,
+    });
+    expect(styleVars(neon)["--map-glow"]).toBe("11px");
+    expect(styleVars(applyPreset("architect"))["--map-font"]).toBe("var(--mono)");
+    // Un ancien style garde ses couleurs : seuls les effets s'ajoutent
+    expect(readMapStyle({ preset: "hatch" }).texture).toBe("none");
   });
 
   it("les hachures sont les mêmes sur chaque écran", () => {

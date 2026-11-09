@@ -6,6 +6,19 @@
 import { MAP_MAX, reachableCells, type MapEdge, type Point, type Segment } from "@/lib/map";
 import type { MapObject } from "@/lib/map-objects";
 
+/** Ambiance animée posée sur la carte, vue de tous */
+export type Weather = "none" | "rain" | "storm" | "snow" | "mist" | "embers" | "ash" | "glitch";
+export const WEATHERS: { id: Weather; label: string; hint: string }[] = [
+  { id: "none", label: "Aucune", hint: "Le ciel est dégagé." },
+  { id: "rain", label: "Pluie", hint: "Une pluie fine et continue." },
+  { id: "storm", label: "Orage", hint: "Pluie battante et éclairs de temps en temps." },
+  { id: "snow", label: "Neige", hint: "Des flocons qui tombent doucement." },
+  { id: "mist", label: "Brume", hint: "Des nappes de brume qui dérivent." },
+  { id: "embers", label: "Braises", hint: "Des étincelles qui montent : incendie, forge, volcan." },
+  { id: "ash", label: "Cendres", hint: "Une pluie grise de cendres." },
+  { id: "glitch", label: "Parasites", hint: "Un écran qui grésille : réseau, rêve, hologramme." },
+];
+
 export type LightSettings = {
   on: boolean;
   /** Couleur de la nuit */
@@ -14,8 +27,18 @@ export type LightSettings = {
   dark: number;
   /** Portée de la lumière des pions du groupe, en cases ; 0 = ils n'éclairent pas */
   party: number;
+  weather: Weather;
+  /** Force de l'ambiance, de 0,2 à 1 */
+  weatherPower: number;
 };
-export const DEFAULT_LIGHT: LightSettings = { on: false, night: "#0b1030", dark: 0.85, party: 0 };
+export const DEFAULT_LIGHT: LightSettings = {
+  on: false,
+  night: "#0b1030",
+  dark: 0.85,
+  party: 0,
+  weather: "none",
+  weatherPower: 0.6,
+};
 
 const COLOR = /^#[0-9a-f]{6}$/i;
 const num = (v: unknown, min: number, max: number, fallback: number) =>
@@ -30,6 +53,8 @@ export function readLight(raw: unknown): LightSettings {
       typeof o["night"] === "string" && COLOR.test(o["night"]) ? o["night"] : DEFAULT_LIGHT.night,
     dark: num(o["dark"], 0, 1, DEFAULT_LIGHT.dark),
     party: num(o["party"], 0, 60, 0),
+    weather: WEATHERS.some((w) => w.id === o["weather"]) ? (o["weather"] as Weather) : "none",
+    weatherPower: num(o["weatherPower"], 0.2, 1, DEFAULT_LIGHT.weatherPower),
   };
 }
 
@@ -47,6 +72,8 @@ export type LightSource = {
   bright: number;
   color: string | null;
   power: number;
+  /** Vacille comme une flamme */
+  flicker: boolean;
 };
 
 /** Sources du moment : les lumières posées, puis les pions du groupe s'ils éclairent. */
@@ -64,10 +91,18 @@ export function lightSources(
       bright: o.bright ?? 0.5,
       color: o.color ?? null,
       power: o.op ?? 1,
+      flicker: o.flicker === true,
     }));
   const carried =
     settings.party > 0
-      ? party.map((p) => ({ ...p, rad: settings.party, bright: 0.5, color: null, power: 1 }))
+      ? party.map((p) => ({
+          ...p,
+          rad: settings.party,
+          bright: 0.5,
+          color: null,
+          power: 1,
+          flicker: false,
+        }))
       : [];
   return [...placed, ...carried];
 }

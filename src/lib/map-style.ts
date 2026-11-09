@@ -16,7 +16,75 @@ export const TERRAINS = MAP_LAYERS.filter((l) => l.id !== "floor").map((l) => l.
   "floor"
 >[];
 
-export type StyleId = "theme" | "hatch" | "parchment" | "blueprint" | "solid" | "mono";
+export type StyleId =
+  | "theme"
+  | "hatch"
+  | "parchment"
+  | "blueprint"
+  | "solid"
+  | "mono"
+  | "engraving"
+  | "notebook"
+  | "stone"
+  | "architect"
+  | "station"
+  | "neon"
+  | "hologram"
+  | "tactical";
+
+/** Grain posé sur toute la carte */
+export type MapTexture = "none" | "paper" | "grain" | "stone" | "scan" | "dots";
+/** Trait des murs */
+export type WallLine = "solid" | "double" | "sketch";
+export type GridLine = "line" | "dots" | "dash";
+/** Police des textes posés sur la carte */
+export type MapFont = "theme" | "serif" | "mono" | "hand";
+/** Dessin des symboles posés sur la carte */
+export type ObjectLook = "line" | "ink" | "flat" | "neon" | "plan" | "token";
+export const OBJECT_LOOKS: { id: ObjectLook; label: string; hint: string }[] = [
+  { id: "line", label: "Trait", hint: "Un trait net, dans la couleur des murs." },
+  { id: "ink", label: "Encre", hint: "À l’ancienne : plume sépia, trait tremblé, lavis." },
+  { id: "flat", label: "Pastille", hint: "Moderne : une pastille colorée par famille d’objets." },
+  { id: "neon", label: "Néon", hint: "Un trait lumineux qui brille dans le noir." },
+  { id: "plan", label: "Plan", hint: "Technique : trait fin dans un cadre en pointillés." },
+  { id: "token", label: "Pion", hint: "Comme un jeton de jeu posé sur la table." },
+];
+/** Époque d'un style, pour ranger la liste */
+export type StyleEra = "old" | "classic" | "modern";
+
+export const TEXTURES: { id: MapTexture; label: string; hint: string }[] = [
+  { id: "none", label: "Aucune", hint: "Des aplats nets." },
+  { id: "paper", label: "Papier", hint: "Un vieux papier un peu taché." },
+  { id: "grain", label: "Grain", hint: "Un grain fin, comme une gravure." },
+  { id: "stone", label: "Pierre", hint: "Des dalles et de la roche usées." },
+  { id: "scan", label: "Écran", hint: "Les lignes d’un écran." },
+  { id: "dots", label: "Trame", hint: "Une trame de points, façon impression." },
+];
+export const WALL_LINES: { id: WallLine; label: string; hint: string }[] = [
+  { id: "solid", label: "Plein", hint: "Un trait net." },
+  { id: "double", label: "Double", hint: "Deux traits, comme un plan d’architecte." },
+  { id: "sketch", label: "À la main", hint: "Un trait tremblé, dessiné à la plume." },
+];
+export const GRID_LINES: { id: GridLine; label: string }[] = [
+  { id: "line", label: "Lignes" },
+  { id: "dash", label: "Tirets" },
+  { id: "dots", label: "Points" },
+];
+export const MAP_FONTS: { id: MapFont; label: string; css: string | null }[] = [
+  { id: "theme", label: "Du thème", css: null },
+  { id: "serif", label: "Ancienne", css: "Georgia, 'Times New Roman', serif" },
+  { id: "mono", label: "Technique", css: "var(--mono)" },
+  {
+    id: "hand",
+    label: "Manuscrite",
+    css: "'Segoe Print', 'Bradley Hand', 'Comic Sans MS', cursive",
+  },
+];
+export const STYLE_ERAS: { id: StyleEra; label: string }[] = [
+  { id: "old", label: "À l’ancienne" },
+  { id: "classic", label: "Classiques" },
+  { id: "modern", label: "Modernes" },
+];
 
 /** null : couleur du thème */
 export type MapStyle = {
@@ -37,6 +105,16 @@ export type MapStyle = {
   lava: string | null;
   plants: string | null;
   road: string | null;
+  texture: MapTexture;
+  wallLine: WallLine;
+  gridLine: GridLine;
+  font: MapFont;
+  /** Lueur autour des murs, de 0 (aucune) à 1 */
+  glow: number;
+  /** Bords de la carte assombris */
+  vignette: boolean;
+  /** Dessin des symboles, si l'objet n'en choisit pas un lui-même */
+  objLook: ObjectLook;
 };
 
 type Preset = Omit<MapStyle, "preset">;
@@ -54,20 +132,35 @@ const THEME: Preset = {
   lava: null,
   plants: null,
   road: null,
+  texture: "none",
+  wallLine: "solid",
+  gridLine: "line",
+  font: "theme",
+  glow: 0,
+  vignette: false,
+  objLook: "line",
 };
 const NATURE = { water: "#4f8fc9", lava: "#e0531f", plants: "#5d8a45", road: "#a08867" };
 
-export const MAP_STYLES: { id: StyleId; label: string; hint: string; value: Preset }[] = [
+export const MAP_STYLES: {
+  id: StyleId;
+  label: string;
+  hint: string;
+  era: StyleEra;
+  value: Preset;
+}[] = [
   {
     id: "theme",
     label: "Thème",
     hint: "Les couleurs de l’univers de la table.",
+    era: "classic",
     value: THEME,
   },
   {
     id: "hatch",
     label: "Hachures",
     hint: "Murs noirs et hachures autour, le plan de donjon classique.",
+    era: "classic",
     value: {
       ...THEME,
       ...NATURE,
@@ -83,7 +176,8 @@ export const MAP_STYLES: { id: StyleId; label: string; hint: string; value: Pres
   {
     id: "parchment",
     label: "Parchemin",
-    hint: "Tons de vieux papier et murs bruns.",
+    hint: "Vieux papier taché, encre brune et lettres anciennes.",
+    era: "old",
     value: {
       ...THEME,
       floor: "#f3e6c4",
@@ -98,12 +192,17 @@ export const MAP_STYLES: { id: StyleId; label: string; hint: string; value: Pres
       lava: "#c4532a",
       plants: "#7d8b4a",
       road: "#b39466",
+      texture: "paper",
+      font: "serif",
+      vignette: true,
+      objLook: "ink",
     },
   },
   {
     id: "blueprint",
     label: "Plan bleu",
     hint: "Roche bleue et salles blanches, façon vieux modules.",
+    era: "classic",
     value: {
       ...THEME,
       ...NATURE,
@@ -113,12 +212,14 @@ export const MAP_STYLES: { id: StyleId; label: string; hint: string; value: Pres
       grid: "#8fb1dd",
       wallWidth: 4,
       gridOutside: true,
+      objLook: "plan",
     },
   },
   {
     id: "solid",
     label: "Murs pleins",
     hint: "Murs épais et sombres, pour les bâtiments.",
+    era: "classic",
     value: {
       ...THEME,
       ...NATURE,
@@ -134,6 +235,7 @@ export const MAP_STYLES: { id: StyleId; label: string; hint: string; value: Pres
     id: "mono",
     label: "Noir et blanc",
     hint: "Pur noir et blanc, idéal pour imprimer.",
+    era: "classic",
     value: {
       ...THEME,
       floor: "#ffffff",
@@ -146,6 +248,187 @@ export const MAP_STYLES: { id: StyleId; label: string; hint: string; value: Pres
       lava: "#4d4d4d",
       plants: "#7a7a7a",
       road: "#c8c8c8",
+    },
+  },
+  {
+    id: "engraving",
+    label: "Gravure",
+    hint: "Encre sépia, trait tremblé et grain fin, comme un vieux livre.",
+    era: "old",
+    value: {
+      ...THEME,
+      floor: "#efe4cc",
+      rock: "#d9c8a3",
+      wall: "#2b2118",
+      grid: "#c9b58d",
+      wallWidth: 4,
+      hatch: true,
+      hatchSize: 0.5,
+      water: "#7f9a9a",
+      lava: "#a8482a",
+      plants: "#6f7a45",
+      road: "#bba67c",
+      texture: "grain",
+      wallLine: "sketch",
+      font: "serif",
+      vignette: true,
+      objLook: "ink",
+    },
+  },
+  {
+    id: "notebook",
+    label: "Carnet",
+    hint: "Papier quadrillé et stylo bleu, la carte griffonnée en partie.",
+    era: "old",
+    value: {
+      ...THEME,
+      floor: "#fdfcf6",
+      rock: "#f6f3e8",
+      wall: "#24398f",
+      grid: "#bfd0ec",
+      wallWidth: 3,
+      gridOutside: true,
+      water: "#8fb5e0",
+      lava: "#e07a5f",
+      plants: "#9cc28a",
+      road: "#d9cfb8",
+      wallLine: "sketch",
+      font: "hand",
+      objLook: "ink",
+    },
+  },
+  {
+    id: "stone",
+    label: "Pierre",
+    hint: "Dalles grises, roche sombre et ombres : le donjon de pierre.",
+    era: "old",
+    value: {
+      ...THEME,
+      ...NATURE,
+      floor: "#8d877b",
+      rock: "#2e2b27",
+      wall: "#16130f",
+      grid: "#6f6a60",
+      wallWidth: 7,
+      shadow: true,
+      texture: "stone",
+      font: "serif",
+      vignette: true,
+      objLook: "ink",
+    },
+  },
+  {
+    id: "architect",
+    label: "Architecte",
+    hint: "Plan d’architecte : murs doubles, grille en points, lettres techniques.",
+    era: "modern",
+    value: {
+      ...THEME,
+      floor: "#ffffff",
+      rock: "#eceef1",
+      wall: "#2b2f36",
+      grid: "#b7bec8",
+      wallWidth: 7,
+      water: "#9cc7e6",
+      lava: "#ef8a62",
+      plants: "#a7d0a0",
+      road: "#d5d9de",
+      wallLine: "double",
+      gridLine: "dots",
+      font: "mono",
+      objLook: "plan",
+    },
+  },
+  {
+    id: "station",
+    label: "Station",
+    hint: "Coursives métalliques et sols clairs, pour un vaisseau ou un labo.",
+    era: "modern",
+    value: {
+      ...THEME,
+      floor: "#c9d1d9",
+      rock: "#151a21",
+      wall: "#5d6d7e",
+      grid: "#a7b3bf",
+      wallWidth: 8,
+      shadow: true,
+      water: "#5fb3d9",
+      lava: "#ff6b3d",
+      plants: "#6fbf73",
+      road: "#7d8896",
+      wallLine: "double",
+      gridLine: "dash",
+      font: "mono",
+      objLook: "plan",
+    },
+  },
+  {
+    id: "neon",
+    label: "Néon",
+    hint: "Murs lumineux sur fond nuit, lignes d’écran.",
+    era: "modern",
+    value: {
+      ...THEME,
+      floor: "#12101f",
+      rock: "#06050c",
+      wall: "#ff2bd6",
+      grid: "#2c2550",
+      wallWidth: 3,
+      water: "#00e5ff",
+      lava: "#ff5a1f",
+      plants: "#39ff88",
+      road: "#2a2440",
+      texture: "scan",
+      font: "mono",
+      glow: 0.9,
+      vignette: true,
+      objLook: "neon",
+    },
+  },
+  {
+    id: "hologram",
+    label: "Hologramme",
+    hint: "Une projection bleue qui flotte : traits clairs et lueur douce.",
+    era: "modern",
+    value: {
+      ...THEME,
+      floor: "#062a3a",
+      rock: "#020b12",
+      wall: "#5ff3ff",
+      grid: "#0f5d70",
+      wallWidth: 2,
+      water: "#2fa8ff",
+      lava: "#ff7a59",
+      plants: "#3dffb0",
+      road: "#0b3e52",
+      texture: "scan",
+      gridLine: "dots",
+      font: "mono",
+      glow: 0.6,
+      objLook: "neon",
+    },
+  },
+  {
+    id: "tactical",
+    label: "Tactique",
+    hint: "Carte militaire : fond kaki, traits clairs et trame de points.",
+    era: "modern",
+    value: {
+      ...THEME,
+      floor: "#2d362c",
+      rock: "#161b16",
+      wall: "#c8d6a0",
+      grid: "#46533f",
+      wallWidth: 3,
+      gridOutside: true,
+      water: "#3f6f7f",
+      lava: "#c4532a",
+      plants: "#4f6b3a",
+      road: "#4a4a3a",
+      texture: "dots",
+      gridLine: "dash",
+      font: "mono",
+      objLook: "token",
     },
   },
 ];
@@ -171,6 +454,8 @@ const color = (v: unknown, fallback: string | null) =>
 const bounded = (v: unknown, min: number, max: number, fallback: number) =>
   typeof v === "number" && Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : fallback;
 const flag = (v: unknown, fallback: boolean) => (typeof v === "boolean" ? v : fallback);
+const oneOf = <T extends string>(v: unknown, list: { id: T }[], fallback: T): T =>
+  list.some((x) => x.id === v) ? (v as T) : fallback;
 
 /**
  * Lit la colonne `style` : le style choisi, puis les retouches enregistrées.
@@ -198,6 +483,13 @@ export function readMapStyle(raw: unknown): MapStyle {
     hatchSize: bounded(o["hatchSize"], 0.25, 2, base.hatchSize),
     shadow: flag(o["shadow"], base.shadow),
     gridOutside: flag(o["gridOutside"], base.gridOutside),
+    texture: oneOf(o["texture"], TEXTURES, base.texture),
+    wallLine: oneOf(o["wallLine"], WALL_LINES, base.wallLine),
+    gridLine: oneOf(o["gridLine"], GRID_LINES, base.gridLine),
+    font: oneOf(o["font"], MAP_FONTS, base.font),
+    glow: bounded(o["glow"], 0, 1, base.glow),
+    vignette: flag(o["vignette"], base.vignette),
+    objLook: oneOf(o["objLook"], OBJECT_LOOKS, base.objLook),
   };
 }
 
@@ -231,6 +523,8 @@ export function styleVars(s: MapStyle): Record<string, string> {
   set("--map-lava", s.lava);
   set("--map-plants", s.plants);
   set("--map-road", s.road);
+  set("--map-font", MAP_FONTS.find((x) => x.id === s.font)?.css ?? null);
+  if (s.glow > 0) vars["--map-glow"] = `${Math.round(s.glow * 12)}px`;
   return vars;
 }
 
